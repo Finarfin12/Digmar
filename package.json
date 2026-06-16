@@ -22,8 +22,10 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-dropzone": "^15.0.0",
+    "react-image-crop": "^11.0.10",
     "recharts": "^3.8.1",
     "sweetalert2": "^11.26.25",
+    "uuid": "^14.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -31,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",

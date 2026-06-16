@@ -6,6 +6,8 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import PostScheduler from '@/components/planner/PostScheduler';
+import HashtagModal from '@/components/planner/HashtagModal';
+import { Hash } from 'lucide-react';
 
 export default function Planner() {
   const [events, setEvents] = useState<any[]>([]);
@@ -13,6 +15,7 @@ export default function Planner() {
   const [accounts, setAccounts] = useState<any[]>([]);
   
   const [showModal, setShowModal] = useState(false);
+  const [showHashtagModal, setShowHashtagModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   const calendarRef = useRef<FullCalendar>(null);
@@ -83,9 +86,14 @@ export default function Planner() {
             <p className="text-slate-600 text-sm font-medium">Klik tanggal untuk menjadwalkan, atau geser (drag) post yang sudah ada.</p>
           </div>
         </div>
-        <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
-          <PlusCircle size={18} /> Buat Jadwal Baru
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowHashtagModal(true)} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-5 py-3 rounded-xl flex items-center gap-2 transition-all font-bold border border-indigo-200">
+            <Hash size={18} /> Riset Hashtag
+          </button>
+          <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
+            <PlusCircle size={18} /> Buat Jadwal Baru
+          </button>
+        </div>
       </header>
       
       <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 overflow-hidden calendar-container text-slate-900">
@@ -141,6 +149,8 @@ export default function Planner() {
           </div>
         </div>
       )}
+
+      {showHashtagModal && <HashtagModal onClose={() => setShowHashtagModal(false)} />}
     </div>
   );
 }

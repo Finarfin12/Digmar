@@ -1,6 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { decryptValue } from '@/lib/crypto/server';
 import { publishToInstagram } from './instagram';
+import { publishToFacebook } from './facebook';
+import { publishToTikTok } from './tiktok';
 import type { PostJob, SocialAccount } from './types';
 
 export async function processQueue() {
@@ -56,6 +58,16 @@ export async function processQueue() {
 
           if (account.platform === 'meta_ig') {
             const res = await publishToInstagram(account, job);
+            logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
+            if (res.success) anySuccess = true;
+            else allSuccess = false;
+          } else if (account.platform === 'facebook') {
+            const res = await publishToFacebook(account, job);
+            logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
+            if (res.success) anySuccess = true;
+            else allSuccess = false;
+          } else if (account.platform === 'tiktok') {
+            const res = await publishToTikTok(account, job);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;

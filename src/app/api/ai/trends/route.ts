@@ -30,20 +30,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
     }
 
-    // 2. Fetch Real-time News (Free Google News RSS Indonesia)
+    // 2. Fetch Real-time News (NewsData.io AND Google News RSS)
     let trendingNews: string[] = [];
-    try {
-      const res = await fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } });
-      const xmlData = await res.text();
-      const parser = new XMLParser();
-      const jsonObj = parser.parse(xmlData);
-      
-      const items = jsonObj?.rss?.channel?.item || [];
-      const topItems = Array.isArray(items) ? items.slice(0, 7) : [items];
-      
-      trendingNews = topItems.map((item: { title: string }) => item.title);
-    } catch (e) {
-      console.error("Gagal menarik RSS Berita:", e);
+    const apiKey = process.env.NEWSDATA_API_KEY;
+
+    const fetchPromises = [];
+
+    // Promise 1: Google News
+    fetchPromises.push(
+      fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } })
+        .then(res => res.text())
+        .then(xmlData => {
+          const parser = new XMLParser();
+          const jsonObj = parser.parse(xmlData);
+          const items = jsonObj?.rss?.channel?.item || [];
+          const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
+          return topItems.map((item: { title: string }) => item.title);
+        })
+    );
+
+    // Promise 2: NewsData.io
+    if (apiKey) {
+      fetchPromises.push(
+        fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&country=id&language=id`, { next: { revalidate: 3600 } })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.results && data.results.length > 0) {
+              return data.results.slice(0, 5).map((item: { title: string }) => item.title);
+            }
+            return [];
+          })
+      );
+    }
+
+    const resultsList = await Promise.allSettled(fetchPromises);
+    resultsList.forEach(result => {
+      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+        trendingNews = [...trendingNews, ...result.value];
+      } else if (result.status === 'rejected') {
+        console.error("Gagal menarik salah satu sumber berita:", result.reason);
+      }
+    });
+
+    if (trendingNews.length === 0) {
       trendingNews = ["Gagal memuat berita terkini."];
     }
 

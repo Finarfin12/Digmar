@@ -4,17 +4,17 @@ Dokumen ini berisi daftar ide fitur baru dan pengembangan (enhancements) untuk p
 
 ## 📌 Prioritas Jangka Pendek (Segera Dikerjakan)
 
-- [ ] **Integrasi Provider AI OpenRouter**
+- [x] **Integrasi Provider AI OpenRouter**
   - Mengimplementasikan `lib/ai/providers/openrouter.ts` agar sistem dapat menggunakan berbagai model LLM (seperti Claude, Llama, Gemini) hanya dengan satu API Key.
   - Memperbarui sistem *Factory Pattern* (`factory.ts`) untuk memuat *provider* baru ini.
 
-- [ ] **Fase 3: *News-Jacking* & *Seasonal Prediction***
+- [x] **Fase 3: *News-Jacking* & *Seasonal Prediction***
   - Integrasi API Berita Gratis (misal: GNews API / NewsData.io) sebagai *data-feeder* untuk AI.
   - AI dapat merekomendasikan ide konten yang *relatable* dengan berita *viral* hari ini, kondisi cuaca, atau hari libur nasional (konteks tanggal & musim).
 
 ## 🤖 Otomatisasi & Media Sosial
 
-- [ ] **AI Smart Auto-Reply (Komentar & DM)**
+- [x] **AI Smart Auto-Reply (Komentar & DM)**
   - Melanjutkan implementasi dari database (`00000000000003_autoreply.sql`).
   - Membangun *endpoint* khusus (contoh: di `/api/webhooks/meta`) yang bisa membaca sentimen pesan masuk dan memberikan respons cerdas secara otomatis menggunakan AI tanpa campur tangan admin.
 

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Swal from 'sweetalert2';
+import CompetitorSpy from './CompetitorSpy';
 
 export default function Analytics() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export default function Analytics() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [activeTab, setActiveTab] = useState<'performance' | 'competitors'>('performance');
 
   // Fetch Accounts
   useEffect(() => {
@@ -57,8 +59,18 @@ export default function Analytics() {
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
       
-      {/* Header & Selector */}
-      <header className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* Tabs */}
+      <div className="flex space-x-2 border-b border-slate-300">
+        <button onClick={() => setActiveTab('performance')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'performance' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Performance Dashboard</button>
+        <button onClick={() => setActiveTab('competitors')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'competitors' ? 'border-pink-600 text-pink-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Competitor Spy</button>
+      </div>
+
+      {activeTab === 'competitors' ? (
+        <CompetitorSpy />
+      ) : (
+        <>
+          {/* Header & Selector */}
+          <header className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Performance Dashboard</h2>
           <p className="text-slate-600 font-medium mt-1">Lacak jangkauan dan interaksi audiens Anda.</p>
@@ -190,6 +202,8 @@ export default function Analytics() {
             </div>
           </div>
         </>
+      )}
+      </>
       )}
     </div>
   );

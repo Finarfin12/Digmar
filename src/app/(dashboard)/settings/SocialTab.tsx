@@ -114,6 +114,7 @@ export default function SocialTab() {
                   <label className="block text-sm font-bold text-slate-800 mb-1">Platform</label>
                   <select value={platform} onChange={e => setPlatform(e.target.value)} className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg">
                     <option value="meta_ig">Instagram Graph API</option>
+                    <option value="facebook">Facebook Pages API</option>
                     <option value="threads">Threads API</option>
                     <option value="tiktok">TikTok API</option>
                   </select>

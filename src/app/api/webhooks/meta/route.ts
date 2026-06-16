@@ -104,6 +104,72 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
             }
           }
         }
+
+        // Penanganan Direct Message (DM)
+        if (entry.messaging) {
+          for (const msgEvent of entry.messaging) {
+            if (msgEvent.message && msgEvent.message.text) {
+              const senderId = msgEvent.sender.id;
+              const recipientId = msgEvent.recipient.id; // Harus sama dengan igUserId
+              const messageText = msgEvent.message.text;
+
+              if (senderId === recipientId) continue;
+
+              const supabase = createServiceClient()
+              const { data: account } = await supabase
+                .from('social_accounts')
+                .select('*, business_units(user_id, ai_system_prompt)')
+                .eq('ig_user_id', recipientId)
+                .eq('auto_reply_enabled', true)
+                .single()
+
+              if (!account || !account.business_units) continue;
+
+              const userId = account.business_units.user_id;
+              const systemPrompt = account.business_units.ai_system_prompt || 'Anda adalah asisten CS.';
+
+              const { client } = await getAIProvider(userId);
+              const aiPrompt = `
+Konteks Bisnis: ${systemPrompt}
+
+Pelanggan mengirimkan Direct Message (DM) ke Instagram bisnis Anda.
+Pesan: "${messageText}"
+
+Tugas Anda:
+Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. Jawab pertanyaan mereka dengan jelas. Maksimal 3 kalimat.
+`;
+              const aiResponse = await client.generateText(
+                "Anda adalah representatif Customer Service yang sangat responsif.",
+                aiPrompt,
+                { temperature: 0.7, maxTokens: 200 }
+              );
+
+              const replyText = aiResponse.content.trim().replace(/"/g, '');
+
+              const token = decryptValue(account.access_token_encrypted);
+              const graphUrl = `https://graph.facebook.com/v18.0/me/messages`;
+              
+              const postReply = await fetch(graphUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  recipient: { id: senderId },
+                  message: { text: replyText }
+                })
+              });
+
+              if (!postReply.ok) {
+                const errData = await postReply.text();
+                console.error('Gagal mengirim DM ke Meta:', errData);
+              } else {
+                console.log(`Berhasil membalas DM ke ${senderId} -> ${replyText}`);
+              }
+            }
+          }
+        }
       }
       return new NextResponse('EVENT_RECEIVED', { status: 200 })
     }
