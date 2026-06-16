@@ -1,16 +1,24 @@
 import OpenAI from 'openai';
 import type { AIProviderClient, AIProviderResponse } from './types';
 
-export class GroqClient implements AIProviderClient {
+export interface OpenAICompatibleConfig {
+  apiKey: string;
+  model: string;
+  baseURL?: string;
+  timeout?: number;
+}
+
+export class OpenAICompatibleClient implements AIProviderClient {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'llama-3.3-70b-versatile') {
+  constructor(config: OpenAICompatibleConfig) {
     this.client = new OpenAI({
-      apiKey,
-      baseURL: 'https://api.groq.com/openai/v1',
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+      timeout: config.timeout,
     });
-    this.model = model;
+    this.model = config.model;
   }
 
   async generateText(

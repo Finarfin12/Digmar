@@ -1,14 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { decryptValue } from '@/lib/crypto/server';
-import { GroqClient } from './providers/groq';
-import { OpenAIClient } from './providers/openai';
-import { VPSClient } from './providers/vps';
+import { OpenAICompatibleClient } from './providers/base';
 import type { AIProviderClient, AIProviderConfig } from './providers/types';
 
 export async function getAIProvider(userId: string, preferredProvider?: string): Promise<{ client: AIProviderClient, config: AIProviderConfig }> {
   const supabase = await createClient();
   
-  let query = supabase
+  const query = supabase
     .from('ai_providers')
     .select('*')
     .eq('user_id', userId)
@@ -27,7 +25,11 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
     const apiKey = process.env.GROQ_API_KEY || ''; // Example fallback
     
     return {
-      client: new GroqClient(apiKey, defaultModel),
+      client: new OpenAICompatibleClient({
+        apiKey,
+        model: defaultModel,
+        baseURL: 'https://api.groq.com/openai/v1'
+      }),
       config: {
         provider_name: 'groq',
         is_active: true,
@@ -51,17 +53,33 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
 
   switch (selectedProvider.provider_name) {
     case 'groq':
-      client = new GroqClient(apiKey, selectedProvider.model || process.env.DEFAULT_AI_MODEL);
+      client = new OpenAICompatibleClient({
+        apiKey,
+        model: selectedProvider.model || process.env.DEFAULT_AI_MODEL || 'llama-3.3-70b-versatile',
+        baseURL: 'https://api.groq.com/openai/v1'
+      });
       break;
     case 'openai':
-      client = new OpenAIClient(apiKey, selectedProvider.model);
+      client = new OpenAICompatibleClient({
+        apiKey,
+        model: selectedProvider.model || 'gpt-4o'
+      });
       break;
     case 'openrouter':
-      client = new OpenAIClient(apiKey, selectedProvider.model, selectedProvider.base_url || 'https://openrouter.ai/api/v1');
+      client = new OpenAICompatibleClient({
+        apiKey,
+        model: selectedProvider.model || '',
+        baseURL: selectedProvider.base_url || 'https://openrouter.ai/api/v1'
+      });
       break;
     case 'vps':
       if (!selectedProvider.base_url) throw new Error('VPS base_url is required');
-      client = new VPSClient(apiKey, selectedProvider.base_url, selectedProvider.model);
+      client = new OpenAICompatibleClient({
+        apiKey,
+        model: selectedProvider.model || '',
+        baseURL: selectedProvider.base_url,
+        timeout: 30000
+      });
       break;
     default:
       throw new Error(`Provider ${selectedProvider.provider_name} not supported yet`);
