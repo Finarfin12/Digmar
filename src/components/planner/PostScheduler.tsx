@@ -108,9 +108,9 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-2">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-2">
       {/* KIRI: Form Input */}
-      <div className="space-y-6">
+      <div className="lg:col-span-5 space-y-6">
         
         {/* Post Type Selector */}
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -176,12 +176,9 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
       </div>
 
-      {/* KANAN: Mockup & Schedule Form */}
-      <div className="space-y-6">
-        
-        {/* Instagram Mockup */}
-        <div className="bg-slate-100 p-6 rounded-2xl border border-slate-200 flex justify-center sticky top-6">
-          <div className="w-[320px] bg-white rounded-[36px] shadow-2xl border-[8px] border-slate-900 overflow-hidden relative">
+      {/* TENGAH: Mockup */}
+      <div className="lg:col-span-4 bg-slate-100 p-6 rounded-2xl border border-slate-200 flex justify-center sticky top-6 self-start">
+        <div className="w-[320px] max-w-full bg-white rounded-[36px] shadow-2xl border-[8px] border-slate-900 overflow-hidden relative">
             <div className="h-12 border-b flex items-center px-4 justify-between bg-white">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-yellow-400 to-purple-600 p-[2px]">
@@ -224,8 +221,9 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           </div>
         </div>
 
-        {/* Schedule Form */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+      {/* KANAN: Schedule Form */}
+      <div className="lg:col-span-3 sticky top-6 self-start">
+        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm w-full">
           <h4 className="font-extrabold text-slate-900 mb-4 flex items-center gap-2"><CalendarIcon size={18}/> Detail Penjadwalan</h4>
           
           <div className="space-y-4">
