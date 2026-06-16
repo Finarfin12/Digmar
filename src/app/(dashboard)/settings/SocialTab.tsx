@@ -122,12 +122,12 @@ export default function SocialTab() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-1">ID Pengguna</label>
-                <input required value={user} onChange={e => setUser(e.target.value)} type="text" className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
+                <input required value={user} onChange={e => setUser(e.target.value)} type="text" autoComplete="off" className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-1">Access Token</label>
                 <div className="relative">
-                  <input required value={token} onChange={e => setToken(e.target.value)} type={showToken ? "text" : "password"} className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
+                  <input required value={token} onChange={e => setToken(e.target.value)} type={showToken ? "text" : "password"} autoComplete="new-password" className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
                   <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-3 top-3 text-slate-500">{showToken ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
                 </div>
               </div>

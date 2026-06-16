@@ -237,7 +237,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-1">Tanggal & Waktu</label>
-              <input type="datetime-local" value={scheduledDate ? format(scheduledDate, "yyyy-MM-dd'T'HH:mm") : ''} onChange={e => setScheduledDate(new Date(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 font-medium" />
+              <input type="datetime-local" value={scheduledDate ? format(scheduledDate as Date, "yyyy-MM-dd'T'HH:mm") : ''} onChange={e => setScheduledDate(new Date(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 font-medium" />
             </div>
 
             <button onClick={handleSave} disabled={saving} className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white p-4 rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-70">
