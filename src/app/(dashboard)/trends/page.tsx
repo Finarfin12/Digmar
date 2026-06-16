@@ -2,12 +2,14 @@
 import { useState, useEffect } from 'react';
 import { Sparkles, TrendingUp, Hash, Zap, Loader2, Newspaper, ChevronRight } from "lucide-react";
 import Swal from 'sweetalert2';
+import { useRouter } from 'next/navigation';
 
 export default function Trends() {
   const [loading, setLoading] = useState(false);
   const [units, setUnits] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
   const [trends, setTrends] = useState<any>(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetch('/api/units')
@@ -132,7 +134,10 @@ export default function Trends() {
                     </div>
                     
                     <div className="shrink-0 pt-2 md:pt-0">
-                      <button className="w-full md:w-auto bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+                      <button 
+                        onClick={() => router.push('/planner')}
+                        className="w-full md:w-auto bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
+                      >
                         Jadikan Post <ChevronRight size={18}/>
                       </button>
                     </div>
