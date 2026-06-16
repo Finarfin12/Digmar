@@ -209,7 +209,7 @@ export default function Planner() {
                 <div>
                   <label className="block text-sm font-bold text-slate-800 mb-1">Unit Bisnis (Konteks AI)</label>
                   <select required value={formUnit} onChange={e => setFormUnit(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 font-medium">
-                    {units.map(u => <option key={u.id} value={u.id} className="text-slate-900">{u.name}</option>)}
+                    {units.map(u => <option key={u.id} value={u.id} className="text-slate-900">{u.brand_name}</option>)}
                   </select>
                 </div>
               </div>

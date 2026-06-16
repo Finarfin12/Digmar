@@ -156,7 +156,7 @@ export default function Settings() {
     const res = await fetch('/api/units', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: unitName, category: unitCategory, ai_system_prompt: unitPrompt })
+      body: JSON.stringify({ brand_name: unitName, business_category: unitCategory, ai_system_prompt: unitPrompt })
     });
     setLoading(false);
     if (res.ok) {
@@ -165,7 +165,8 @@ export default function Settings() {
       setUnitName(''); setUnitCategory(''); setUnitPrompt('');
       fetchData();
     } else {
-      Swal.fire('Error', 'Gagal menyimpan unit', 'error');
+      const errData = await res.json().catch(()=>({}));
+      Swal.fire('Error', errData.error || 'Gagal menyimpan unit', 'error');
     }
   };
 
@@ -289,8 +290,8 @@ export default function Settings() {
                     <button onClick={() => handleDeleteUnit(u.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
                       <Trash2 size={20} />
                     </button>
-                    <div className="font-extrabold text-xl text-slate-900">{u.name}</div>
-                    <div className="text-sm text-indigo-700 font-bold mt-1">{u.category || 'Tanpa Kategori'}</div>
+                    <div className="font-extrabold text-xl text-slate-900">{u.brand_name}</div>
+                    <div className="text-sm text-indigo-700 font-bold mt-1">{u.business_category || 'Tanpa Kategori'}</div>
                     <div className="text-sm text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded border border-slate-100">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
                   </div>
                 ))}
@@ -329,7 +330,7 @@ export default function Settings() {
                         <label className="block text-sm font-bold text-slate-800 mb-1">Target Unit Bisnis</label>
                         <select required value={socialUnit} onChange={e => setSocialUnit(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium">
                           <option value="" disabled>Pilih Unit...</option>
-                          {units.map((u: any) => <option key={u.id} value={u.id} className="text-slate-900">{u.name}</option>)}
+                          {units.map((u: any) => <option key={u.id} value={u.id} className="text-slate-900">{u.brand_name}</option>)}
                         </select>
                       </div>
                       <div>
@@ -368,7 +369,7 @@ export default function Settings() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {accounts.map((a: any) => {
-                  const unitName = units.find(u => u.id === a.business_unit_id)?.name || 'Unit Tidak Dikenal';
+                  const unitName = units.find(u => u.id === a.business_unit_id)?.brand_name || 'Unit Tidak Dikenal';
                   return (
                     <div key={a.id} className="p-6 rounded-xl border border-pink-100 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-white to-pink-50/50 relative group">
                       <button onClick={() => handleDeleteSocial(a.id)} className="absolute top-4 right-4 text-pink-300 hover:text-red-500 transition-colors">
