@@ -3,7 +3,7 @@ import { SocialAccount, PostJob } from './types';
 const INSTAGRAM_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
 
 async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: any) {
-  const url = `https://graph.instagram.com/${INSTAGRAM_API_VERSION}/${path}`;
+  const url = `https://graph.facebook.com/${INSTAGRAM_API_VERSION}/${path}`;
   
   const headers: any = {
     Authorization: `Bearer ${token}`

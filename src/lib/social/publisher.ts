@@ -54,7 +54,7 @@ export async function processQueue() {
             access_token: decryptValue(accountDb.access_token_encrypted)
           };
 
-          if (account.platform === 'instagram') {
+          if (account.platform === 'meta_ig') {
             const res = await publishToInstagram(account, job);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;

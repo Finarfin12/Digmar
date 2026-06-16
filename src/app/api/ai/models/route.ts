@@ -8,6 +8,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing base_url or api_key' }, { status: 400 })
     }
 
+    // Validate domain to prevent SSRF
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(base_url);
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid base_url format' }, { status: 400 });
+    }
+
+    const allowedDomains = ['api.groq.com', 'api.openai.com', 'openrouter.ai', 'api.anthropic.com'];
+    if (!allowedDomains.some(domain => parsedUrl.hostname === domain || parsedUrl.hostname.endsWith(`.${domain}`))) {
+      return NextResponse.json({ error: 'base_url domain not allowed' }, { status: 403 });
+    }
+
     // Clean trailing slash
     const cleanBaseUrl = base_url.replace(/\/$/, '')
     

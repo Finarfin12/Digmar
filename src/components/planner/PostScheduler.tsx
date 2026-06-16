@@ -218,7 +218,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
                 ) : (
                   <img src={mediaPreview} alt="Preview" className="h-32 object-contain rounded-lg mb-2" />
                 )}
-                <p className="text-sm text-green-600 font-bold flex items-center gap-1"><CheckCircle2 size={16}/> Media Siap ({Math.round(mediaFile!.size/1024)} KB)</p>
+                <p className="text-sm text-green-600 font-bold flex items-center gap-1"><CheckCircle2 size={16}/> Media Siap ({Math.round((mediaFile?.size || 0)/1024)} KB)</p>
                 <p className="text-xs text-slate-500 mt-1">Klik atau drag lagi untuk mengganti.</p>
               </div>
             ) : (
