@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Settings2, PlusCircle, Key, Link as LinkIcon, Instagram, Briefcase } from 'lucide-react';
+import { Settings2, PlusCircle, Key, Link as LinkIcon, Share2, Briefcase } from 'lucide-react';
 import Swal from 'sweetalert2';
 import withReactContent from 'sweetalert2-react-content';
 
@@ -203,7 +203,7 @@ export default function Settings() {
           <div className="p-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Instagram className="text-pink-500" size={20}/> Akun Sosial Media</h3>
+                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Share2 className="text-pink-500" size={20}/> Akun Sosial Media</h3>
                 <p className="text-slate-500 text-sm mt-1">Hubungkan API Token Instagram / Threads di sini.</p>
               </div>
               <button onClick={addAccount} className="bg-gradient-to-r from-pink-500 to-orange-400 hover:from-pink-600 hover:to-orange-500 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all transform hover:scale-105 active:scale-95">
