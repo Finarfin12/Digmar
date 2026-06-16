@@ -96,7 +96,7 @@ export default function SocialTab() {
       {showForm && (
         <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8">
           <div className="flex justify-between mb-4">
-            <h4 className="font-extrabold text-lg">Kredensial Meta API</h4>
+            <h4 className="font-extrabold text-lg text-slate-900">Kredensial Meta API</h4>
             <button type="button" onClick={() => setShowForm(false)} className="text-slate-500 hover:text-red-600"><X/></button>
           </div>
           {units.length === 0 ? (
@@ -105,14 +105,14 @@ export default function SocialTab() {
             <div className="grid gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold mb-1">Target Unit</label>
-                  <select required value={unit} onChange={e => setUnit(e.target.value)} className="w-full p-3 border rounded-lg">
+                  <label className="block text-sm font-bold text-slate-800 mb-1">Target Unit</label>
+                  <select required value={unit} onChange={e => setUnit(e.target.value)} className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg">
                     {units.map(u => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold mb-1">Platform</label>
-                  <select value={platform} onChange={e => setPlatform(e.target.value)} className="w-full p-3 border rounded-lg">
+                  <label className="block text-sm font-bold text-slate-800 mb-1">Platform</label>
+                  <select value={platform} onChange={e => setPlatform(e.target.value)} className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg">
                     <option value="meta_ig">Instagram Graph API</option>
                     <option value="threads">Threads API</option>
                     <option value="tiktok">TikTok API</option>
@@ -120,13 +120,13 @@ export default function SocialTab() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold mb-1">ID Pengguna</label>
-                <input required value={user} onChange={e => setUser(e.target.value)} type="text" className="w-full p-3 border rounded-lg" />
+                <label className="block text-sm font-bold text-slate-800 mb-1">ID Pengguna</label>
+                <input required value={user} onChange={e => setUser(e.target.value)} type="text" className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
               </div>
               <div>
-                <label className="block text-sm font-bold mb-1">Access Token</label>
+                <label className="block text-sm font-bold text-slate-800 mb-1">Access Token</label>
                 <div className="relative">
-                  <input required value={token} onChange={e => setToken(e.target.value)} type={showToken ? "text" : "password"} className="w-full p-3 border rounded-lg" />
+                  <input required value={token} onChange={e => setToken(e.target.value)} type={showToken ? "text" : "password"} className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
                   <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-3 top-3 text-slate-500">{showToken ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
                 </div>
               </div>
@@ -140,7 +140,7 @@ export default function SocialTab() {
         {accounts.map(a => (
           <div key={a.id} className="p-6 rounded-xl border border-pink-100 bg-gradient-to-br from-white to-pink-50 relative">
             <button onClick={() => handleDelete(a.id)} className="absolute top-4 right-4 text-pink-300 hover:text-red-500"><Trash2 size={20} /></button>
-            <div className="font-extrabold text-xl capitalize flex items-center gap-2">{a.platform}</div>
+            <div className="font-extrabold text-xl text-slate-900 capitalize flex items-center gap-2">{a.platform}</div>
             <div className="text-sm text-pink-700 font-bold mt-2">ID: {a.ig_user_id}</div>
             <div className="text-xs text-slate-600 mt-1 mb-3">Unit: {units.find(u => u.id === a.business_unit_id)?.brand_name}</div>
             {a.platform === 'meta_ig' && (
