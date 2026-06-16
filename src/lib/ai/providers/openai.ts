@@ -5,9 +5,10 @@ export class OpenAIClient implements AIProviderClient {
   private client: OpenAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'gpt-4o') {
+  constructor(apiKey: string, model: string = 'gpt-4o', baseURL?: string) {
     this.client = new OpenAI({
       apiKey,
+      baseURL
     });
     this.model = model;
   }

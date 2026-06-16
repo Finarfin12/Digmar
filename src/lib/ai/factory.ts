@@ -56,6 +56,9 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
     case 'openai':
       client = new OpenAIClient(apiKey, selectedProvider.model);
       break;
+    case 'openrouter':
+      client = new OpenAIClient(apiKey, selectedProvider.model, selectedProvider.base_url || 'https://openrouter.ai/api/v1');
+      break;
     case 'vps':
       if (!selectedProvider.base_url) throw new Error('VPS base_url is required');
       client = new VPSClient(apiKey, selectedProvider.base_url, selectedProvider.model);

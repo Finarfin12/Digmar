@@ -130,8 +130,9 @@ export default function Settings() {
     const val = e.target.value;
     setAiName(val);
     setAvailableModels([]);
-    if (val === 'groq') setAiBaseUrl('https://api.groq.com/openai');
-    else if (val === 'openai') setAiBaseUrl('https://api.openai.com');
+    if (val === 'groq') setAiBaseUrl('https://api.groq.com/openai/v1');
+    else if (val === 'openai') setAiBaseUrl('https://api.openai.com/v1');
+    else if (val === 'openrouter') setAiBaseUrl('https://openrouter.ai/api/v1');
     else if (val === 'anthropic') setAiBaseUrl('https://api.anthropic.com');
     else setAiBaseUrl('http://YOUR_VPS_IP:PORT');
   };
@@ -453,6 +454,7 @@ export default function Settings() {
                       <select required value={aiName} onChange={handleProviderChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white text-slate-900 font-medium">
                         <option value="groq" className="text-slate-900">Groq (Cepat & Murah)</option>
                         <option value="openai" className="text-slate-900">OpenAI (Akurat)</option>
+                        <option value="openrouter" className="text-slate-900">OpenRouter (Ratusan Model)</option>
                         <option value="anthropic" className="text-slate-900">Anthropic Claude</option>
                         <option value="vps" className="text-slate-900">VPS / Custom Endpoint</option>
                       </select>
