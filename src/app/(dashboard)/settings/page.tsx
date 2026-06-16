@@ -95,6 +95,20 @@ export default function Settings() {
     Swal.fire('Terhapus!', 'Koneksi sosial berhasil dihapus.', 'success');
   };
 
+  const handleToggleAutoReply = async (id: string, currentValue: boolean) => {
+    try {
+      const res = await fetch(`/api/accounts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_reply_enabled: !currentValue })
+      });
+      if (!res.ok) throw new Error('Gagal update status auto-reply');
+      fetchData(); // refresh data
+    } catch (err: any) {
+      Swal.fire('Error', err.message, 'error');
+    }
+  };
+
   const handleDeleteAi = async (id: string) => {
     const res = await Swal.fire({
       title: 'Hapus Konfigurasi AI?',
@@ -389,7 +403,18 @@ export default function Settings() {
                             <span className="bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-bold">API Terhubung</span>
                           </div>
                           <div className="text-sm text-pink-700 font-bold mt-2">ID: {a.ig_user_id}</div>
-                          <div className="text-xs text-slate-600 font-medium mt-1">Terikat ke: {unitName}</div>
+                          <div className="text-xs text-slate-600 font-medium mt-1 mb-3">Terikat ke: {unitName}</div>
+                          
+                          {a.platform === 'meta_ig' && (
+                            <label className="flex items-center gap-3 cursor-pointer bg-white/60 p-2 rounded-lg border border-pink-200">
+                              <div className="relative">
+                                <input type="checkbox" className="sr-only" checked={!!a.auto_reply_enabled} onChange={() => handleToggleAutoReply(a.id, !!a.auto_reply_enabled)} />
+                                <div className={`block w-10 h-6 rounded-full transition-colors ${a.auto_reply_enabled ? 'bg-pink-500' : 'bg-slate-300'}`}></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${a.auto_reply_enabled ? 'translate-x-4' : ''}`}></div>
+                              </div>
+                              <div className="text-xs font-bold text-slate-700">Auto-Reply via AI</div>
+                            </label>
+                          )}
                         </div>
                       </div>
                     </div>
