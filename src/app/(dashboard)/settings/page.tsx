@@ -22,7 +22,7 @@ export default function Settings() {
 
   // Social Form
   const [socialUnit, setSocialUnit] = useState('');
-  const [socialPlatform, setSocialPlatform] = useState('instagram');
+  const [socialPlatform, setSocialPlatform] = useState('meta_ig');
   const [socialUser, setSocialUser] = useState('');
   const [socialToken, setSocialToken] = useState('');
   const [showSocialToken, setShowSocialToken] = useState(false);
@@ -336,18 +336,25 @@ export default function Settings() {
                       <div>
                         <label className="block text-sm font-bold text-slate-800 mb-1">Platform</label>
                         <select value={socialPlatform} onChange={e => setSocialPlatform(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium">
-                          <option value="instagram" className="text-slate-900">Instagram Graph API</option>
+                          <option value="meta_ig" className="text-slate-900">Instagram Graph API</option>
                           <option value="threads" className="text-slate-900">Threads API</option>
+                          <option value="tiktok" className="text-slate-900">TikTok Content API</option>
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-800 mb-1">Instagram Business Account ID</label>
-                      <input required value={socialUser} onChange={e => setSocialUser(e.target.value)} type="text" placeholder="Misal: 17841400000000000" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" autoComplete="new-password" />
-                      <p className="text-xs text-slate-600 mt-1.5 font-medium">ID Angka unik dari Meta Developer Portal.</p>
+                      <label className="block text-sm font-bold text-slate-800 mb-1">
+                        {socialPlatform === 'tiktok' ? 'TikTok Username / Open ID' : socialPlatform === 'threads' ? 'Threads User ID' : 'Instagram Business Account ID'}
+                      </label>
+                      <input required value={socialUser} onChange={e => setSocialUser(e.target.value)} type="text" placeholder={socialPlatform === 'tiktok' ? "Misal: @mybrand" : "Misal: 17841400000000000"} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" autoComplete="new-password" />
+                      <p className="text-xs text-slate-600 mt-1.5 font-medium">
+                        {socialPlatform === 'tiktok' ? 'Username TikTok atau Open ID dari Developer Portal.' : 'ID Angka unik dari Meta Developer Portal.'}
+                      </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-slate-800 mb-1">Long-Lived Access Token</label>
+                      <label className="block text-sm font-bold text-slate-800 mb-1">
+                        {socialPlatform === 'tiktok' ? 'TikTok Access Token' : 'Long-Lived Access Token'}
+                      </label>
                       <div className="relative">
                         <input required value={socialToken} onChange={e => setSocialToken(e.target.value)} type={showSocialToken ? "text" : "password"} placeholder="EAAG..." className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm bg-white text-slate-900 placeholder-slate-400" autoComplete="new-password" />
                         <button type="button" onClick={() => setShowSocialToken(!showSocialToken)} className="absolute right-3 top-3 text-slate-500 hover:text-slate-800">

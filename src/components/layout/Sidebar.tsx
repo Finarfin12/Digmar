@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles } from 'lucide-react';
+import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles, Image as ImageIcon } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -10,6 +10,7 @@ export default function Sidebar() {
     { name: 'Beranda', path: '/', icon: Home },
     { name: 'Planner', path: '/planner', icon: Calendar },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
+    { name: 'Galeri Media', path: '/media', icon: ImageIcon },
     { name: 'Trend Insight', path: '/trends', icon: TrendingUp },
   ];
 

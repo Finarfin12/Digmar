@@ -4,11 +4,13 @@ import { useDropzone } from 'react-dropzone';
 import { format } from 'date-fns';
 import { 
   Calendar as CalendarIcon, Loader2, Save, Sparkles, 
-  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart
+  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart, X
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { createClient } from '@/lib/supabase/client';
 
 export default function PostScheduler({ units, accounts, initialDate, onSuccess }: { units: any[], accounts: any[], initialDate?: Date | null, onSuccess: () => void }) {
+  const supabase = createClient();
   // Post Type
   const [postType, setPostType] = useState('single_image');
   
@@ -17,6 +19,9 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [mediaPreview, setMediaPreview] = useState<string>('');
   const [mediaUrl, setMediaUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [galleryFiles, setGalleryFiles] = useState<any[]>([]);
+  const [loadingGallery, setLoadingGallery] = useState(false);
 
   // AI Generation
   const [formUnit, setFormUnit] = useState(units.length > 0 ? units[0].id : '');
@@ -68,6 +73,29 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
     accept: { 'image/*': ['.jpeg', '.jpg', '.png'], 'video/*': ['.mp4'] },
     maxFiles: 1
   });
+
+  const loadGallery = async () => {
+    setShowGallery(true);
+    setLoadingGallery(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase.storage.from('digimar-media').list(user.id, { limit: 50, sortBy: { column: 'created_at', order: 'desc' } });
+    if (data) {
+      const validFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder');
+      const filesWithUrls = validFiles.map(f => ({
+        ...f,
+        url: supabase.storage.from('digimar-media').getPublicUrl(`${user.id}/${f.name}`).data.publicUrl
+      }));
+      setGalleryFiles(filesWithUrls);
+    }
+    setLoadingGallery(false);
+  };
+
+  const selectFromGallery = (url: string) => {
+    setMediaUrl(url);
+    setMediaPreview(url);
+    setShowGallery(false);
+  };
 
   const generateAI = async () => {
     if (!formUnit || !formContext) {
@@ -164,7 +192,10 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
         {/* Media Dropzone */}
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <label className="block text-sm font-bold text-slate-800 mb-2">Unggah Media (Asset)</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-bold text-slate-800">Unggah Media (Asset)</label>
+            <button onClick={loadGallery} className="text-xs font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-200">Pilih dari Galeri</button>
+          </div>
           <div {...getRootProps()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${isDragActive ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 bg-white hover:bg-slate-50'}`}>
             <input {...getInputProps()} />
             {uploading ? (
@@ -344,6 +375,37 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         </div>
 
       </div>
+
+      {/* Gallery Modal */}
+      {showGallery && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="font-bold text-lg">Pilih dari Galeri</h3>
+              <button onClick={() => setShowGallery(false)} className="text-slate-400 hover:text-red-500"><X size={24}/></button>
+            </div>
+            <div className="p-4 overflow-y-auto flex-1 bg-slate-50">
+              {loadingGallery ? (
+                <div className="flex justify-center p-8"><Loader2 className="animate-spin text-indigo-600" size={32}/></div>
+              ) : galleryFiles.length === 0 ? (
+                <div className="text-center p-8 text-slate-500 font-medium">Galeri kosong.</div>
+              ) : (
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                  {galleryFiles.map(f => (
+                    <div key={f.id} onClick={() => selectFromGallery(f.url)} className="aspect-square bg-slate-200 rounded-lg overflow-hidden cursor-pointer hover:ring-4 ring-indigo-500 transition-all">
+                      {f.metadata?.mimetype?.startsWith('video') ? (
+                        <video src={f.url} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src={f.url} className="w-full h-full object-cover" alt="gallery" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
