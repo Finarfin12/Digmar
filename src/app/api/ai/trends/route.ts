@@ -36,7 +36,22 @@ export async function POST(request: NextRequest) {
 
     const fetchPromises = [];
 
-    // Promise 1: NewsData.io
+    // Promise 1: Google News
+    if (source === 'mixed' || source === 'google_news') {
+      fetchPromises.push(
+        fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } })
+          .then(res => res.text())
+          .then(xmlData => {
+            const parser = new XMLParser();
+            const jsonObj = parser.parse(xmlData);
+            const items = jsonObj?.rss?.channel?.item || [];
+            const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
+            return topItems.map((item: { title: string }) => item.title);
+          })
+      );
+    }
+
+    // Promise 2: NewsData.io
     if (apiKey && (source === 'mixed' || source === 'newsdata')) {
       fetchPromises.push(
         fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&country=id&language=id`, { next: { revalidate: 3600 } })

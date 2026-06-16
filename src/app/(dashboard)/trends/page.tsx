@@ -69,6 +69,7 @@ export default function Trends() {
           >
             <option value="mixed">Campur Semua</option>
             <option value="youtube">YouTube Trends</option>
+            <option value="google_news">Berita Google</option>
             <option value="newsdata">Berita Global</option>
           </select>
 
