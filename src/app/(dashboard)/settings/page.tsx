@@ -62,21 +62,54 @@ export default function Settings() {
   };
 
   const handleDeleteUnit = async (id: string) => {
-    if (!confirm('Hapus Unit Bisnis ini?')) return;
+    const res = await Swal.fire({
+      title: 'Hapus Unit Bisnis?',
+      text: 'Semua akun sosial yang terhubung ke unit ini akan ikut terhapus.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal'
+    });
+    if (!res.isConfirmed) return;
     await fetch(`/api/units/${id}`, { method: 'DELETE' });
     fetchData();
+    Swal.fire('Terhapus!', 'Unit Bisnis berhasil dihapus.', 'success');
   };
 
   const handleDeleteSocial = async (id: string) => {
-    if (!confirm('Hapus koneksi sosial media ini?')) return;
+    const res = await Swal.fire({
+      title: 'Hapus Koneksi Sosial?',
+      text: 'DigiMar tidak akan bisa memposting ke akun ini lagi.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Putuskan Koneksi',
+      cancelButtonText: 'Batal'
+    });
+    if (!res.isConfirmed) return;
     await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
     fetchData();
+    Swal.fire('Terhapus!', 'Koneksi sosial berhasil dihapus.', 'success');
   };
 
   const handleDeleteAi = async (id: string) => {
-    if (!confirm('Hapus konfigurasi AI ini? API Key yang tersimpan akan ikut terhapus.')) return;
+    const res = await Swal.fire({
+      title: 'Hapus Konfigurasi AI?',
+      text: 'API Key yang tersimpan untuk provider ini akan ikut terhapus.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal'
+    });
+    if (!res.isConfirmed) return;
     await fetch(`/api/providers/${id}`, { method: 'DELETE' });
     fetchData();
+    Swal.fire('Terhapus!', 'Konfigurasi AI berhasil dihapus.', 'success');
   };
 
   const handleProviderChange = (e: any) => {
