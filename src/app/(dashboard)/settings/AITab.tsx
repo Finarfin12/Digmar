@@ -53,11 +53,11 @@ export default function AITab() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const m = data.data.map((x: any) => x.id);
+      const m = data.data.map((x: { id: string }) => x.id);
       setAvailableModels(m);
       if (m.length > 0) setModel(m[0]);
-    } catch (e: any) {
-      Swal.fire('Error', e.message, 'error');
+    } catch (e: unknown) {
+      Swal.fire('Error', (e as Error).message, 'error');
     } finally {
       setFetching(false);
     }

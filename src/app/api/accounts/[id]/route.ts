@@ -47,7 +47,7 @@ export async function PUT(
     delete body.id
     delete body.business_unit_id
     
-    const updateData: any = { ...body, updated_at: new Date().toISOString() }
+    const updateData: Record<string, unknown> = { ...body, updated_at: new Date().toISOString() }
 
     if (body.access_token) {
       updateData.access_token_encrypted = encryptValue(body.access_token)
@@ -67,8 +67,8 @@ export async function PUT(
 
     const { access_token_encrypted, ...safeData } = data
     return NextResponse.json({ ...safeData, has_token: true })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }
 

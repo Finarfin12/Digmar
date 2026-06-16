@@ -57,7 +57,7 @@ KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
     }
 
     return NextResponse.json(parsedData)
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }

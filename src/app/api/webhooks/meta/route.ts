@@ -109,7 +109,7 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
     }
 
     return new NextResponse('Bad Request', { status: 400 })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Webhook Error:', err);
     return new NextResponse('Internal Server Error', { status: 500 })
   }

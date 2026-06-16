@@ -174,7 +174,7 @@ export default function Analytics() {
               </div>
               
               <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
-                {analytics.recent_comments.map((comment: any) => (
+                {analytics.recent_comments.map((comment: { id: string, username: string, text: string, time: string }) => (
                   <div key={comment.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors">
                     <div className="flex justify-between items-start mb-2">
                       <span className="font-bold text-slate-900 text-sm">@{comment.username}</span>

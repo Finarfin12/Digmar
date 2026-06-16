@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     const { api_key_encrypted, ...safeData } = data
     return NextResponse.json({ ...safeData, has_key: !!api_key_encrypted }, { status: 201 })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }

@@ -14,5 +14,5 @@ export interface PostJob {
   caption: string;
   post_type: 'single_image' | 'carousel' | 'reels';
   cover_url?: string;
-  log_messages: any[];
+  log_messages: Record<string, unknown>[];
 }

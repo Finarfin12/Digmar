@@ -3,7 +3,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 
-export default function AnalyticsChart({ posts }: { posts: any[] }) {
+import type { PostJob } from '@/types';
+
+export default function AnalyticsChart({ posts }: { posts: PostJob[] }) {
   // Aggregate posts by day
   const dailyData: Record<string, number> = {};
   
@@ -16,7 +18,7 @@ export default function AnalyticsChart({ posts }: { posts: any[] }) {
 
   // Count published posts
   posts.forEach(p => {
-    if (p.status === 'success' || p.status === 'published') {
+    if (p.status === 'published') {
       try {
         const dateStr = format(parseISO(p.scheduled_at), 'dd MMM');
         if (dailyData[dateStr] !== undefined) {

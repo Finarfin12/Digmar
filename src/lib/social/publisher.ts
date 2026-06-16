@@ -67,8 +67,8 @@ export async function processQueue() {
             logs.push({ account_id: accountDb.id, time: new Date().toISOString(), success: false, error: 'Platform not yet implemented' });
             allSuccess = false;
           }
-        } catch (err: any) {
-          logs.push({ account_id: accountDb.id, time: new Date().toISOString(), success: false, error: err.message });
+        } catch (err: unknown) {
+          logs.push({ account_id: accountDb.id, time: new Date().toISOString(), success: false, error: (err as Error).message });
           allSuccess = false;
         }
       }

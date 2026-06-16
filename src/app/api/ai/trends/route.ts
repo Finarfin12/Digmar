@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       const items = jsonObj?.rss?.channel?.item || [];
       const topItems = Array.isArray(items) ? items.slice(0, 7) : [items];
       
-      trendingNews = topItems.map((item: any) => item.title);
+      trendingNews = topItems.map((item: { title: string }) => item.title);
     } catch (e) {
       console.error("Gagal menarik RSS Berita:", e);
       trendingNews = ["Gagal memuat berita terkini."];
@@ -106,7 +106,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
       berita_sumber: trendingNews,
       ...parsedData
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }

@@ -34,7 +34,7 @@ export default function Planner() {
       
       if (pRes.ok) {
         const posts = await pRes.json();
-        const mappedEvents = posts.map((p: any) => ({
+        const mappedEvents = posts.map((p: { id: string, caption: string, scheduled_at: string, status: string, job_code: string }) => ({
           id: p.id,
           title: p.job_code,
           start: p.scheduled_at,
@@ -49,13 +49,14 @@ export default function Planner() {
     }
   };
 
-  const handleDateClick = (arg: any) => {
+  const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
     setShowModal(true);
   };
 
-  const handleEventDrop = async (arg: any) => {
+  const handleEventDrop = async (arg: { event: { id: string, start: Date | null }, revert: () => void }) => {
     const { event } = arg;
+    if (!event.start) return;
     try {
       const res = await fetch(`/api/posts/${event.id}`, {
         method: 'PUT',
@@ -64,9 +65,9 @@ export default function Planner() {
       });
       if (!res.ok) throw new Error('Gagal update jadwal');
       fetchData();
-    } catch (err: any) {
+    } catch (err: unknown) {
       arg.revert();
-      Swal.fire('Error', err.message, 'error');
+      Swal.fire('Error', (err as Error).message, 'error');
     }
   };
 

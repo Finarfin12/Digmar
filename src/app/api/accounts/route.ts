@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const { access_token_encrypted, ...safeData } = data
     return NextResponse.json({ ...safeData, has_token: true }, { status: 201 })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }

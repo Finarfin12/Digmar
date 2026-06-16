@@ -37,8 +37,8 @@ export default function CaptionGenerator({ units, formUnit, setFormUnit, onCapti
         setSelectedCaption(1);
         onCaptionSelect(data.pilihan_1.caption + '\n\n' + data.pilihan_1.hashtag);
       }
-    } catch (err: any) {
-      Swal.fire('Error AI', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error AI', (err as Error).message, 'error');
     } finally {
       setGenerating(false);
     }

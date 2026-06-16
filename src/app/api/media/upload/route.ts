@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       size: file.size,
       mime_type: file.type
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }

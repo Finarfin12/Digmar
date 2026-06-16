@@ -33,8 +33,8 @@ export default function Trends() {
       if (!res.ok) throw new Error(data.error || 'Gagal menghasilkan tren');
       setTrends(data);
       Swal.fire({ title: 'Berhasil!', text: 'Laporan tren harian berhasil dianalisis oleh AI.', icon: 'success', timer: 1500, showConfirmButton: false });
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function Trends() {
             </h3>
             
             <div className="grid gap-4">
-              {trends.ide_konten?.map((ide: any, i: number) => (
+              {trends.ide_konten?.map((ide: { judul: string, tipe: string, deskripsi: string, format: string }, i: number) => (
                 <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 transform origin-bottom scale-y-0 group-hover:scale-y-100 transition-transform duration-300"></div>
                   

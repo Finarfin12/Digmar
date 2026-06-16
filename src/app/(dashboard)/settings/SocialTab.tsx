@@ -75,8 +75,8 @@ export default function SocialTab() {
         body: JSON.stringify({ auto_reply_enabled: !current })
       });
       fetchData();
-    } catch (e: any) {
-      Swal.fire('Error', e.message, 'error');
+    } catch (e: unknown) {
+      Swal.fire('Error', (e as Error).message, 'error');
     }
   };
 

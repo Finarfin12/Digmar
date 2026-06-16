@@ -2,10 +2,10 @@ import { SocialAccount, PostJob } from './types';
 
 const INSTAGRAM_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
 
-async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: any) {
+async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>) {
   const url = `https://graph.facebook.com/${INSTAGRAM_API_VERSION}/${path}`;
   
-  const headers: any = {
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`
   };
   
@@ -13,7 +13,16 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(url + (method === 'GET' && body ? '?' + new URLSearchParams({ ...body }) : ''), {
+  let searchParams = '';
+  if (method === 'GET' && body) {
+    const stringBody: Record<string, string> = {};
+    for (const key in body) {
+      if (body[key] !== undefined) stringBody[key] = String(body[key]);
+    }
+    searchParams = '?' + new URLSearchParams(stringBody);
+  }
+
+  const response = await fetch(url + searchParams, {
     method,
     headers,
     body: method === 'POST' ? JSON.stringify(body) : undefined
@@ -84,7 +93,7 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob) {
     });
 
     return { success: true, id: publishRes.id };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: (err as Error).message };
   }
 }

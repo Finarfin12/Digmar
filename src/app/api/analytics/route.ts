@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
       recent_comments: recentComments
     })
 
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }
