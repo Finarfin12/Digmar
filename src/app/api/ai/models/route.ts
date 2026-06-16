@@ -11,8 +11,10 @@ export async function POST(request: NextRequest) {
     // Clean trailing slash
     const cleanBaseUrl = base_url.replace(/\/$/, '')
     
-    // Fetch models
-    const res = await fetch(`${cleanBaseUrl}/v1/models`, {
+    // Fetch models (base_url already includes /v1 typically)
+    const fetchUrl = cleanBaseUrl.endsWith('/v1') ? `${cleanBaseUrl}/models` : `${cleanBaseUrl}/v1/models`
+
+    const res = await fetch(fetchUrl, {
       headers: { 'Authorization': `Bearer ${api_key}` }
     })
 
