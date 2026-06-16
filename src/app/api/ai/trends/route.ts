@@ -63,6 +63,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Promise 3: Reddit (r/indonesia)
+    fetchPromises.push(
+      fetch('https://www.reddit.com/r/indonesia/hot.json?limit=5', { 
+        headers: { 'User-Agent': 'DigiMarBot/1.0' },
+        next: { revalidate: 3600 } 
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.data && data.data.children) {
+            return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
+          }
+          return [];
+        })
+    );
+
     const resultsList = await Promise.allSettled(fetchPromises);
     resultsList.forEach(result => {
       if (result.status === 'fulfilled' && Array.isArray(result.value)) {
