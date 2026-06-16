@@ -8,6 +8,7 @@ export default function Trends() {
   const [loading, setLoading] = useState(false);
   const [units, setUnits] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
+  const [selectedSource, setSelectedSource] = useState<string>('mixed');
   const [trends, setTrends] = useState<any>(null);
   const router = useRouter();
 
@@ -29,7 +30,7 @@ export default function Trends() {
       const res = await fetch('/api/ai/trends', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_unit_id: selectedUnit })
+        body: JSON.stringify({ business_unit_id: selectedUnit, source: selectedSource })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gagal menghasilkan tren');
@@ -59,6 +60,17 @@ export default function Trends() {
           >
             {units.length === 0 && <option value="" disabled>Belum ada Unit Bisnis</option>}
             {units.map(u => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
+          </select>
+          
+          <select 
+            value={selectedSource} 
+            onChange={e => setSelectedSource(e.target.value)}
+            className="w-full md:w-64 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
+          >
+            <option value="mixed">🌐 Campur Semua</option>
+            <option value="youtube">🎥 YouTube Trends</option>
+            <option value="google_news">📰 Berita Google</option>
+            <option value="newsdata">🌍 Berita Global</option>
           </select>
 
           <button onClick={generateTrends} disabled={loading || !selectedUnit} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md transform hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100 whitespace-nowrap">

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { topic, preferred_provider } = await request.json()
+    const { topic, preferred_provider, source = 'mixed' } = await request.json()
 
     if (!topic) {
       return NextResponse.json({ error: 'Topic is required' }, { status: 400 })
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Promise 2: NewsData.io for the topic
-    if (apiKey) {
+    if (apiKey && (source === 'mixed' || source === 'newsdata')) {
       fetchPromises.push(
         fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&q=${encodeURIComponent(topic)}&language=id`, { next: { revalidate: 3600 } })
           .then(res => res.json())
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Promise 3: YouTube Data API (search.list) - 100 Unit Kuota
     const ytApiKey = process.env.YOUTUBE_API_KEY;
-    if (ytApiKey) {
+    if (ytApiKey && (source === 'mixed' || source === 'youtube')) {
       fetchPromises.push(
         fetch(`https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(topic)}&type=video&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
           .then(res => res.json())
@@ -68,19 +68,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Promise 4: Reddit Search for the topic - (Akan diblokir Kominfo jika run di lokal)
-    fetchPromises.push(
-      fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&limit=5`, { 
-        headers: { 'User-Agent': 'DigiMarBot/1.0' },
-        next: { revalidate: 3600 } 
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.data && data.data.children) {
-            return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
-          }
-          return [];
+    if (source === 'mixed' || source === 'reddit') {
+      fetchPromises.push(
+        fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&limit=5`, { 
+          headers: { 'User-Agent': 'DigiMarBot/1.0' },
+          next: { revalidate: 3600 } 
         })
-    );
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.data && data.data.children) {
+              return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
+            }
+            return [];
+          })
+      );
+    }
 
     const resultsList = await Promise.allSettled(fetchPromises);
     resultsList.forEach(result => {

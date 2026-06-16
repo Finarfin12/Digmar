@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { business_unit_id, preferred_provider } = await request.json()
+    const { business_unit_id, preferred_provider, source = 'mixed' } = await request.json()
 
     if (!business_unit_id) {
       return NextResponse.json({ error: 'Missing business_unit_id' }, { status: 400 })
@@ -37,20 +37,22 @@ export async function POST(request: NextRequest) {
     const fetchPromises = [];
 
     // Promise 1: Google News
-    fetchPromises.push(
-      fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } })
-        .then(res => res.text())
-        .then(xmlData => {
-          const parser = new XMLParser();
-          const jsonObj = parser.parse(xmlData);
-          const items = jsonObj?.rss?.channel?.item || [];
-          const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
-          return topItems.map((item: { title: string }) => item.title);
-        })
-    );
+    if (source === 'mixed' || source === 'google_news') {
+      fetchPromises.push(
+        fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } })
+          .then(res => res.text())
+          .then(xmlData => {
+            const parser = new XMLParser();
+            const jsonObj = parser.parse(xmlData);
+            const items = jsonObj?.rss?.channel?.item || [];
+            const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
+            return topItems.map((item: { title: string }) => item.title);
+          })
+      );
+    }
 
     // Promise 2: NewsData.io
-    if (apiKey) {
+    if (apiKey && (source === 'mixed' || source === 'newsdata')) {
       fetchPromises.push(
         fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&country=id&language=id`, { next: { revalidate: 3600 } })
           .then(res => res.json())
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     // Promise 3: YouTube Data API (mostPopular) - Hemat Kuota (1 Unit)
     const ytApiKey = process.env.YOUTUBE_API_KEY;
-    if (ytApiKey) {
+    if (ytApiKey && (source === 'mixed' || source === 'youtube')) {
       fetchPromises.push(
         fetch(`https://youtube.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=ID&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
           .then(res => res.json())
@@ -79,19 +81,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Promise 4: Reddit (r/indonesia) - (Akan diblokir Kominfo jika run di lokal tanpa VPN)
-    fetchPromises.push(
-      fetch('https://www.reddit.com/r/indonesia/hot.json?limit=5', { 
-        headers: { 'User-Agent': 'DigiMarBot/1.0' },
-        next: { revalidate: 3600 } 
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.data && data.data.children) {
-            return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
-          }
-          return [];
+    if (source === 'mixed' || source === 'reddit') {
+      fetchPromises.push(
+        fetch('https://www.reddit.com/r/indonesia/hot.json?limit=5', { 
+          headers: { 'User-Agent': 'DigiMarBot/1.0' },
+          next: { revalidate: 3600 } 
         })
-    );
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.data && data.data.children) {
+              return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
+            }
+            return [];
+          })
+      );
+    }
 
     const resultsList = await Promise.allSettled(fetchPromises);
     resultsList.forEach(result => {

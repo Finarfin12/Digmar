@@ -13,6 +13,7 @@ interface HashtagData {
 
 export default function HashtagModal({ onClose }: { onClose: () => void }) {
   const [topic, setTopic] = useState('');
+  const [selectedSource, setSelectedSource] = useState('mixed');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<HashtagData | null>(null);
 
@@ -25,7 +26,7 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/ai/hashtags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, preferred_provider: 'groq' }) // Default provider
+        body: JSON.stringify({ topic, preferred_provider: 'groq', source: selectedSource }) // Default provider
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -63,7 +64,7 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
         </div>
         
         <div className="p-6 overflow-y-auto flex-1 text-slate-900">
-          <form onSubmit={handleSearch} className="flex gap-2 mb-8">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2 mb-8">
             <input 
               type="text" 
               value={topic}
@@ -71,7 +72,16 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
               placeholder="Masukkan topik, misal: 'Kopi Susu Gula Aren'" 
               className="flex-1 p-4 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 text-lg font-medium"
             />
-            <button disabled={loading} type="submit" className="bg-indigo-600 text-white px-8 font-bold rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition">
+            <select 
+              value={selectedSource} 
+              onChange={e => setSelectedSource(e.target.value)}
+              className="p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
+            >
+              <option value="mixed">🌐 Campur Semua</option>
+              <option value="youtube">🎥 YouTube Search</option>
+              <option value="newsdata">🌍 Berita Global</option>
+            </select>
+            <button disabled={loading} type="submit" className="bg-indigo-600 text-white px-8 py-4 md:py-0 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
               {loading ? <Loader2 className="animate-spin" /> : <Search />} Cari
             </button>
           </form>
