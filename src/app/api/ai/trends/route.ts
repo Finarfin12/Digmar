@@ -63,7 +63,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Promise 3: Reddit (r/indonesia)
+    // Promise 3: YouTube Data API (mostPopular) - Hemat Kuota (1 Unit)
+    const ytApiKey = process.env.YOUTUBE_API_KEY;
+    if (ytApiKey) {
+      fetchPromises.push(
+        fetch(`https://youtube.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=ID&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.items) {
+              return data.items.map((item: any) => `[YouTube Trending] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
+            }
+            return [];
+          })
+      );
+    }
+
+    // Promise 4: Reddit (r/indonesia) - (Akan diblokir Kominfo jika run di lokal tanpa VPN)
     fetchPromises.push(
       fetch('https://www.reddit.com/r/indonesia/hot.json?limit=5', { 
         headers: { 'User-Agent': 'DigiMarBot/1.0' },

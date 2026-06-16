@@ -52,7 +52,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Promise 3: Reddit Search for the topic
+    // Promise 3: YouTube Data API (search.list) - 100 Unit Kuota
+    const ytApiKey = process.env.YOUTUBE_API_KEY;
+    if (ytApiKey) {
+      fetchPromises.push(
+        fetch(`https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(topic)}&type=video&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.items) {
+              return data.items.map((item: any) => `[YouTube Topik] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
+            }
+            return [];
+          })
+      );
+    }
+
+    // Promise 4: Reddit Search for the topic - (Akan diblokir Kominfo jika run di lokal)
     fetchPromises.push(
       fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&limit=5`, { 
         headers: { 'User-Agent': 'DigiMarBot/1.0' },
