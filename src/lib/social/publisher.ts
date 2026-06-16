@@ -1,13 +1,12 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { decryptValue } from '@/lib/crypto/server';
-import { publishToMeta } from './meta';
+import { publishToInstagram } from './instagram';
 import type { PostJob, SocialAccount } from './types';
 
 export async function processQueue() {
-  const supabase = createServiceClient(); // Service role client to bypass RLS for cron
+  const supabase = createServiceClient();
   const now = new Date().toISOString();
 
-  // Optimistic locking for job picking
   const { data: waitingJobs, error: fetchError } = await supabase
     .from('post_queue')
     .select('*')
@@ -31,7 +30,7 @@ export async function processQueue() {
       .single();
 
     if (lockError || !lockedJob) {
-      continue; // Job grabbed by another instance
+      continue;
     }
 
     const job: PostJob = lockedJob;
@@ -55,11 +54,15 @@ export async function processQueue() {
             access_token: decryptValue(accountDb.access_token_encrypted)
           };
 
-          if (account.platform === 'meta_ig') {
-            const res = await publishToMeta(account, job);
+          if (account.platform === 'instagram') {
+            const res = await publishToInstagram(account, job);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
+          } else if (account.platform === 'threads') {
+            // Placeholder for Threads API integration
+            logs.push({ account_id: account.id, time: new Date().toISOString(), success: false, error: 'Threads API not yet fully implemented' });
+            allSuccess = false;
           } else {
             logs.push({ account_id: accountDb.id, time: new Date().toISOString(), success: false, error: 'Platform not yet implemented' });
             allSuccess = false;

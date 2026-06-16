@@ -1,7 +1,7 @@
 export interface SocialAccount {
   id: string;
   business_unit_id: string;
-  platform: 'meta_ig' | 'linkedin' | 'threads';
+  platform: 'instagram' | 'linkedin' | 'threads';
   ig_user_id: string;
   access_token: string;
 }

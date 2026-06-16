@@ -1,9 +1,9 @@
 import { SocialAccount, PostJob } from './types';
 
-const META_API_VERSION = process.env.META_API_VERSION || 'v25.0';
+const INSTAGRAM_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
 
-async function fetchMeta(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: any) {
-  const url = `https://graph.instagram.com/${META_API_VERSION}/${path}`;
+async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: any) {
+  const url = `https://graph.instagram.com/${INSTAGRAM_API_VERSION}/${path}`;
   
   const headers: any = {
     Authorization: `Bearer ${token}`
@@ -21,17 +21,17 @@ async function fetchMeta(path: string, token: string, method: 'GET' | 'POST' = '
   
   const data = await response.json();
   if (!response.ok || data.error) {
-    throw new Error(data.error?.message || `Meta API Error: ${response.statusText}`);
+    throw new Error(data.error?.message || `Instagram API Error: ${response.statusText}`);
   }
   return data;
 }
 
-export async function publishToMeta(account: SocialAccount, job: PostJob) {
+export async function publishToInstagram(account: SocialAccount, job: PostJob) {
   try {
     let containerId: string;
 
     if (job.post_type === 'single_image') {
-      const res = await fetchMeta(`${account.ig_user_id}/media`, account.access_token, 'POST', {
+      const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
         image_url: job.media_urls[0],
         caption: job.caption
       });
@@ -39,21 +39,21 @@ export async function publishToMeta(account: SocialAccount, job: PostJob) {
     } else if (job.post_type === 'carousel') {
       const childIds = [];
       for (const url of job.media_urls) {
-        const res = await fetchMeta(`${account.ig_user_id}/media`, account.access_token, 'POST', {
+        const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
           image_url: url,
           is_carousel_item: true
         });
         childIds.push(res.id);
       }
       
-      const carouselRes = await fetchMeta(`${account.ig_user_id}/media`, account.access_token, 'POST', {
+      const carouselRes = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
         caption: job.caption,
         media_type: 'CAROUSEL',
         children: childIds.join(',')
       });
       containerId = carouselRes.id;
     } else if (job.post_type === 'reels') {
-      const res = await fetchMeta(`${account.ig_user_id}/media`, account.access_token, 'POST', {
+      const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
         video_url: job.media_urls[0],
         caption: job.caption,
         media_type: 'REELS',
@@ -65,12 +65,12 @@ export async function publishToMeta(account: SocialAccount, job: PostJob) {
       let isReady = false;
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 5000));
-        const statusRes = await fetchMeta(`${containerId}?fields=status_code`, account.access_token);
+        const statusRes = await fetchInstagram(`${containerId}?fields=status_code`, account.access_token);
         if (statusRes.status_code === 'FINISHED') {
           isReady = true;
           break;
         } else if (statusRes.status_code === 'ERROR') {
-          throw new Error('Reels processing failed on Meta.');
+          throw new Error('Reels processing failed on Instagram.');
         }
       }
       if (!isReady) throw new Error('Reels processing timed out.');
@@ -79,7 +79,7 @@ export async function publishToMeta(account: SocialAccount, job: PostJob) {
     }
 
     // Publish container
-    const publishRes = await fetchMeta(`${account.ig_user_id}/media_publish`, account.access_token, 'POST', {
+    const publishRes = await fetchInstagram(`${account.ig_user_id}/media_publish`, account.access_token, 'POST', {
       creation_id: containerId
     });
 
