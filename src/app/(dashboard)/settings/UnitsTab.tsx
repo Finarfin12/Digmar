@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, PlusCircle, Save, X, Trash2 } from 'lucide-react';
+import { Briefcase, PlusCircle, Save, X, Trash2, Edit2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export interface BusinessUnit {
@@ -16,6 +16,7 @@ export default function UnitsTab() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchUnits = async () => {
     try {
@@ -33,16 +34,21 @@ export default function UnitsTab() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const method = editingId ? 'PUT' : 'POST';
+    const bodyPayload = editingId 
+      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: prompt }
+      : { brand_name: name, business_category: category, ai_system_prompt: prompt };
+
     const res = await fetch('/api/units', {
-      method: 'POST',
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ brand_name: name, business_category: category, ai_system_prompt: prompt })
+      body: JSON.stringify(bodyPayload)
     });
     setLoading(false);
     if (res.ok) {
       Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis disimpan.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowForm(false);
-      setName(''); setCategory(''); setPrompt('');
+      setName(''); setCategory(''); setPrompt(''); setEditingId(null);
       fetchUnits();
     } else {
       const err = await res.json().catch(()=>({}));
@@ -81,8 +87,8 @@ export default function UnitsTab() {
       {showForm && (
         <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-4">
-            <h4 className="font-extrabold text-slate-900 text-lg">Form Unit Bisnis</h4>
-            <button type="button" onClick={() => setShowForm(false)} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
+            <h4 className="font-extrabold text-slate-900 text-lg">{editingId ? 'Edit Unit Bisnis' : 'Tambah Unit Bisnis'}</h4>
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPrompt(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
           </div>
           <div className="grid gap-4 text-slate-900">
             <div>
@@ -109,8 +115,18 @@ export default function UnitsTab() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {units.map(u => (
-            <div key={u.id} className="p-6 rounded-xl border bg-white relative">
-              <button onClick={() => handleDelete(u.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500"><Trash2 size={20} /></button>
+            <div key={u.id} className="p-6 rounded-xl border bg-white relative group">
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => {
+                  setEditingId(u.id);
+                  setName(u.brand_name);
+                  setCategory(u.business_category || '');
+                  setPrompt(u.ai_system_prompt || '');
+                  setShowForm(true);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }} className="text-slate-400 hover:text-indigo-600 bg-slate-100 p-1.5 rounded-md"><Edit2 size={16} /></button>
+                <button onClick={() => handleDelete(u.id)} className="text-slate-400 hover:text-red-600 bg-slate-100 p-1.5 rounded-md"><Trash2 size={16} /></button>
+              </div>
               <div className="font-extrabold text-xl text-slate-900">{u.brand_name}</div>
               <div className="text-sm text-indigo-700 font-bold mt-1">{u.business_category || 'Tanpa Kategori'}</div>
               <div className="text-sm text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
