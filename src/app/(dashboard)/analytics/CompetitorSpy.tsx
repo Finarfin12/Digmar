@@ -68,7 +68,7 @@ export default function CompetitorSpy() {
               value={handle}
               onChange={e => setHandle(e.target.value)}
               placeholder="username_kompetitor" 
-              className="w-full pl-10 pr-4 py-3 rounded-xl text-slate-900 font-bold focus:ring-2 focus:ring-pink-500 outline-none"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-slate-900 font-bold focus:ring-2 focus:ring-pink-500 outline-none"
             />
           </div>
           <button disabled={loading} type="submit" className="bg-pink-600 hover:bg-pink-500 text-white px-6 rounded-xl font-bold transition flex items-center gap-2">
