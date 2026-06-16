@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DigiMar Automation Hub
 
-## Getting Started
+DigiMar adalah platform automasi sosial media tingkat lanjut yang dibangun di atas Next.js dan Supabase. Sistem ini dilengkapi dengan integrasi Multi-AI Provider (Groq, OpenAI, Anthropic, VPS) untuk otomatisasi pembuatan *caption* dan analisis tren, serta mesin publikasi terjadwal ke Instagram dan Threads.
 
-First, run the development server:
+## Arsitektur
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Frontend**: Next.js 14 (App Router) + Tailwind CSS + Lucide React
+- **Backend API**: Next.js Route Handlers
+- **Database**: Supabase PostgreSQL (menggunakan RLS dan pgcrypto)
+- **Authentication**: Supabase SSR (Cookies)
+- **AI Processing**: Abstraksi Factory Pattern untuk berbagai LLM
+- **Publisher Engine**: Meta Graph API (Instagram & Threads) + Vercel Cron
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Cara Instalasi
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Klon repositori ini.
+2. Jalankan `npm install` untuk menginstal dependensi.
+3. Salin file `.env.local.example` ke `.env.local` (buat jika belum ada) dan isi dengan kredensial Supabase serta kunci enkripsi (32 karakter acak).
+4. Buat tabel dan *database schema* dengan menjalankan SQL pada `supabase/migrations/00000000000000_init.sql` di SQL Editor Supabase Anda.
+5. Jalankan aplikasi di mode lokal: `npm run dev`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Panduan Penggunaan (Workflow)
 
-## Learn More
+1. **Setup Unit Bisnis**: Masuk ke menu Pengaturan dan daftarkan unit bisnis (misalnya "Divisi Marketing A").
+2. **Setup Akun Sosial**: Masih di Pengaturan, tambahkan akun Instagram Anda. *Access Token* Meta Anda akan dienkripsi secara otomatis di database menggunakan algoritma AES-256-GCM tingkat *server*.
+3. **Setup AI**: Atur kunci API AI Anda (misalnya Groq) sebagai mesin *generator* *caption*.
+4. **Jadwalkan Konten**: Melalui Dashboard atau Planner, unggah foto/video. AI akan secara otomatis memunculkan usulan *caption*.
+5. **Cron Scheduler**: Secara otomatis, layanan eksternal (misal: cron-job.org) akan memanggil endpoint `/api/publish/process` setiap 5/10 menit untuk mengambil antrean posting dan meneruskannya ke Instagram.
 
-To learn more about Next.js, take a look at the following resources:
+## Deployment ke Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Hubungkan repositori GitHub ini ke Vercel.
+2. Atur semua *Environment Variables* di *Dashboard* Vercel (samakan dengan isi `.env.local`).
+3. (Opsional) Jika menggunakan Vercel Cron, konfigurasikan `vercel.json`. Alternatif gratis adalah menggunakan [cron-job.org](https://cron-job.org) dengan menembak *endpoint*:
+   `GET https://[domain-anda].vercel.app/api/publish/process`
+   Pastikan Anda menambahkan *Header*: `Authorization: Bearer [CRON_SECRET_ANDA]`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Lisensi
+Hak Cipta (c) DigiMar Hub.
