@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
+import { XMLParser } from 'fast-xml-parser'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -19,9 +20,56 @@ export async function POST(request: NextRequest) {
 
     const { client, config } = await getAIProvider(user.id, preferred_provider)
     
+    // Fetch Real-time News based on topic
+    let trendingNews: string[] = [];
+    const apiKey = process.env.NEWSDATA_API_KEY;
+    const fetchPromises = [];
+
+    // Promise 1: Google News RSS for the topic
+    fetchPromises.push(
+      fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=id&gl=ID&ceid=ID:id`, { next: { revalidate: 3600 } })
+        .then(res => res.text())
+        .then(xmlData => {
+          const parser = new XMLParser();
+          const jsonObj = parser.parse(xmlData);
+          const items = jsonObj?.rss?.channel?.item || [];
+          const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
+          return topItems.map((item: { title: string }) => item.title);
+        })
+    );
+
+    // Promise 2: NewsData.io for the topic
+    if (apiKey) {
+      fetchPromises.push(
+        fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&q=${encodeURIComponent(topic)}&language=id`, { next: { revalidate: 3600 } })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.results && data.results.length > 0) {
+              return data.results.slice(0, 5).map((item: { title: string }) => item.title);
+            }
+            return [];
+          })
+      );
+    }
+
+    const resultsList = await Promise.allSettled(fetchPromises);
+    resultsList.forEach(result => {
+      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
+        trendingNews = [...trendingNews, ...result.value];
+      } else if (result.status === 'rejected') {
+        console.error("Gagal menarik sumber berita untuk hashtag:", result.reason);
+      }
+    });
+
+    const newsContext = trendingNews.length > 0 
+      ? `Konteks Berita Hari Ini Terkait Topik:\n${trendingNews.map(n => `- ${n}`).join('\n')}\n\nGunakan berita-berita di atas untuk menciptakan hashtag dan keyword yang sedang viral (newsjacking).`
+      : 'Tidak ada berita live terbaru yang ditemukan untuk topik ini.';
+
     const aiPrompt = `
 Tugas: Buat riset hashtag dan keyword potensial untuk diposting di media sosial Instagram/TikTok.
 Topik Niche / Kata Kunci Awal: "${topic}"
+
+${newsContext}
 
 Tolong berikan daftar hashtag yang dibagi menjadi 3 kategori:
 1. High Volume (Pencarian sangat tinggi, sangat populer)
@@ -55,7 +103,10 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
       return NextResponse.json({ error: "Format AI tidak valid. Coba lagi." }, { status: 500 })
     }
 
-    return NextResponse.json(parsedData)
+    return NextResponse.json({
+      ...parsedData,
+      berita_sumber: trendingNews // Kirim juga sumber berita agar bisa ditampilkan di UI jika mau
+    })
   } catch (err: unknown) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
