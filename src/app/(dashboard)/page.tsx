@@ -2,21 +2,35 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, PlusCircle, Sparkles, Activity, Clock, BarChart3, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import PostScheduler from '@/components/planner/PostScheduler';
 
 export default function Home() {
   const [posts, setPosts] = useState<any[]>([]);
   const [providers, setProviders] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showScheduler, setShowScheduler] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/posts'),
-      fetch('/api/providers')
-    ]).then(async ([pRes, provRes]) => {
+  const fetchData = async () => {
+    try {
+      const [pRes, provRes, uRes, aRes] = await Promise.all([
+        fetch('/api/posts'),
+        fetch('/api/providers'),
+        fetch('/api/units'),
+        fetch('/api/accounts')
+      ]);
       if(pRes.ok) setPosts(await pRes.json());
       if(provRes.ok) setProviders(await provRes.json());
+      if(uRes.ok) setUnits(await uRes.json());
+      if(aRes.ok) setAccounts(await aRes.json());
+    } finally {
       setLoading(false);
-    });
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const waitingCount = posts.filter(p => p.status === 'waiting').length;
@@ -31,7 +45,7 @@ export default function Home() {
   const latestLog = latestLogPost ? latestLogPost.log_messages[latestLogPost.log_messages.length - 1] : null;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700 pb-20">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-indigo-900 to-blue-900 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400 opacity-10 rounded-full blur-2xl translate-y-1/3 -translate-x-1/3"></div>
@@ -40,12 +54,30 @@ export default function Home() {
           <h2 className="text-3xl font-extrabold tracking-tight">Selamat Datang di DigiMar</h2>
           <p className="text-blue-200 mt-2 text-lg font-medium">Pusat kontrol AI untuk dominasi sosial media Anda.</p>
         </div>
-        <Link href="/planner" className="relative z-10 bg-white text-indigo-900 hover:bg-blue-50 font-extrabold px-6 py-3.5 rounded-xl flex items-center gap-2 transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+        <button onClick={() => setShowScheduler(!showScheduler)} className="relative z-10 bg-white text-indigo-900 hover:bg-blue-50 font-extrabold px-6 py-3.5 rounded-xl flex items-center gap-2 transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
           <PlusCircle size={20} />
-          <span>Buat Postingan Baru</span>
-        </Link>
+          <span>{showScheduler ? 'Tutup Form Postingan' : 'Buat Postingan Baru'}</span>
+        </button>
       </header>
 
+      {/* Scheduler Section (Toggleable) */}
+      {showScheduler && (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 md:p-8 animate-in slide-in-from-top-4">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-2xl font-black text-slate-900">Post Creator Studio</h3>
+          </div>
+          <PostScheduler 
+            units={units} 
+            accounts={accounts} 
+            onSuccess={() => {
+              fetchData();
+              setShowScheduler(false);
+            }} 
+          />
+        </div>
+      )}
+
+      {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white/80 backdrop-blur-xl p-6 rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-lg transition-all group relative overflow-hidden">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform"><Clock size={100} /></div>
