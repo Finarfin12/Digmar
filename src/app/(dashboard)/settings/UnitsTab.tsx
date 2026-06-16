@@ -1,0 +1,123 @@
+import { useState, useEffect } from 'react';
+import { Briefcase, PlusCircle, Save, X, Trash2 } from 'lucide-react';
+import Swal from 'sweetalert2';
+
+export interface BusinessUnit {
+  id: string;
+  brand_name: string;
+  business_category: string;
+  ai_system_prompt: string;
+}
+
+export default function UnitsTab() {
+  const [units, setUnits] = useState<BusinessUnit[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [prompt, setPrompt] = useState('');
+
+  const fetchUnits = async () => {
+    try {
+      const res = await fetch('/api/units');
+      if (res.ok) setUnits(await res.json());
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const res = await fetch('/api/units', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brand_name: name, business_category: category, ai_system_prompt: prompt })
+    });
+    setLoading(false);
+    if (res.ok) {
+      Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis disimpan.', icon: 'success', timer: 1500, showConfirmButton: false });
+      setShowForm(false);
+      setName(''); setCategory(''); setPrompt('');
+      fetchUnits();
+    } else {
+      const err = await res.json().catch(()=>({}));
+      Swal.fire('Error', err.error || 'Gagal menyimpan', 'error');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const res = await Swal.fire({
+      title: 'Hapus?',
+      text: 'Akun sosial yang terhubung akan ikut terhapus.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Hapus'
+    });
+    if (!res.isConfirmed) return;
+    await fetch(`/api/units/${id}`, { method: 'DELETE' });
+    fetchUnits();
+    Swal.fire('Terhapus!', '', 'success');
+  };
+
+  return (
+    <div className="p-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Briefcase className="text-indigo-600" size={20}/> Unit Bisnis</h3>
+          <p className="text-slate-600 text-sm mt-1">Daftar entitas brand yang menjadi payung untuk setiap akun sosial.</p>
+        </div>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 font-bold">
+            <PlusCircle size={18} /> Tambah Unit
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-extrabold text-slate-900 text-lg">Form Unit Bisnis</h4>
+            <button type="button" onClick={() => setShowForm(false)} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
+          </div>
+          <div className="grid gap-4 text-slate-900">
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-1">Nama Unit</label>
+              <input required value={name} onChange={e => setName(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-1">Kategori/Industri</label>
+              <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-1">AI System Prompt Khusus (Opsional)</label>
+              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3} className="w-full p-3 border border-slate-300 rounded-lg bg-white"></textarea>
+            </div>
+            <button disabled={loading} type="submit" className="mt-2 bg-indigo-600 text-white py-3 rounded-lg font-bold flex justify-center gap-2">
+              {loading ? 'Menyimpan...' : <><Save size={18}/> Simpan</>}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {units.length === 0 && !showForm ? (
+        <div className="text-center py-12 text-slate-500 font-medium bg-slate-50 rounded-xl border-2 border-dashed">Belum ada unit bisnis terdaftar.</div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {units.map(u => (
+            <div key={u.id} className="p-6 rounded-xl border bg-white relative">
+              <button onClick={() => handleDelete(u.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500"><Trash2 size={20} /></button>
+              <div className="font-extrabold text-xl text-slate-900">{u.brand_name}</div>
+              <div className="text-sm text-indigo-700 font-bold mt-1">{u.business_category || 'Tanpa Kategori'}</div>
+              <div className="text-sm text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
