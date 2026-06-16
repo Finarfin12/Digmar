@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function MediaGalleryModal({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
   const supabase = createClient();
-  const [galleryFiles, setGalleryFiles] = useState<{ id: string; url: string; metadata?: Record<string, unknown> }[]>([]);
+  const [galleryFiles, setGalleryFiles] = useState<{ id: string | null; url: string; metadata?: Record<string, unknown> | null | any }[]>([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
 
   useEffect(() => {
