@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Settings2, PlusCircle, Key, Link as LinkIcon, Share2, Briefcase, Save, X, Eye, EyeOff } from 'lucide-react';
+import { Settings2, PlusCircle, Key, Link as LinkIcon, Share2, Briefcase, Save, X, Eye, EyeOff, Trash2, RefreshCcw } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function Settings() {
@@ -29,9 +29,12 @@ export default function Settings() {
 
   // AI Form
   const [aiName, setAiName] = useState('groq');
+  const [aiBaseUrl, setAiBaseUrl] = useState('https://api.groq.com/openai');
   const [aiModel, setAiModel] = useState('');
   const [aiKey, setAiKey] = useState('');
   const [showAiKey, setShowAiKey] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -58,6 +61,62 @@ export default function Settings() {
     }
   };
 
+  const handleDeleteUnit = async (id: string) => {
+    if (!confirm('Hapus Unit Bisnis ini?')) return;
+    await fetch(`/api/units/${id}`, { method: 'DELETE' });
+    fetchData();
+  };
+
+  const handleDeleteSocial = async (id: string) => {
+    if (!confirm('Hapus koneksi sosial media ini?')) return;
+    await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+    fetchData();
+  };
+
+  const handleDeleteAi = async (id: string) => {
+    if (!confirm('Hapus konfigurasi AI ini? API Key yang tersimpan akan ikut terhapus.')) return;
+    await fetch(`/api/providers/${id}`, { method: 'DELETE' });
+    fetchData();
+  };
+
+  const handleProviderChange = (e: any) => {
+    const val = e.target.value;
+    setAiName(val);
+    setAvailableModels([]);
+    if (val === 'groq') setAiBaseUrl('https://api.groq.com/openai');
+    else if (val === 'openai') setAiBaseUrl('https://api.openai.com');
+    else if (val === 'anthropic') setAiBaseUrl('https://api.anthropic.com');
+    else setAiBaseUrl('http://YOUR_VPS_IP:PORT');
+  };
+
+  const handleFetchModels = async () => {
+    if (!aiBaseUrl || !aiKey) {
+      return Swal.fire('Error', 'Masukkan Base URL dan Secret API Key terlebih dahulu untuk mengambil model', 'error');
+    }
+    setFetchingModels(true);
+    try {
+      const res = await fetch('/api/ai/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_url: aiBaseUrl, api_key: aiKey })
+      });
+      if (!res.ok) throw new Error('Gagal mengambil model. Pastikan API Key dan URL benar.');
+      const data = await res.json();
+      if (data.data && Array.isArray(data.data)) {
+        const models = data.data.map((m: any) => m.id);
+        setAvailableModels(models);
+        if (models.length > 0) setAiModel(models[0]);
+        Swal.fire({ title: 'Berhasil', text: `Ditemukan ${models.length} model!`, icon: 'success', timer: 1500, showConfirmButton: false });
+      } else {
+        throw new Error('Format balasan API tidak dikenali.');
+      }
+    } catch (err: any) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
   const handleSaveUnit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -68,7 +127,7 @@ export default function Settings() {
     });
     setLoading(false);
     if (res.ok) {
-      Swal.fire('Berhasil!', 'Unit Bisnis berhasil ditambahkan.', 'success');
+      Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis berhasil ditambahkan.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowUnitForm(false);
       setUnitName(''); setUnitCategory(''); setUnitPrompt('');
       fetchData();
@@ -93,7 +152,7 @@ export default function Settings() {
     });
     setLoading(false);
     if (res.ok) {
-      Swal.fire('Berhasil!', 'Akun Sosial berhasil dihubungkan & token dienkripsi.', 'success');
+      Swal.fire({ title: 'Berhasil!', text: 'Akun Sosial berhasil dihubungkan & token dienkripsi.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowSocialForm(false);
       setSocialUser(''); setSocialToken('');
       fetchData();
@@ -110,15 +169,16 @@ export default function Settings() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         provider_name: aiName,
+        base_url: aiBaseUrl,
         model: aiModel,
         api_key: aiKey
       })
     });
     setLoading(false);
     if (res.ok) {
-      Swal.fire('Berhasil!', 'API Key AI berhasil disimpan & dienkripsi.', 'success');
+      Swal.fire({ title: 'Berhasil!', text: 'API Key AI berhasil disimpan & dienkripsi.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowAiForm(false);
-      setAiModel(''); setAiKey('');
+      setAiModel(''); setAiKey(''); setAvailableModels([]);
       fetchData();
     } else {
       Swal.fire('Error', 'Gagal menyimpan konfigurasi AI', 'error');
@@ -132,53 +192,55 @@ export default function Settings() {
           <Settings2 className="text-indigo-600" size={28} />
         </div>
         <div>
-          <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Pengaturan</h2>
-          <p className="text-slate-500 mt-1">Konfigurasi tingkat lanjut untuk produksi: API Keys & Integrasi.</p>
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Pengaturan</h2>
+          <p className="text-slate-600 mt-1 font-medium">Konfigurasi tingkat lanjut untuk produksi: API Keys & Integrasi.</p>
         </div>
       </header>
 
       {/* Tabs */}
-      <div className="flex space-x-2 border-b border-slate-200">
-        <button onClick={() => setActiveTab('units')} className={`px-6 py-3 font-medium transition-all duration-200 border-b-2 ${activeTab === 'units' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Unit Bisnis</button>
-        <button onClick={() => setActiveTab('social')} className={`px-6 py-3 font-medium transition-all duration-200 border-b-2 ${activeTab === 'social' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Akun Sosial (Instagram/Meta)</button>
-        <button onClick={() => setActiveTab('ai')} className={`px-6 py-3 font-medium transition-all duration-200 border-b-2 ${activeTab === 'ai' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>AI Provider (Groq/OpenAI)</button>
+      <div className="flex space-x-2 border-b border-slate-300">
+        <button onClick={() => setActiveTab('units')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'units' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Unit Bisnis</button>
+        <button onClick={() => setActiveTab('social')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'social' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Akun Sosial (Instagram/Meta)</button>
+        <button onClick={() => setActiveTab('ai')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'ai' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider (Groq/OpenAI)</button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden transition-all">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden transition-all">
+        
+        {/* UNITS TAB */}
         {activeTab === 'units' && (
           <div className="p-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Briefcase className="text-indigo-500" size={20}/> Unit Bisnis</h3>
-                <p className="text-slate-500 text-sm mt-1">Daftar entitas brand yang menjadi payung untuk setiap akun sosial.</p>
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Briefcase className="text-indigo-600" size={20}/> Unit Bisnis</h3>
+                <p className="text-slate-600 text-sm mt-1">Daftar entitas brand yang menjadi payung untuk setiap akun sosial.</p>
               </div>
               {!showUnitForm && (
-                <button onClick={() => setShowUnitForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all">
+                <button onClick={() => setShowUnitForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
                   <PlusCircle size={18} /> Tambah Unit
                 </button>
               )}
             </div>
 
             {showUnitForm && (
-              <form onSubmit={handleSaveUnit} className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 animate-in slide-in-from-top-4">
+              <form onSubmit={handleSaveUnit} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-slate-800">Form Unit Bisnis Baru</h4>
-                  <button type="button" onClick={() => setShowUnitForm(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+                  <h4 className="font-extrabold text-slate-900 text-lg">Form Unit Bisnis Baru</h4>
+                  <button type="button" onClick={() => setShowUnitForm(false)} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
                 </div>
-                <div className="grid gap-4">
+                <div className="grid gap-4 text-slate-900">
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Nama Unit</label>
-                    <input required value={unitName} onChange={e => setUnitName(e.target.value)} type="text" placeholder="Misal: Divisi Marketing A" className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    <label className="block text-sm font-bold text-slate-800 mb-1">Nama Unit</label>
+                    <input required value={unitName} onChange={e => setUnitName(e.target.value)} type="text" placeholder="Misal: Kedai Kopi Senja" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Kategori/Industri</label>
-                    <input value={unitCategory} onChange={e => setUnitCategory(e.target.value)} type="text" placeholder="Misal: F&B, Retail, Edukasi" className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                    <label className="block text-sm font-bold text-slate-800 mb-1">Kategori/Industri</label>
+                    <input value={unitCategory} onChange={e => setUnitCategory(e.target.value)} type="text" placeholder="Misal: F&B, Retail, Edukasi" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">AI System Prompt Khusus (Opsional)</label>
-                    <textarea value={unitPrompt} onChange={e => setUnitPrompt(e.target.value)} rows={3} placeholder="Instruksi khusus untuk AI saat membuat konten untuk unit ini..." className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                    <label className="block text-sm font-bold text-slate-800 mb-1">AI System Prompt Khusus (Opsional)</label>
+                    <textarea value={unitPrompt} onChange={e => setUnitPrompt(e.target.value)} rows={3} placeholder="Instruksi khusus untuk AI saat membuat konten untuk unit ini..." className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400"></textarea>
                   </div>
-                  <button disabled={loading} type="submit" className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors">
+                  <button disabled={loading} type="submit" className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors shadow-md">
                     {loading ? 'Menyimpan...' : <><Save size={18}/> Simpan Unit Bisnis</>}
                   </button>
                 </div>
@@ -186,14 +248,17 @@ export default function Settings() {
             )}
 
             {units.length === 0 && !showUnitForm ? (
-              <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">Belum ada unit bisnis terdaftar. Anda harus membuat satu terlebih dahulu.</div>
+              <div className="text-center py-12 text-slate-500 font-medium bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">Belum ada unit bisnis terdaftar. Anda harus membuat satu terlebih dahulu.</div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {units.map((u: any) => (
-                  <div key={u.id} className="p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow bg-white">
-                    <div className="font-bold text-lg text-slate-800">{u.name}</div>
-                    <div className="text-sm text-indigo-600 font-medium">{u.category}</div>
-                    <div className="text-xs text-slate-500 mt-3 truncate">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
+                  <div key={u.id} className="p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow bg-white relative group">
+                    <button onClick={() => handleDeleteUnit(u.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={20} />
+                    </button>
+                    <div className="font-extrabold text-xl text-slate-900">{u.name}</div>
+                    <div className="text-sm text-indigo-700 font-bold mt-1">{u.category || 'Tanpa Kategori'}</div>
+                    <div className="text-sm text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded border border-slate-100">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
                   </div>
                 ))}
               </div>
@@ -201,62 +266,63 @@ export default function Settings() {
           </div>
         )}
 
+        {/* SOCIAL TAB */}
         {activeTab === 'social' && (
           <div className="p-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Share2 className="text-pink-500" size={20}/> Integrasi Meta / Instagram API</h3>
-                <p className="text-slate-500 text-sm mt-1">Masukkan ID Pengguna Instagram dan Access Token Graph API Anda.</p>
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Share2 className="text-pink-600" size={20}/> Integrasi Meta / Instagram API</h3>
+                <p className="text-slate-600 text-sm mt-1">Masukkan ID Pengguna Instagram dan Access Token Graph API Anda.</p>
               </div>
               {!showSocialForm && (
-                <button onClick={() => setShowSocialForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all">
+                <button onClick={() => setShowSocialForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
                   <PlusCircle size={18} /> Hubungkan API
                 </button>
               )}
             </div>
 
             {showSocialForm && (
-              <form onSubmit={handleSaveSocial} autoComplete="off" className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 animate-in slide-in-from-top-4">
+              <form onSubmit={handleSaveSocial} autoComplete="off" className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-slate-800">Form Kredensial Meta API</h4>
-                  <button type="button" onClick={() => setShowSocialForm(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+                  <h4 className="font-extrabold text-slate-900 text-lg">Form Kredensial Meta API</h4>
+                  <button type="button" onClick={() => setShowSocialForm(false)} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
                 </div>
                 {units.length === 0 ? (
-                  <div className="text-red-500 bg-red-50 p-3 rounded-lg text-sm mb-4">Anda harus membuat Unit Bisnis terlebih dahulu di tab sebelah!</div>
+                  <div className="text-red-600 bg-red-100 p-4 rounded-lg font-bold border border-red-200 mb-4">Anda harus membuat Unit Bisnis terlebih dahulu di tab sebelah!</div>
                 ) : (
-                  <div className="grid gap-4">
+                  <div className="grid gap-4 text-slate-900">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Target Unit Bisnis</label>
-                        <select required value={socialUnit} onChange={e => setSocialUnit(e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white">
+                        <label className="block text-sm font-bold text-slate-800 mb-1">Target Unit Bisnis</label>
+                        <select required value={socialUnit} onChange={e => setSocialUnit(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium">
                           <option value="" disabled>Pilih Unit...</option>
-                          {units.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                          {units.map((u: any) => <option key={u.id} value={u.id} className="text-slate-900">{u.name}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Platform</label>
-                        <select value={socialPlatform} onChange={e => setSocialPlatform(e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white">
-                          <option value="instagram">Instagram Graph API</option>
-                          <option value="threads">Threads API</option>
+                        <label className="block text-sm font-bold text-slate-800 mb-1">Platform</label>
+                        <select value={socialPlatform} onChange={e => setSocialPlatform(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium">
+                          <option value="instagram" className="text-slate-900">Instagram Graph API</option>
+                          <option value="threads" className="text-slate-900">Threads API</option>
                         </select>
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Instagram Business Account ID</label>
-                      <input required value={socialUser} onChange={e => setSocialUser(e.target.value)} type="text" placeholder="Misal: 17841400000000000" className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none" autoComplete="new-password" />
-                      <p className="text-xs text-slate-500 mt-1">ID Angka unik dari Meta Developer Portal.</p>
+                      <label className="block text-sm font-bold text-slate-800 mb-1">Instagram Business Account ID</label>
+                      <input required value={socialUser} onChange={e => setSocialUser(e.target.value)} type="text" placeholder="Misal: 17841400000000000" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" autoComplete="new-password" />
+                      <p className="text-xs text-slate-600 mt-1.5 font-medium">ID Angka unik dari Meta Developer Portal.</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Long-Lived Access Token</label>
+                      <label className="block text-sm font-bold text-slate-800 mb-1">Long-Lived Access Token</label>
                       <div className="relative">
-                        <input required value={socialToken} onChange={e => setSocialToken(e.target.value)} type={showSocialToken ? "text" : "password"} placeholder="EAAG..." className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm" autoComplete="new-password" />
-                        <button type="button" onClick={() => setShowSocialToken(!showSocialToken)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                        <input required value={socialToken} onChange={e => setSocialToken(e.target.value)} type={showSocialToken ? "text" : "password"} placeholder="EAAG..." className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none font-mono text-sm bg-white text-slate-900 placeholder-slate-400" autoComplete="new-password" />
+                        <button type="button" onClick={() => setShowSocialToken(!showSocialToken)} className="absolute right-3 top-3 text-slate-500 hover:text-slate-800">
                           {showSocialToken ? <EyeOff size={20}/> : <Eye size={20}/>}
                         </button>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">Token ini akan dienkripsi dengan AES-256-GCM di server sebelum disimpan.</p>
+                      <p className="text-xs text-slate-600 mt-1.5 font-medium">Token ini akan dienkripsi dengan AES-256-GCM di server sebelum disimpan.</p>
                     </div>
-                    <button disabled={loading} type="submit" className="mt-2 bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors">
+                    <button disabled={loading} type="submit" className="mt-2 bg-pink-600 hover:bg-pink-700 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors shadow-md">
                       {loading ? 'Mengenkripsi & Menyimpan...' : <><Save size={18}/> Simpan Akses Sosmed</>}
                     </button>
                   </div>
@@ -265,90 +331,124 @@ export default function Settings() {
             )}
 
             {accounts.length === 0 && !showSocialForm ? (
-              <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">Belum ada API Sosial Media yang terhubung.</div>
+              <div className="text-center py-12 text-slate-500 font-medium bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">Belum ada API Sosial Media yang terhubung.</div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {accounts.map((a: any) => (
-                  <div key={a.id} className="p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-white to-pink-50/30">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-lg text-slate-800 capitalize">{a.platform}</div>
-                        <div className="text-sm text-slate-600 font-mono mt-1">ID: {a.ig_user_id}</div>
+                {accounts.map((a: any) => {
+                  const unitName = units.find(u => u.id === a.business_unit_id)?.name || 'Unit Tidak Dikenal';
+                  return (
+                    <div key={a.id} className="p-6 rounded-xl border border-pink-100 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-white to-pink-50/50 relative group">
+                      <button onClick={() => handleDeleteSocial(a.id)} className="absolute top-4 right-4 text-pink-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={20} />
+                      </button>
+                      <div className="flex justify-between items-start">
+                        <div className="pr-8">
+                          <div className="font-extrabold text-xl text-slate-900 capitalize flex items-center gap-2">
+                            {a.platform} 
+                            <span className="bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-bold">API Terhubung</span>
+                          </div>
+                          <div className="text-sm text-pink-700 font-bold mt-2">ID: {a.ig_user_id}</div>
+                          <div className="text-xs text-slate-600 font-medium mt-1">Terikat ke: {unitName}</div>
+                        </div>
                       </div>
-                      <div className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">API Terkoneksi</div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
 
+        {/* AI TAB */}
         {activeTab === 'ai' && (
           <div className="p-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Key className="text-amber-500" size={20}/> Integrasi AI Provider (Groq/OpenAI)</h3>
-                <p className="text-slate-500 text-sm mt-1">Masukkan API Key asli dari layanan AI pilihan Anda untuk digenerate oleh sistem.</p>
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Key className="text-amber-500" size={20}/> Integrasi AI Provider (API)</h3>
+                <p className="text-slate-600 text-sm mt-1">Masukkan Endpoint & API Key untuk melakukan fetch model dan konfigurasi AI.</p>
               </div>
               {!showAiForm && (
-                <button onClick={() => setShowAiForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all">
+                <button onClick={() => setShowAiForm(true)} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
                   <PlusCircle size={18} /> Tambah API Key
                 </button>
               )}
             </div>
 
             {showAiForm && (
-              <form onSubmit={handleSaveAi} autoComplete="off" className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-8 animate-in slide-in-from-top-4">
+              <form onSubmit={handleSaveAi} autoComplete="off" className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-bold text-slate-800">Form Kredensial AI API</h4>
-                  <button type="button" onClick={() => setShowAiForm(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+                  <h4 className="font-extrabold text-slate-900 text-lg">Form Kredensial AI API</h4>
+                  <button type="button" onClick={() => setShowAiForm(false)} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
                 </div>
-                <div className="grid gap-4">
+                <div className="grid gap-5 text-slate-900">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Provider Utama</label>
-                      <select required value={aiName} onChange={e => setAiName(e.target.value)} className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white">
-                        <option value="groq">Groq (Cepat & Murah)</option>
-                        <option value="openai">OpenAI (Akurat)</option>
-                        <option value="anthropic">Anthropic Claude</option>
-                        <option value="vps">Lokal VPS Lama3</option>
+                      <label className="block text-sm font-bold text-slate-800 mb-1">Provider Utama</label>
+                      <select required value={aiName} onChange={handleProviderChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white text-slate-900 font-medium">
+                        <option value="groq" className="text-slate-900">Groq (Cepat & Murah)</option>
+                        <option value="openai" className="text-slate-900">OpenAI (Akurat)</option>
+                        <option value="anthropic" className="text-slate-900">Anthropic Claude</option>
+                        <option value="vps" className="text-slate-900">VPS / Custom Endpoint</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Spesifik Model (Opsional)</label>
-                      <input value={aiModel} onChange={e => setAiModel(e.target.value)} type="text" placeholder="Misal: llama-3.3-70b-versatile" className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none" autoComplete="new-password" />
+                      <label className="block text-sm font-bold text-slate-800 mb-1">Endpoint (Base URL)</label>
+                      <input required value={aiBaseUrl} onChange={e => setAiBaseUrl(e.target.value)} type="text" placeholder="https://api.openai.com" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" autoComplete="new-password" />
                     </div>
                   </div>
+                  
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Secret API Key</label>
+                    <label className="block text-sm font-bold text-slate-800 mb-1">Secret API Key</label>
                     <div className="relative">
-                      <input required value={aiKey} onChange={e => setAiKey(e.target.value)} type={showAiKey ? "text" : "password"} placeholder="gsk_... / sk-..." className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-mono text-sm" autoComplete="new-password" />
-                      <button type="button" onClick={() => setShowAiKey(!showAiKey)} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                      <input required value={aiKey} onChange={e => setAiKey(e.target.value)} type={showAiKey ? "text" : "password"} placeholder="gsk_... / sk-..." className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none font-mono text-sm bg-white text-slate-900 placeholder-slate-400" autoComplete="new-password" />
+                      <button type="button" onClick={() => setShowAiKey(!showAiKey)} className="absolute right-3 top-3 text-slate-500 hover:text-slate-800">
                         {showAiKey ? <EyeOff size={20}/> : <Eye size={20}/>}
                       </button>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">API Key dienkripsi level militer (AES-256-GCM) di *database* Supabase.</p>
+                    <p className="text-xs text-slate-600 mt-1.5 font-medium">API Key dienkripsi level militer (AES-256-GCM). Key yang lama tidak akan dihapus jika Anda membuat konfigurasi untuk Provider lain.</p>
                   </div>
-                  <button disabled={loading} type="submit" className="mt-2 bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2 transition-colors">
-                    {loading ? 'Mengenkripsi & Menyimpan...' : <><Save size={18}/> Simpan Kunci AI</>}
+
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg flex flex-col sm:flex-row gap-4 items-end">
+                    <div className="w-full">
+                      <label className="block text-sm font-bold text-slate-800 mb-1">Pilih Model AI (Dari Endpoint)</label>
+                      {availableModels.length > 0 ? (
+                        <select value={aiModel} onChange={e => setAiModel(e.target.value)} className="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white text-slate-900 font-medium">
+                          {availableModels.map(m => <option key={m} value={m} className="text-slate-900">{m}</option>)}
+                        </select>
+                      ) : (
+                        <input value={aiModel} onChange={e => setAiModel(e.target.value)} type="text" placeholder="Ketik model manual atau tekan tombol Load..." className="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none bg-white text-slate-900 font-medium placeholder-slate-400" />
+                      )}
+                    </div>
+                    <button type="button" onClick={handleFetchModels} disabled={fetchingModels} className="shrink-0 bg-slate-800 hover:bg-slate-900 text-white px-5 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors">
+                      <RefreshCcw size={18} className={fetchingModels ? "animate-spin" : ""} /> Load Models
+                    </button>
+                  </div>
+
+                  <button disabled={loading} type="submit" className="mt-4 bg-amber-500 hover:bg-amber-600 text-white py-3.5 rounded-lg font-extrabold flex justify-center items-center gap-2 transition-colors shadow-md text-lg">
+                    {loading ? 'Mengenkripsi & Menyimpan...' : <><Save size={20}/> Simpan Konfigurasi AI</>}
                   </button>
                 </div>
               </form>
             )}
 
             {providers.length === 0 && !showAiForm ? (
-              <div className="text-center py-12 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">Belum ada API Key AI yang disimpan. Sistem akan menggunakan fallback env variable jika ada.</div>
+              <div className="text-center py-12 text-slate-500 font-medium bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">Belum ada API Key AI yang disimpan.</div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {providers.map((p: any) => (
-                  <div key={p.id} className="p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-white to-amber-50/30">
+                  <div key={p.id} className="p-6 rounded-xl border border-amber-200 shadow-sm hover:shadow-md transition-shadow bg-gradient-to-br from-white to-amber-50/50 relative group">
+                    <button onClick={() => handleDeleteAi(p.id)} className="absolute top-4 right-4 text-amber-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={20} />
+                    </button>
                     <div className="flex justify-between items-start">
-                      <div>
-                        <div className="font-bold text-lg text-slate-800 capitalize">{p.provider_name}</div>
-                        <div className="text-sm text-slate-600 font-mono mt-1">Model: {p.model || 'Default API'}</div>
+                      <div className="pr-8">
+                        <div className="font-extrabold text-xl text-slate-900 capitalize flex items-center gap-2">
+                          {p.provider_name === 'vps' ? 'VPS / Custom' : p.provider_name}
+                          {p.has_key && <span className="bg-green-100 text-green-700 text-xs px-2.5 py-0.5 rounded-full font-bold">API Key Aktif</span>}
+                        </div>
+                        <div className="text-sm text-slate-600 font-medium mt-2 break-all">URL: {p.base_url || 'Default Endpoint'}</div>
+                        <div className="text-sm text-amber-700 font-bold mt-1">Model: {p.model || 'Model Default Bawaan API'}</div>
                       </div>
-                      {p.has_key && <div className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold">API Key Aktif</div>}
                     </div>
                   </div>
                 ))}
