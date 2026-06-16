@@ -37,6 +37,14 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [scheduledDate, setScheduledDate] = useState<Date | null>(initialDate || new Date());
   const [saving, setSaving] = useState(false);
 
+  React.useEffect(() => {
+    if (!formUnit && units.length > 0) setFormUnit(units[0].id);
+  }, [units, formUnit]);
+
+  React.useEffect(() => {
+    if (!formAccount && accounts.length > 0) setFormAccount(accounts[0].id);
+  }, [accounts, formAccount]);
+
   const filteredAccounts = accounts.filter(a => a.business_unit_id === formUnit);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
