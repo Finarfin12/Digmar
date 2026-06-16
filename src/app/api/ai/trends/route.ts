@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
+import { XMLParser } from 'fast-xml-parser'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -11,34 +12,100 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    let preferred_provider;
-    try {
-      const body = await request.json();
-      preferred_provider = body.preferred_provider;
-    } catch (e) {}
+    const { business_unit_id, preferred_provider } = await request.json()
 
+    if (!business_unit_id) {
+      return NextResponse.json({ error: 'Missing business_unit_id' }, { status: 400 })
+    }
+
+    // 1. Get Unit Info
+    const { data: unit, error: unitError } = await supabase
+      .from('business_units')
+      .select('brand_name, business_category, ai_system_prompt')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unit) {
+      return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
+    }
+
+    // 2. Fetch Real-time News (Free Google News RSS Indonesia)
+    let trendingNews: string[] = [];
+    try {
+      const res = await fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } });
+      const xmlData = await res.text();
+      const parser = new XMLParser();
+      const jsonObj = parser.parse(xmlData);
+      
+      const items = jsonObj?.rss?.channel?.item || [];
+      const topItems = Array.isArray(items) ? items.slice(0, 7) : [items];
+      
+      trendingNews = topItems.map((item: any) => item.title);
+    } catch (e) {
+      console.error("Gagal menarik RSS Berita:", e);
+      trendingNews = ["Gagal memuat berita terkini."];
+    }
+
+    // 3. Format Date
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const currentMonth = today.getMonth() + 1; // 1-12
+    let seasonContext = "Bulan biasa";
+    if (currentMonth >= 11 || currentMonth <= 1) seasonContext = "Musim Liburan / Akhir Tahun / Awal Tahun Baru";
+    else if (currentMonth >= 3 && currentMonth <= 4) seasonContext = "Periode Ramadhan / Idul Fitri (Tergantung kalender Hijriah)";
+    else if (currentMonth >= 6 && currentMonth <= 7) seasonContext = "Musim Libur Sekolah / Musim Panas (Kemarau)";
+    else if (currentMonth === 8) seasonContext = "Bulan Kemerdekaan RI (Agustus)";
+
+    // 4. Generate with AI
     const { client, config } = await getAIProvider(user.id, preferred_provider)
     
-    const prompt = `Berikan analisis tren konten media sosial terkini yang sedang viral atau naik daun. Kembalikan HANYA dalam format JSON ketat (strict) tanpa markdown block, seperti ini:
+    const aiPrompt = `
+Konteks Bisnis:
+Nama: ${unit.brand_name}
+Kategori: ${unit.business_category}
+Aturan Promosi Khusus: ${unit.ai_system_prompt || 'Tidak ada spesifikasi khusus.'}
+
+Data Hari Ini:
+Tanggal: ${dateStr}
+Konteks Musiman/Bulan: ${seasonContext}
+Topik Berita Tren (Indonesia): 
+${trendingNews.map(n => `- ${n}`).join('\n')}
+
+Tugas Anda:
+Berdasarkan hari ini, konteks musiman, dan topik berita yang sedang tren di atas, buatlah 3 Rekomendasi Ide Konten Media Sosial yang sangat relevan dan menarik untuk bisnis ini (gabungkan bisnis (soft-selling) dengan tren yang ada jika masuk akal, jika tidak masuk akal jangan paksakan, gunakan saja konteks musim/tanggal).
+
+KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
 {
-  "topics": ["Trend 1", "Trend 2", "Trend 3"],
-  "seasonal_idea": "Ide konten musiman yang sangat spesifik dan aplikatif berdasarkan bulan ini.",
-  "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
-}`;
-    
-    const response = await client.generateText("Kamu adalah analis trend sosial media top dunia.", prompt, {
-      temperature: 0.8,
-      maxTokens: 500
-    })
+  "topik_utama_hari_ini": "Satu kalimat ringkasan tentang apa yang sedang tren",
+  "ide_konten": [
+    {
+      "judul": "Judul Ide Konten",
+      "format": "Reels / Carousel / Single Image",
+      "deskripsi": "Penjelasan detail mengapa konten ini cocok di-post hari ini beserta bayangan visualnya."
+    }
+  ]
+}
+`;
+
+    const response = await client.generateText(
+      "Anda adalah analis tren sosial media jenius (Social Media Strategist).",
+      aiPrompt,
+      { temperature: 0.8, maxTokens: 1500 }
+    )
 
     let parsedData;
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
     } catch (e) {
-      return NextResponse.json({ error: "Gagal memproses respon AI. Pastikan AI menghasilkan JSON murni." }, { status: 500 })
+      console.error("Gagal parse JSON dari AI:", response.content);
+      return NextResponse.json({ error: "Format AI tidak valid. Coba lagi." }, { status: 500 })
     }
 
-    return NextResponse.json(parsedData)
+    return NextResponse.json({
+      berita_sumber: trendingNews,
+      ...parsedData
+    })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
