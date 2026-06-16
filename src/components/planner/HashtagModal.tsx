@@ -77,9 +77,9 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
               onChange={e => setSelectedSource(e.target.value)}
               className="p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
             >
-              <option value="mixed">🌐 Campur Semua</option>
-              <option value="youtube">🎥 YouTube Search</option>
-              <option value="newsdata">🌍 Berita Global</option>
+              <option value="mixed">Campur Semua</option>
+              <option value="youtube">YouTube Search</option>
+              <option value="newsdata">Berita Global</option>
             </select>
             <button disabled={loading} type="submit" className="bg-indigo-600 text-white px-8 py-4 md:py-0 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
               {loading ? <Loader2 className="animate-spin" /> : <Search />} Cari

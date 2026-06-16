@@ -67,10 +67,9 @@ export default function Trends() {
             onChange={e => setSelectedSource(e.target.value)}
             className="w-full md:w-64 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
           >
-            <option value="mixed">🌐 Campur Semua</option>
-            <option value="youtube">🎥 YouTube Trends</option>
-            <option value="google_news">📰 Berita Google</option>
-            <option value="newsdata">🌍 Berita Global</option>
+            <option value="mixed">Campur Semua</option>
+            <option value="youtube">YouTube Trends</option>
+            <option value="newsdata">Berita Global</option>
           </select>
 
           <button onClick={generateTrends} disabled={loading || !selectedUnit} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md transform hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100 whitespace-nowrap">
@@ -89,8 +88,8 @@ export default function Trends() {
       ) : loading ? (
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-12 text-center space-y-4">
           <Loader2 className="mx-auto animate-spin text-amber-500" size={64}/>
-          <h3 className="text-xl font-bold text-slate-800">Menarik Data dari Google News...</h3>
-          <p className="text-slate-500">AI sedang membaca berita Indonesia terkini dan mencocokkannya dengan kategori bisnis Anda.</p>
+          <h3 className="text-xl font-bold text-slate-800">Menarik Data Tren Terkini...</h3>
+          <p className="text-slate-500">AI sedang memindai sumber data yang Anda pilih dan merumuskan ide konten terbaik.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
