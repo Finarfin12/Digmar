@@ -14,7 +14,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 h-screen bg-slate-950 text-slate-300 flex flex-col border-r border-slate-800 shadow-2xl relative z-20">
+    <aside className="w-64 shrink-0 h-screen sticky top-0 bg-slate-950 text-slate-300 flex flex-col border-r border-slate-800 shadow-2xl z-20">
       <div className="p-8 flex items-center gap-3">
         <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-600/30">
           <Sparkles className="text-white" size={24} />
