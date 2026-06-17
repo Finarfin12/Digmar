@@ -131,9 +131,9 @@ export default function Trends() {
                 <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 transform origin-bottom scale-y-0 group-hover:scale-y-100 transition-transform duration-300"></div>
                   
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                  <div className="flex flex-col justify-between h-full gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-3 mb-3">
                         <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
                           Ide {i + 1}
                         </span>
@@ -145,10 +145,10 @@ export default function Trends() {
                       <p className="text-slate-600 font-medium leading-relaxed">{ide.deskripsi}</p>
                     </div>
                     
-                    <div className="shrink-0 pt-2 md:pt-0">
+                    <div className="shrink-0 pt-4 mt-auto border-t border-slate-100">
                       <button 
                         onClick={() => router.push('/planner')}
-                        className="w-full md:w-auto bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
                       >
                         Jadikan Post <ChevronRight size={18}/>
                       </button>
