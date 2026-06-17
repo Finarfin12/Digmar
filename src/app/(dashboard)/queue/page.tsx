@@ -117,13 +117,13 @@ export default function QueuePage() {
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1">Hari</label>
-                  <select value={newDay} onChange={e=>setNewDay(parseInt(e.target.value))} className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold bg-white">
+                  <select value={newDay} onChange={e=>setNewDay(parseInt(e.target.value))} className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold bg-white text-slate-900">
                     {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1">Jam</label>
-                  <input type="time" value={newTime} onChange={e=>setNewTime(e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold bg-white" />
+                  <input type="time" value={newTime} onChange={e=>setNewTime(e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm font-bold bg-white text-slate-900" />
                 </div>
               </div>
               <button disabled={savingSchedule} onClick={addSchedule} className="w-full bg-slate-900 text-white font-bold py-2 rounded-xl text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition">
