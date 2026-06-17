@@ -4,7 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { format } from 'date-fns';
 import { 
   Calendar as CalendarIcon, Loader2, Save,
-  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart
+  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart, Sparkles
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit, SocialAccount } from '@/types';
@@ -30,6 +30,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [formAccount, setFormAccount] = useState(accounts.length > 0 ? accounts[0].id : '');
   const [scheduledDate, setScheduledDate] = useState<Date | null>(initialDate || new Date());
   const [saving, setSaving] = useState(false);
+  const [fetchingBestTime, setFetchingBestTime] = useState(false);
 
   React.useEffect(() => {
     if (!formUnit && units.length > 0) setFormUnit(units[0].id);
@@ -106,6 +107,32 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
       Swal.fire('Error Save', (err as Error).message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBestTime = async () => {
+    if (!formUnit) return Swal.fire('Error', 'Pilih unit bisnis terlebih dahulu', 'error');
+    setFetchingBestTime(true);
+    try {
+      const res = await fetch('/api/ai/best-time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ business_unit_id: formUnit })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      setScheduledDate(new Date(data.scheduled_at));
+      Swal.fire({
+        title: 'Waktu Optimal (AI)',
+        text: data.reasoning,
+        icon: 'info',
+        confirmButtonText: 'Terapkan'
+      });
+    } catch (err: any) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setFetchingBestTime(false);
     }
   };
 
@@ -260,7 +287,13 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-800 mb-1">Tanggal & Waktu</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-bold text-slate-800">Tanggal & Waktu</label>
+                <button onClick={handleBestTime} disabled={fetchingBestTime} className="text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 py-1 rounded-md flex items-center gap-1 transition-colors disabled:opacity-50">
+                  {fetchingBestTime ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
+                  {fetchingBestTime ? 'Menganalisa...' : 'AI Best Time'}
+                </button>
+              </div>
               <input type="datetime-local" value={scheduledDate ? format(scheduledDate as Date, "yyyy-MM-dd'T'HH:mm") : ''} onChange={e => setScheduledDate(new Date(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 font-medium" />
             </div>
 
