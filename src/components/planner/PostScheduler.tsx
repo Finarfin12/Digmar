@@ -226,10 +226,10 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           <div>
             <label className="block text-sm font-bold text-slate-800 mb-1">Unit & Akun Tujuan</label>
             <div className="flex gap-2">
-              <select value={formUnit} onChange={e => {setFormUnit(e.target.value); setFormAccount('');}} className="flex-1 p-3 border border-slate-300 rounded-lg bg-slate-50 font-bold">
+              <select value={formUnit} onChange={e => {setFormUnit(e.target.value); setFormAccount('');}} className="flex-1 p-3 border border-slate-300 rounded-lg bg-slate-50 font-bold text-slate-900">
                 {units.map(u => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
               </select>
-              <select value={formAccount} onChange={e => setFormAccount(e.target.value)} className="flex-1 p-3 border border-slate-300 rounded-lg bg-slate-50 font-bold">
+              <select value={formAccount} onChange={e => setFormAccount(e.target.value)} className="flex-1 p-3 border border-slate-300 rounded-lg bg-slate-50 font-bold text-slate-900">
                 <option value="">-- Pilih Akun --</option>
                 {filteredAccounts.map(a => <option key={a.id} value={a.id} className="capitalize">{a.platform}</option>)}
               </select>
