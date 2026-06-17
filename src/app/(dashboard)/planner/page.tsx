@@ -7,6 +7,7 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import PostScheduler from '@/components/planner/PostScheduler';
 import HashtagModal from '@/components/planner/HashtagModal';
+import CampaignArchitectModal from '@/components/planner/CampaignArchitectModal';
 import { Hash } from 'lucide-react';
 
 export default function Planner() {
@@ -16,6 +17,7 @@ export default function Planner() {
   
   const [showModal, setShowModal] = useState(false);
   const [showHashtagModal, setShowHashtagModal] = useState(false);
+  const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   
   const calendarRef = useRef<FullCalendar>(null);
@@ -87,6 +89,9 @@ export default function Planner() {
           </div>
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowCampaignModal(true)} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/30 transition-all font-extrabold border border-amber-400">
+            <Sparkles size={18} className="text-yellow-100" /> Campaign Architect
+          </button>
           <button onClick={() => setShowHashtagModal(true)} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-5 py-3 rounded-xl flex items-center gap-2 transition-all font-bold border border-indigo-200">
             <Hash size={18} /> Riset Hashtag
           </button>
@@ -151,6 +156,18 @@ export default function Planner() {
       )}
 
       {showHashtagModal && <HashtagModal onClose={() => setShowHashtagModal(false)} />}
+      
+      {showCampaignModal && (
+        <CampaignArchitectModal 
+          units={units}
+          accounts={accounts}
+          onClose={() => setShowCampaignModal(false)}
+          onSuccess={() => {
+            fetchData();
+            setShowCampaignModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
