@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/client';
 import ImageEditor from './ImageEditor';
 import { v4 as uuidv4 } from 'uuid';
 
-export default function MediaGalleryModal({ onSelect, onClose }: { onSelect: (url: string) => void; onClose: () => void }) {
+export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }: { businessUnitId?: string, onSelect: (url: string) => void; onClose: () => void }) {
   const supabase = createClient();
-  const [galleryFiles, setGalleryFiles] = useState<{ id: string | null; url: string; metadata?: Record<string, unknown> | null | any }[]>([]);
+  const [galleryFiles, setGalleryFiles] = useState<{ id: string | null; url: string; file_name?: string; metadata?: Record<string, unknown> | null | any }[]>([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -18,17 +18,23 @@ export default function MediaGalleryModal({ onSelect, onClose }: { onSelect: (ur
 
   const loadGallery = async () => {
     setLoadingGallery(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.storage.from('digimar-media').list(user.id, { limit: 50, sortBy: { column: 'created_at', order: 'desc' } });
-    if (data) {
-      const validFiles = data.filter(f => f.name !== '.emptyFolderPlaceholder');
-      const filesWithUrls = validFiles.map(f => ({
-        id: f.id,
-        metadata: f.metadata,
-        url: supabase.storage.from('digimar-media').getPublicUrl(`${user.id}/${f.name}`).data.publicUrl
-      }));
-      setGalleryFiles(filesWithUrls);
+    let endpoint = '/api/library/media';
+    if (businessUnitId) endpoint += `?business_unit_id=${businessUnitId}`;
+    
+    try {
+      const res = await fetch(endpoint);
+      if (res.ok) {
+        const data = await res.json();
+        const filesWithUrls = data.map((f: any) => ({
+          id: f.id,
+          file_name: f.file_name,
+          metadata: { mimetype: f.mime_type },
+          url: f.public_url
+        }));
+        setGalleryFiles(filesWithUrls);
+      }
+    } catch (e) {
+      console.error(e);
     }
     setLoadingGallery(false);
   };

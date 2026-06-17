@@ -10,6 +10,7 @@ import Swal from 'sweetalert2';
 import type { BusinessUnit, SocialAccount } from '@/types';
 import MediaGalleryModal from './MediaGalleryModal';
 import CaptionGenerator from './CaptionGenerator';
+import LibrarySelectorModal from './LibrarySelectorModal';
 
 export default function PostScheduler({ units, accounts, initialDate, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, onSuccess: () => void }) {
   // Post Type
@@ -21,6 +22,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [mediaUrl, setMediaUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [showLibModal, setShowLibModal] = useState<'captions' | 'hashtags' | null>(null);
 
   // Form states
   const [formUnit, setFormUnit] = useState(units.length > 0 ? units[0].id : '');
@@ -174,6 +176,28 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           onCaptionSelect={setFinalCaption} 
         />
 
+        {/* Manual Caption Input */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <label className="block text-sm font-bold text-slate-800">Caption Postingan</label>
+            <div className="flex gap-2">
+              <button onClick={() => setShowLibModal('captions')} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-bold transition-colors">
+                Template
+              </button>
+              <button onClick={() => setShowLibModal('hashtags')} className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-bold transition-colors">
+                Hashtag
+              </button>
+            </div>
+          </div>
+          <textarea 
+            value={finalCaption} 
+            onChange={e => setFinalCaption(e.target.value)} 
+            rows={5} 
+            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 text-sm"
+            placeholder="Tulis caption manual, atau gunakan AI, atau pilih dari template..."
+          />
+        </div>
+
       </div>
 
       {/* TENGAH: Mockup */}
@@ -249,7 +273,19 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
       </div>
 
-      {showGallery && <MediaGalleryModal onSelect={selectFromGallery} onClose={() => setShowGallery(false)} />}
+      {showGallery && <MediaGalleryModal businessUnitId={formUnit} onSelect={selectFromGallery} onClose={() => setShowGallery(false)} />}
+      
+      {showLibModal && (
+        <LibrarySelectorModal 
+          type={showLibModal} 
+          businessUnitId={formUnit} 
+          onClose={() => setShowLibModal(null)} 
+          onSelect={(content) => {
+            setFinalCaption(prev => prev ? prev + '\n' + content : content);
+            setShowLibModal(null);
+          }} 
+        />
+      )}
     </div>
   );
 }

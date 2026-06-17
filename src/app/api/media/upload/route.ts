@@ -12,9 +12,14 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const business_unit_id = formData.get('business_unit_id') as string | null
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    }
+
+    if (!business_unit_id) {
+      return NextResponse.json({ error: 'Business unit ID is required' }, { status: 400 })
     }
 
     const fileExt = file.name.split('.').pop()
@@ -37,11 +42,31 @@ export async function POST(request: NextRequest) {
       .from('digimar-media')
       .getPublicUrl(data.path)
 
+    // Save metadata to database
+    const { data: dbData, error: dbError } = await supabase
+      .from('media_assets')
+      .insert({
+        user_id: user.id,
+        business_unit_id,
+        file_name: file.name,
+        storage_path: data.path,
+        public_url: publicUrlData.publicUrl,
+        mime_type: file.type,
+        size_bytes: file.size
+      })
+      .select()
+      .single()
+
+    if (dbError) {
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
+
     return NextResponse.json({
-      url: publicUrlData.publicUrl,
-      path: data.path,
-      size: file.size,
-      mime_type: file.type
+      url: dbData.public_url,
+      path: dbData.storage_path,
+      size: dbData.size_bytes,
+      mime_type: dbData.mime_type,
+      id: dbData.id
     })
   } catch (err: unknown) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 })

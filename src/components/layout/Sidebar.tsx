@@ -10,7 +10,7 @@ export default function Sidebar() {
     { name: 'Beranda', path: '/', icon: Home },
     { name: 'Planner', path: '/planner', icon: Calendar },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
-    { name: 'Galeri Media', path: '/media', icon: ImageIcon },
+    { name: 'Content Library', path: '/library', icon: ImageIcon },
     { name: 'Trend Insight', path: '/trends', icon: TrendingUp },
   ];
 
