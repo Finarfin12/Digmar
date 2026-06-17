@@ -126,9 +126,9 @@ export default function Planner() {
 
       {/* Modal Studio */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl my-8 relative animate-in zoom-in-95">
-            <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex justify-between items-center z-10 rounded-t-3xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl my-auto relative animate-in zoom-in-95">
+            <div className="sticky top-0 bg-white border-b border-slate-200 p-5 flex justify-between items-center z-10 rounded-t-3xl shadow-sm">
               <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="text-indigo-600" /> Post Creator Studio
               </h3>
