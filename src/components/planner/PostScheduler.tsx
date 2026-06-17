@@ -27,6 +27,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   // Form states
   const [formUnit, setFormUnit] = useState(units.length > 0 ? units[0].id : '');
   const [finalCaption, setFinalCaption] = useState('');
+  const [firstComment, setFirstComment] = useState('');
   const [formAccount, setFormAccount] = useState(accounts.length > 0 ? accounts[0].id : '');
   const [scheduledDate, setScheduledDate] = useState<Date | null>(initialDate || new Date());
   const [saving, setSaving] = useState(false);
@@ -96,6 +97,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           target_account_ids: [formAccount],
           scheduled_at: scheduledDate.toISOString(),
           caption: finalCaption,
+          first_comment: firstComment,
           media_urls: mediaUrl ? [mediaUrl] : [],
           post_type: postType
         })
@@ -219,9 +221,19 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           <textarea 
             value={finalCaption} 
             onChange={e => setFinalCaption(e.target.value)} 
-            rows={5} 
-            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 text-sm"
+            rows={4} 
+            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 text-sm mb-3"
             placeholder="Tulis caption manual, atau gunakan AI, atau pilih dari template..."
+          />
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-sm font-bold text-slate-800">Komentar Pertama (Opsional, khusus IG)</label>
+          </div>
+          <textarea 
+            value={firstComment} 
+            onChange={e => setFirstComment(e.target.value)} 
+            rows={2} 
+            className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 text-sm"
+            placeholder="Biasanya digunakan untuk menaruh hashtag agar caption utama terlihat bersih..."
           />
         </div>
 
@@ -314,8 +326,28 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           businessUnitId={formUnit} 
           onClose={() => setShowLibModal(null)} 
           onSelect={(content) => {
-            setFinalCaption(prev => prev ? prev + '\n' + content : content);
-            setShowLibModal(null);
+            if (showLibModal === 'hashtags') {
+              Swal.fire({
+                title: 'Lokasi Hashtag',
+                text: 'Di mana Anda ingin menaruh hashtag ini?',
+                icon: 'question',
+                showCancelButton: true,
+                showDenyButton: true,
+                confirmButtonText: 'Akhir Caption',
+                denyButtonText: 'Komentar Pertama',
+                cancelButtonText: 'Batal'
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  setFinalCaption(prev => prev ? prev + '\n\n' + content : content);
+                } else if (result.isDenied) {
+                  setFirstComment(prev => prev ? prev + '\n' + content : content);
+                }
+                setShowLibModal(null);
+              });
+            } else {
+              setFinalCaption(prev => prev ? prev + '\n' + content : content);
+              setShowLibModal(null);
+            }
           }} 
         />
       )}

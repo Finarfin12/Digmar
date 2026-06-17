@@ -7,6 +7,7 @@ export interface BusinessUnit {
   brand_name: string;
   business_category: string;
   ai_system_prompt: string;
+  custom_variables?: any;
 }
 
 export default function UnitsTab() {
@@ -18,6 +19,7 @@ export default function UnitsTab() {
   const [promptAudiens, setPromptAudiens] = useState('');
   const [promptKepribadian, setPromptKepribadian] = useState('');
   const [promptProduk, setPromptProduk] = useState('');
+  const [customVariables, setCustomVariables] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchUnits = async () => {
@@ -39,9 +41,16 @@ export default function UnitsTab() {
     const method = editingId ? 'PUT' : 'POST';
     const combinedPrompt = `[Target Audiens]\n${promptAudiens}\n\n[Kepribadian AI]\n${promptKepribadian}\n\n[Produk & Harga]\n${promptProduk}`;
 
+    let parsedVars = {};
+    try {
+      if (customVariables.trim()) parsedVars = JSON.parse(customVariables);
+    } catch(e) {
+      return Swal.fire('Error', 'Format Custom Variables harus JSON yang valid', 'error');
+    }
+
     const bodyPayload = editingId 
-      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt }
-      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt };
+      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars }
+      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars };
 
     const res = await fetch('/api/units', {
       method,
@@ -52,7 +61,7 @@ export default function UnitsTab() {
     if (res.ok) {
       Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis disimpan.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowForm(false);
-      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setEditingId(null);
+      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setEditingId(null);
       fetchUnits();
     } else {
       const err = await res.json().catch(()=>({}));
@@ -92,7 +101,7 @@ export default function UnitsTab() {
         <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-4">
             <h4 className="font-extrabold text-slate-900 text-lg">{editingId ? 'Edit Unit Bisnis' : 'Tambah Unit Bisnis'}</h4>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
           </div>
           <div className="grid gap-4 text-slate-900">
             <div>
@@ -102,6 +111,11 @@ export default function UnitsTab() {
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-1">Kategori/Industri</label>
               <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-1">Custom Variables (JSON)</label>
+              <textarea value={customVariables} onChange={e => setCustomVariables(e.target.value)} rows={2} className="w-full p-3 border border-slate-300 rounded-lg bg-white font-mono text-xs" placeholder='Contoh: {"promo": "Diskon 50%", "link": "https://brand.com"}'></textarea>
+              <p className="text-[10px] text-slate-500 mt-1">Variabel ini bisa dipakai di caption dengan format &#123;promo&#125; atau &#123;link&#125;.</p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm mt-2">
               <h5 className="font-extrabold text-indigo-900 mb-4 border-b pb-2 flex items-center gap-2"><BrainCircuit size={18}/> Konfigurasi Otak AI (Knowledge Base)</h5>
@@ -154,6 +168,8 @@ export default function UnitsTab() {
                     setPromptKepribadian(savedPrompt);
                     setPromptProduk('');
                   }
+                  
+                  setCustomVariables(u.custom_variables ? JSON.stringify(u.custom_variables, null, 2) : '');
                   
                   setShowForm(true);
                   window.scrollTo({ top: 0, behavior: 'smooth' });

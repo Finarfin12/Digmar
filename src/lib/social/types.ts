@@ -13,6 +13,7 @@ export interface PostJob {
   target_account_ids: string[];
   media_urls: string[];
   caption: string;
+  first_comment?: string;
   post_type: 'single_image' | 'carousel' | 'reels';
   cover_url?: string;
   log_messages: Record<string, unknown>[];

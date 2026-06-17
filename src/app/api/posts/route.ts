@@ -48,12 +48,50 @@ export async function POST(request: NextRequest) {
       scheduled_at, 
       media_urls, 
       caption, 
+      first_comment,
       post_type, 
       cover_url 
     } = body
 
     if (!target_account_ids || target_account_ids.length === 0 || !scheduled_at) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Fase 5: Apply Variables
+    let processedCaption = caption || '';
+    let processedFirstComment = first_comment || '';
+
+    // Ambil info Unit Bisnis dari akun pertama
+    const { data: accountInfo } = await supabase
+      .from('social_accounts')
+      .select('business_unit_id')
+      .eq('id', target_account_ids[0])
+      .single()
+
+    if (accountInfo) {
+      const { data: unitInfo } = await supabase
+        .from('business_units')
+        .select('brand_name, custom_variables')
+        .eq('id', accountInfo.business_unit_id)
+        .single()
+
+      if (unitInfo) {
+        const vars = unitInfo.custom_variables || {};
+        // Variables standar
+        const defaultVars: Record<string, string> = {
+          brand: unitInfo.brand_name,
+          tanggal: new Date(scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+        };
+        const allVars = { ...vars, ...defaultVars };
+
+        const replacer = (match: string, p1: string) => {
+          const key = p1.trim();
+          return allVars[key] !== undefined ? String(allVars[key]) : match;
+        };
+
+        processedCaption = processedCaption.replace(/\{([^}]+)\}/g, replacer);
+        processedFirstComment = processedFirstComment.replace(/\{([^}]+)\}/g, replacer);
+      }
     }
 
     const job_code = generateJobCode()
@@ -67,7 +105,8 @@ export async function POST(request: NextRequest) {
           target_account_ids,
           scheduled_at,
           media_urls: media_urls || [],
-          caption: caption || '',
+          caption: processedCaption,
+          first_comment: processedFirstComment,
           post_type: post_type || 'single_image',
           cover_url: cover_url || null,
           status: 'waiting',

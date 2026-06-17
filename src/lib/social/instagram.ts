@@ -92,6 +92,18 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob) {
       creation_id: containerId
     });
 
+    // Fase 4: First Comment
+    if (job.first_comment) {
+      try {
+        await fetchInstagram(`${publishRes.id}/comments`, account.access_token, 'POST', {
+          message: job.first_comment
+        });
+      } catch (commentErr) {
+        console.error('Failed to post first comment:', commentErr);
+        // Continue and return success for the main post even if comment fails
+      }
+    }
+
     return { success: true, id: publishRes.id };
   } catch (err: unknown) {
     return { success: false, error: (err as Error).message };
