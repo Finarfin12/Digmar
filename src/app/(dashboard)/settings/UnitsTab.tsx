@@ -15,7 +15,9 @@ export default function UnitsTab() {
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
-  const [prompt, setPrompt] = useState('');
+  const [promptAudiens, setPromptAudiens] = useState('');
+  const [promptKepribadian, setPromptKepribadian] = useState('');
+  const [promptProduk, setPromptProduk] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchUnits = async () => {
@@ -35,9 +37,11 @@ export default function UnitsTab() {
     e.preventDefault();
     setLoading(true);
     const method = editingId ? 'PUT' : 'POST';
+    const combinedPrompt = `[Target Audiens]\n${promptAudiens}\n\n[Kepribadian AI]\n${promptKepribadian}\n\n[Produk & Harga]\n${promptProduk}`;
+
     const bodyPayload = editingId 
-      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: prompt }
-      : { brand_name: name, business_category: category, ai_system_prompt: prompt };
+      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt }
+      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt };
 
     const res = await fetch('/api/units', {
       method,
@@ -48,7 +52,7 @@ export default function UnitsTab() {
     if (res.ok) {
       Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis disimpan.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowForm(false);
-      setName(''); setCategory(''); setPrompt(''); setEditingId(null);
+      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setEditingId(null);
       fetchUnits();
     } else {
       const err = await res.json().catch(()=>({}));
@@ -88,7 +92,7 @@ export default function UnitsTab() {
         <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-4">
             <h4 className="font-extrabold text-slate-900 text-lg">{editingId ? 'Edit Unit Bisnis' : 'Tambah Unit Bisnis'}</h4>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPrompt(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
           </div>
           <div className="grid gap-4 text-slate-900">
             <div>
@@ -99,10 +103,23 @@ export default function UnitsTab() {
               <label className="block text-sm font-bold text-slate-800 mb-1">Kategori/Industri</label>
               <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-800 mb-1">Knowledge Base & Kepribadian AI (AI System Prompt)</label>
-              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3} className="w-full p-3 border border-slate-300 rounded-lg bg-white" placeholder="Contoh: Anda adalah admin toko Sepatu. Harga sepatu sneakers Rp300.000. Jawab dengan ramah."></textarea>
-              <p className="text-xs text-slate-500 mt-1">Tuliskan harga barang, aturan bisnis, dan gaya bahasa Anda di sini. AI akan menggunakan teks ini sebagai 'otak' ketika menjawab komentar atau DM pelanggan yang masuk.</p>
+            <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm mt-2">
+              <h5 className="font-extrabold text-indigo-900 mb-4 border-b pb-2">🧠 Konfigurasi Otak AI (Knowledge Base)</h5>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 mb-1">1. Target Audiens</label>
+                  <input value={promptAudiens} onChange={e => setPromptAudiens(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-slate-50" placeholder="Contoh: Gen-Z, Mahasiswa, atau Ibu Rumah Tangga" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 mb-1">2. Kepribadian & Peran AI</label>
+                  <textarea value={promptKepribadian} onChange={e => setPromptKepribadian(e.target.value)} rows={2} className="w-full p-3 border border-slate-300 rounded-lg bg-slate-50" placeholder="Contoh: Anda adalah admin yang asik, ramah, dan suka menggunakan emoji santai."></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-800 mb-1">3. Informasi Produk & Harga (QnA)</label>
+                  <textarea value={promptProduk} onChange={e => setPromptProduk(e.target.value)} rows={3} className="w-full p-3 border border-slate-300 rounded-lg bg-slate-50" placeholder="Contoh: Kemeja Polos Rp100.000. Pengiriman dari Jakarta. Jika ada yang tanya ongkir, suruh cek di website."></textarea>
+                </div>
+              </div>
             </div>
             <button disabled={loading} type="submit" className="mt-2 bg-indigo-600 text-white py-3 rounded-lg font-bold flex justify-center gap-2">
               {loading ? 'Menyimpan...' : <><Save size={18}/> Simpan</>}
@@ -122,7 +139,22 @@ export default function UnitsTab() {
                   setEditingId(u.id);
                   setName(u.brand_name);
                   setCategory(u.business_category || '');
-                  setPrompt(u.ai_system_prompt || '');
+                  
+                  const savedPrompt = u.ai_system_prompt || '';
+                  if (savedPrompt.includes('[Target Audiens]')) {
+                    const audiensMatch = savedPrompt.match(/\[Target Audiens\]\n([\s\S]*?)\n\n\[Kepribadian AI\]/);
+                    const kepribadianMatch = savedPrompt.match(/\[Kepribadian AI\]\n([\s\S]*?)\n\n\[Produk & Harga\]/);
+                    const produkMatch = savedPrompt.match(/\[Produk & Harga\]\n([\s\S]*)$/);
+                    
+                    setPromptAudiens(audiensMatch ? audiensMatch[1] : '');
+                    setPromptKepribadian(kepribadianMatch ? kepribadianMatch[1] : '');
+                    setPromptProduk(produkMatch ? produkMatch[1] : '');
+                  } else {
+                    setPromptAudiens('');
+                    setPromptKepribadian(savedPrompt);
+                    setPromptProduk('');
+                  }
+                  
                   setShowForm(true);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }} className="text-slate-400 hover:text-indigo-600 bg-slate-100 p-1.5 rounded-md"><Edit2 size={16} /></button>
