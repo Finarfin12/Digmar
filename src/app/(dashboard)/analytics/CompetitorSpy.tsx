@@ -108,12 +108,18 @@ export default function CompetitorSpy() {
 
             <div className="space-y-3">
               <p className="text-sm font-extrabold text-slate-800 border-b pb-2">Top Performing Posts</p>
-              {Array.isArray(comp.top_posts_json) && comp.top_posts_json.map((post: any, i: number) => (
-                <div key={i} className="text-sm text-slate-600 flex justify-between items-center bg-slate-50 p-2 rounded-lg">
-                  <span className="truncate w-3/4 font-medium">{post.caption || 'No caption'}</span>
-                  <span className="font-bold text-pink-600 whitespace-nowrap">❤️ {post.likes}</span>
-                </div>
-              ))}
+              <div className="space-y-3">
+                {Array.isArray(comp.top_posts_json) && comp.top_posts_json.map((post: any, i: number) => (
+                  <div key={i} className="bg-slate-50 p-3 rounded-xl border border-slate-100 relative group">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="bg-pink-100 text-pink-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">Post {i + 1}</span>
+                      <span className="font-extrabold text-pink-600 text-xs flex items-center gap-1">❤️ {(post.likes || 0).toLocaleString()}</span>
+                    </div>
+                    <p className="text-sm text-slate-700 font-medium leading-relaxed italic line-clamp-3">"{post.caption || 'No caption'}"</p>
+                    {post.comments && <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">💬 {(post.comments || 0).toLocaleString()} Komentar</p>}
+                  </div>
+                ))}
+              </div>
             </div>
             
             <p className="text-[10px] text-slate-400 font-bold mt-6 text-center">Diperbarui: {new Date(comp.last_scraped_at).toLocaleString('id-ID')}</p>
