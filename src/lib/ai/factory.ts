@@ -87,3 +87,35 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
 
   return { client, config: selectedProvider };
 }
+
+export async function getVisionAIProvider(userId: string): Promise<{ client: AIProviderClient, config: any }> {
+  const supabase = await createClient();
+  
+  const { data: providers, error } = await supabase
+    .from('ai_providers')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .order('priority', { ascending: true })
+    .limit(1);
+
+  if (error || !providers || providers.length === 0) {
+    throw new Error('Tidak ada AI provider aktif. Gagal memulai Vision AI.');
+  }
+
+  const primary = providers[0];
+
+  if (!primary.vision_base_url || !primary.vision_model) {
+    throw new Error('Kredensial Mata AI belum dikonfigurasi. Silakan ke Settings -> AI Provider-Vision.');
+  }
+
+  const apiKey = primary.vision_api_key_encrypted ? decryptValue(primary.vision_api_key_encrypted) : '';
+
+  const client = new OpenAICompatibleClient({
+    apiKey,
+    model: primary.vision_model,
+    baseURL: primary.vision_base_url
+  });
+
+  return { client, config: primary };
+}

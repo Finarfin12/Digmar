@@ -24,7 +24,7 @@ export class OpenAICompatibleClient implements AIProviderClient {
   async generateText(
     systemPrompt: string,
     userPrompt: string,
-    options?: { temperature?: number; maxTokens?: number }
+    options?: { temperature?: number; maxTokens?: number; imageUrl?: string; jsonMode?: boolean }
   ): Promise<AIProviderResponse> {
     const response = await this.client.chat.completions.create({
       model: this.model,
@@ -32,9 +32,17 @@ export class OpenAICompatibleClient implements AIProviderClient {
       max_tokens: options?.maxTokens ?? 1600,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { 
+          role: 'user', 
+          content: options?.imageUrl 
+            ? [
+                { type: 'text', text: userPrompt },
+                { type: 'image_url', image_url: { url: options.imageUrl } }
+              ] as any
+            : userPrompt 
+        }
       ],
-      response_format: { type: "json_object" }
+      response_format: options?.jsonMode === false ? undefined : { type: "json_object" }
     });
 
     return {

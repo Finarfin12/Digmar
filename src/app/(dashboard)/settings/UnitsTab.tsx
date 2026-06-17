@@ -8,6 +8,7 @@ export interface BusinessUnit {
   business_category: string;
   ai_system_prompt: string;
   custom_variables?: any;
+  use_vision_ai?: boolean;
 }
 
 export default function UnitsTab() {
@@ -20,6 +21,7 @@ export default function UnitsTab() {
   const [promptKepribadian, setPromptKepribadian] = useState('');
   const [promptProduk, setPromptProduk] = useState('');
   const [customVariables, setCustomVariables] = useState('');
+  const [useVisionAi, setUseVisionAi] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchUnits = async () => {
@@ -49,8 +51,8 @@ export default function UnitsTab() {
     }
 
     const bodyPayload = editingId 
-      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars }
-      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars };
+      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars, use_vision_ai: useVisionAi }
+      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars, use_vision_ai: useVisionAi };
 
     const res = await fetch('/api/units', {
       method,
@@ -61,7 +63,7 @@ export default function UnitsTab() {
     if (res.ok) {
       Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis disimpan.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowForm(false);
-      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setEditingId(null);
+      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setUseVisionAi(false); setEditingId(null);
       fetchUnits();
     } else {
       const err = await res.json().catch(()=>({}));
@@ -101,7 +103,7 @@ export default function UnitsTab() {
         <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-4">
             <h4 className="font-extrabold text-slate-900 text-lg">{editingId ? 'Edit Unit Bisnis' : 'Tambah Unit Bisnis'}</h4>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setUseVisionAi(false); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
           </div>
           <div className="grid gap-4 text-slate-900">
             <div>
@@ -111,6 +113,19 @@ export default function UnitsTab() {
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-1">Kategori/Industri</label>
               <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
+            </div>
+            <div className="flex items-center justify-between bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+              <div>
+                <label className="block text-sm font-bold text-indigo-900">Gunakan Mata AI (Vision)</label>
+                <p className="text-xs text-indigo-700 font-medium">Beri izin AI untuk membaca & mendeskripsikan gambar saat Auto-Pilot dijalankan.</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setUseVisionAi(!useVisionAi)} 
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${useVisionAi ? 'bg-indigo-600' : 'bg-slate-300'}`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${useVisionAi ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-1">Custom Variables (JSON)</label>
@@ -170,6 +185,7 @@ export default function UnitsTab() {
                   }
                   
                   setCustomVariables(u.custom_variables ? JSON.stringify(u.custom_variables, null, 2) : '');
+                  setUseVisionAi(u.use_vision_ai || false);
                   
                   setShowForm(true);
                   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -179,6 +195,11 @@ export default function UnitsTab() {
               <div className="font-extrabold text-xl text-slate-900">{u.brand_name}</div>
               <div className="text-sm text-indigo-700 font-bold mt-1">{u.business_category || 'Tanpa Kategori'}</div>
               <div className="text-sm text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
+              {u.use_vision_ai && (
+                <div className="mt-3 inline-flex items-center gap-1 bg-indigo-100 text-indigo-800 text-[10px] px-2 py-1 rounded-full font-bold">
+                  👁️ Mata AI Aktif
+                </div>
+              )}
             </div>
           ))}
         </div>

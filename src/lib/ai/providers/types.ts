@@ -25,6 +25,6 @@ export interface AIProviderClient {
   generateText(
     systemPrompt: string,
     userPrompt: string,
-    options?: { temperature?: number; maxTokens?: number }
+    options?: { temperature?: number; maxTokens?: number; imageUrl?: string; jsonMode?: boolean }
   ): Promise<AIProviderResponse>;
 }

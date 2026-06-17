@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { getAIProvider } from '@/lib/ai/factory'
+import { getAIProvider, getVisionAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
@@ -39,9 +39,32 @@ export async function POST(request: NextRequest) {
 
     const { client, config } = await getAIProvider(user.id, preferred_provider)
     
+    // --- 0. Vision AI (Optional) ---
+    let imageContext = '';
+    if (unit.use_vision_ai && media_urls && media_urls.length > 0) {
+      const firstMedia = media_urls[0];
+      const isImage = firstMedia.toLowerCase().match(/\.(jpeg|jpg|gif|png|webp)$/) != null || firstMedia.includes('image');
+      if (isImage) {
+        try {
+          const { client: visionClient } = await getVisionAIProvider(user.id);
+          const visionPrompt = "Deskripsikan gambar ini secara detail: objek utama, mood/suasana, dan siapa target audiens yang cocok.";
+          const visionResponse = await visionClient.generateText(
+            "Anda adalah asisten AI penganalisa gambar yang sangat ahli dalam mendeskripsikan konteks visual untuk kebutuhan social media marketing.",
+            visionPrompt,
+            { imageUrl: firstMedia, maxTokens: 400, jsonMode: false }
+          );
+          imageContext = visionResponse.content;
+          console.log("Vision Context Success:", imageContext);
+        } catch (visionError) {
+          console.error("Vision AI failed, continuing without it:", visionError);
+        }
+      }
+    }
+
     // --- 1. Generate Caption ---
     const captionPrompt = `
-Konteks Postingan: ${content_idea}
+Konteks Postingan/Ide: ${content_idea}
+${imageContext ? `Konteks Gambar (Hasil Bacaan AI dari gambar yang diupload): ${imageContext}` : ''}
 Gaya Bahasa (Tone): ${tone_voice}
 
 INSTRUKSI SANGAT PENTING:
