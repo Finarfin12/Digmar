@@ -275,25 +275,33 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
           {/* Media List / Preview */}
           {mediaUrls.length > 0 && (
-            <div className="space-y-2">
+            <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
               {mediaUrls.map((url, index) => (
                 <div 
                   key={index} 
-                  className="flex items-center gap-3 p-2 border border-slate-200 rounded-lg bg-slate-50 group"
+                  className="flex-shrink-0 relative w-24 h-24 border border-slate-200 rounded-xl overflow-hidden group cursor-move bg-slate-100"
                   draggable={postType === 'carousel'}
                   onDragStart={() => (dragItem.current = index)}
                   onDragEnter={() => (dragOverItem.current = index)}
                   onDragEnd={handleSort}
                   onDragOver={(e) => e.preventDefault()}
                 >
-                  {postType === 'carousel' && <GripVertical className="text-slate-400 cursor-move" size={16}/>}
-                  {url.includes('.mp4') ? (
-                    <video src={url} className="w-12 h-12 object-cover rounded bg-black" />
-                  ) : (
-                    <img src={url} className="w-12 h-12 object-cover rounded bg-slate-200" alt={`media-${index}`} />
+                  {postType === 'carousel' && (
+                    <div className="absolute top-1 left-1 bg-black/50 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <GripVertical size={14}/>
+                    </div>
                   )}
-                  <span className="flex-1 text-xs text-slate-500 truncate">{url.split('/').pop()}</span>
-                  <button onClick={() => removeMedia(index)} className="text-red-400 hover:text-red-600 p-1"><X size={16}/></button>
+                  {url.includes('.mp4') ? (
+                    <video src={url} className="w-full h-full object-cover" />
+                  ) : (
+                    <img src={url} className="w-full h-full object-cover" alt={`media-${index}`} />
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-1">
+                    <span className="text-[10px] text-white font-bold">{index + 1}</span>
+                  </div>
+                  <button onClick={() => removeMedia(index)} className="absolute top-1 right-1 bg-white/90 hover:bg-red-100 text-red-500 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm">
+                    <X size={14}/>
+                  </button>
                 </div>
               ))}
             </div>
@@ -368,20 +376,26 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
               <div className="w-full h-[320px] bg-slate-100 flex items-center justify-center overflow-hidden relative">
                 {mediaUrls.length > 0 ? (
-                  mediaUrls[0].includes('.mp4') ? (
-                    <video src={mediaUrls[0]} className="w-full h-full object-cover" />
-                  ) : (
-                    <img src={mediaUrls[0]} className="w-full h-full object-cover" alt="Post media" />
-                  )
+                  <div className="flex w-full h-full overflow-x-auto snap-x snap-mandatory custom-scrollbar" style={{ scrollbarWidth: 'none' }}>
+                    {mediaUrls.map((url, i) => (
+                      <div key={i} className="min-w-full h-full snap-center relative flex-shrink-0">
+                        {url.includes('.mp4') ? (
+                          <video src={url} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={url} className="w-full h-full object-cover" alt={`post-media-${i}`} />
+                        )}
+                        {mediaUrls.length > 1 && (
+                          <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                            {i + 1}/{mediaUrls.length}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="text-slate-400 flex flex-col items-center">
                     <ImageIcon size={48} className="opacity-50 mb-2"/>
                     <span className="text-xs font-medium">Belum ada media</span>
-                  </div>
-                )}
-                {mediaUrls.length > 1 && (
-                  <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded-full">
-                    1/{mediaUrls.length}
                   </div>
                 )}
               </div>
