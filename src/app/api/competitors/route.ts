@@ -29,18 +29,45 @@ export async function POST(request: NextRequest) {
 
     if (!handle) return NextResponse.json({ error: 'Handle required' }, { status: 400 })
 
-    // Simulate competitor analysis using AI since native scraping requires robust proxies
+    let realFollowers = null;
+    if (platform === 'instagram') {
+      try {
+        const igRes = await fetch(`https://www.instagram.com/${handle}/`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          next: { revalidate: 3600 }
+        });
+        const html = await igRes.text();
+        const match = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+        if (match && match[1]) {
+          const followersStr = match[1].split(' Followers')[0];
+          if (followersStr && followersStr.length < 20) {
+            realFollowers = followersStr;
+          }
+        }
+      } catch(e) {
+        console.error("IG Scrape error:", e);
+      }
+    }
+
     const { client } = await getAIProvider(user.id)
-    const aiPrompt = `Berikan estimasi performa fiktif yang realistis untuk akun sosial media @${handle} di platform ${platform}. 
+    const followerContext = realFollowers 
+      ? `Data ASLI Followers saat ini: ${realFollowers} (Gunakan teks/angka ini persis di output followers!).`
+      : `Buatkan estimasi realistis untuk jumlah followers.`;
+
+    const aiPrompt = `Berikan data performa untuk akun sosial media @${handle} di platform ${platform}. 
+${followerContext}
+Engagement Rate estimasi: Buatkan estimasi realistis (misal 0.5% - 3%).
+Top Posts: Buatkan 3 post terakhir yang SANGAT SPESIFIK dan sesuai dengan gaya/niche dari brand/akun @${handle}. JANGAN gunakan caption generik seperti "Introducing our newest...". Tulis caption yang persis meniru gaya brand asli (bahasa yang sesuai), sesuaikan jumlah likes/comments dengan rasio followers.
+
 Tolong keluarkan JSON dengan format: 
 { 
-  "metrics": { "followers": 12000, "engagement_rate": "3.5%" }, 
+  "metrics": { "followers": "...", "engagement_rate": "..." }, 
   "top_posts": [
-    { "type": "image", "caption": "Contoh caption", "likes": 500, "comments": 20 }
+    { "type": "image", "caption": "Caption spesifik brand...", "likes": 50000, "comments": 1200 }
   ] 
 }`;
 
-    const aiRes = await client.generateText("Anda adalah analis data sosial media.", aiPrompt, { temperature: 0.8, maxTokens: 800 });
+    const aiRes = await client.generateText("Anda adalah analis intelijen sosial media.", aiPrompt, { temperature: 0.7, maxTokens: 1000 });
     let analysis;
     try {
       analysis = JSON.parse(aiRes.content.replace(/```json/g, '').replace(/```/g, '').trim());
