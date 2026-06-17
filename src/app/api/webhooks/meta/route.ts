@@ -2,6 +2,35 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { decryptValue } from '@/lib/crypto/server'
 import { getAIProvider } from '@/lib/ai/factory'
+// Helper to evaluate rules
+async function evaluateChatbotRules(supabase: any, businessUnitId: string, incomingText: string): Promise<{ action: 'reply' | 'handoff' | 'ai', replyText?: string, ruleContext?: string }> {
+  const { data: rules } = await supabase
+    .from('chatbot_rules')
+    .select('*')
+    .eq('business_unit_id', businessUnitId)
+    .eq('is_active', true)
+    .order('priority', { ascending: false });
+
+  if (rules && rules.length > 0) {
+    const textLower = incomingText.toLowerCase();
+    for (const rule of rules) {
+      const keywords = rule.trigger_keyword.split(',').map((k: string) => k.trim().toLowerCase());
+      for (const kw of keywords) {
+        if (textLower.includes(kw)) {
+          if (rule.reply_mode === 'static_text') {
+            return { action: 'reply', replyText: rule.response_content };
+          } else if (rule.reply_mode === 'human_handoff') {
+            return { action: 'handoff' };
+          } else if (rule.reply_mode === 'ai_generated') {
+            return { action: 'ai', ruleContext: rule.response_content };
+          }
+        }
+      }
+    }
+  }
+
+  return { action: 'ai' };
+}
 
 // VERIFIKASI WEBHOOK DARI META
 export async function GET(request: NextRequest) {
@@ -60,13 +89,28 @@ export async function POST(request: NextRequest) {
             }
 
             const userId = account.business_units.user_id;
+            const businessUnitId = account.business_unit_id;
             const systemPrompt = account.business_units.ai_system_prompt || 'Anda adalah asisten admin ramah.';
 
-            // 2. Generate Balasan dengan AI
-            const { client, config } = await getAIProvider(userId);
-            
-            const aiPrompt = `
-Konteks Bisnis: ${systemPrompt}
+            const ruleEval = await evaluateChatbotRules(supabase, businessUnitId, commentText);
+
+            if (ruleEval.action === 'handoff') {
+              console.log(`[Handoff] Komentar diabaikan karena Rule Handoff. ID: ${commentId}`);
+              continue;
+            }
+
+            let replyText = '';
+
+            if (ruleEval.action === 'reply' && ruleEval.replyText) {
+              replyText = ruleEval.replyText;
+            } else {
+              // 2. Generate Balasan dengan AI
+              const { client, config } = await getAIProvider(userId);
+              
+              const ruleInject = ruleEval.ruleContext ? `\nINSTRUKSI KHUSUS DARI RULE: ${ruleEval.ruleContext}\n` : '';
+              
+              const aiPrompt = `
+Konteks Bisnis: ${systemPrompt}${ruleInject}
 
 Seorang pelanggan (username: @${commenterUsername}) baru saja berkomentar di postingan Instagram bisnis Anda.
 Komentar: "${commentText}"
@@ -75,13 +119,14 @@ Tugas Anda:
 Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan gunakan hashtag. Langsung balas saja ke inti percakapan. Jika pelanggan bertanya, jawab. Maksimal 2 kalimat.
 `;
 
-            const aiResponse = await client.generateText(
-              "Anda adalah admin sosial media yang interaktif.",
-              aiPrompt,
-              { temperature: 0.7, maxTokens: 150 }
-            );
+              const aiResponse = await client.generateText(
+                "Anda adalah admin sosial media yang interaktif.",
+                aiPrompt,
+                { temperature: 0.7, maxTokens: 150 }
+              );
 
-            const replyText = aiResponse.content.trim().replace(/"/g, ''); // bersihkan tanda kutip jika AI iseng
+              replyText = aiResponse.content.trim().replace(/"/g, ''); // bersihkan tanda kutip jika AI iseng
+            }
 
             // 3. Kirim Balasan ke Meta Graph API
             const token = decryptValue(account.access_token_encrypted);
@@ -126,11 +171,27 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
               if (!account || !account.business_units) continue;
 
               const userId = account.business_units.user_id;
+              const businessUnitId = account.business_unit_id;
               const systemPrompt = account.business_units.ai_system_prompt || 'Anda adalah asisten CS.';
 
-              const { client } = await getAIProvider(userId);
-              const aiPrompt = `
-Konteks Bisnis: ${systemPrompt}
+              const ruleEval = await evaluateChatbotRules(supabase, businessUnitId, messageText);
+
+              if (ruleEval.action === 'handoff') {
+                console.log(`[Handoff] DM diabaikan karena Rule Handoff. ID: ${senderId}`);
+                continue;
+              }
+
+              let replyText = '';
+
+              if (ruleEval.action === 'reply' && ruleEval.replyText) {
+                replyText = ruleEval.replyText;
+              } else {
+                const { client } = await getAIProvider(userId);
+                
+                const ruleInject = ruleEval.ruleContext ? `\nINSTRUKSI KHUSUS DARI RULE: ${ruleEval.ruleContext}\n` : '';
+                
+                const aiPrompt = `
+Konteks Bisnis: ${systemPrompt}${ruleInject}
 
 Pelanggan mengirimkan Direct Message (DM) ke Instagram bisnis Anda.
 Pesan: "${messageText}"
@@ -138,13 +199,14 @@ Pesan: "${messageText}"
 Tugas Anda:
 Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. Jawab pertanyaan mereka dengan jelas. Maksimal 3 kalimat.
 `;
-              const aiResponse = await client.generateText(
-                "Anda adalah representatif Customer Service yang sangat responsif.",
-                aiPrompt,
-                { temperature: 0.7, maxTokens: 200 }
-              );
+                const aiResponse = await client.generateText(
+                  "Anda adalah representatif Customer Service yang sangat responsif.",
+                  aiPrompt,
+                  { temperature: 0.7, maxTokens: 200 }
+                );
 
-              const replyText = aiResponse.content.trim().replace(/"/g, '');
+                replyText = aiResponse.content.trim().replace(/"/g, '');
+              }
 
               const token = decryptValue(account.access_token_encrypted);
               const graphUrl = `https://graph.facebook.com/v18.0/me/messages`;
