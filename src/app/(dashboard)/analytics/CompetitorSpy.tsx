@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Target, Search, Trash2, TrendingUp, Users, Loader2 } from 'lucide-react';
+import { Target, Search, Trash2, TrendingUp, Users, Loader2, Heart, MessageCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function CompetitorSpy() {
@@ -113,10 +113,10 @@ export default function CompetitorSpy() {
                   <div key={i} className="bg-slate-50 p-3 rounded-xl border border-slate-100 relative group">
                     <div className="flex justify-between items-start mb-2">
                       <span className="bg-pink-100 text-pink-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">Post {i + 1}</span>
-                      <span className="font-extrabold text-pink-600 text-xs flex items-center gap-1">❤️ {(post.likes || 0).toLocaleString()}</span>
+                      <span className="font-extrabold text-pink-600 text-xs flex items-center gap-1"><Heart size={12}/> {(post.likes || 0).toLocaleString()}</span>
                     </div>
                     <p className="text-sm text-slate-700 font-medium leading-relaxed italic line-clamp-3">"{post.caption || 'No caption'}"</p>
-                    {post.comments && <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">💬 {(post.comments || 0).toLocaleString()} Komentar</p>}
+                    {post.comments && <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase flex items-center gap-1"><MessageCircle size={10}/> {(post.comments || 0).toLocaleString()} Komentar</p>}
                   </div>
                 ))}
               </div>

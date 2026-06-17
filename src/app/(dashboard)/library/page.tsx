@@ -157,7 +157,7 @@ export default function ContentLibrary() {
           >
             {units.length === 0 && <option value="">Tidak ada Unit Bisnis</option>}
             {units.map(u => (
-              <option key={u.id} value={u.id}>📁 {u.brand_name}</option>
+              <option key={u.id} value={u.id}>{u.brand_name}</option>
             ))}
           </select>
         </div>
@@ -190,10 +190,10 @@ export default function ContentLibrary() {
                 {uploading ? (
                   <div className="flex flex-col items-center text-indigo-600"><Loader2 className="animate-spin mb-4" size={48} /><p className="font-bold">Mengunggah media...</p></div>
                 ) : (
-                  <div className="flex flex-col items-center text-slate-500">
-                    <UploadCloud size={64} className="mb-4 text-slate-400" />
-                    <p className="font-bold text-slate-700 text-lg">Drag & drop aset ke Folder {units.find(u=>u.id===selectedUnit)?.brand_name}</p>
-                    <p className="text-sm mt-2">Mendukung JPG, PNG, MP4.</p>
+                  <div className="flex flex-col items-center text-slate-600">
+                    <UploadCloud size={64} className="mb-4 text-slate-500" />
+                    <p className="font-extrabold text-slate-900 text-lg">Drag & drop aset ke Folder {units.find(u=>u.id===selectedUnit)?.brand_name}</p>
+                    <p className="text-sm font-medium mt-2 text-slate-700">Mendukung JPG, PNG, MP4.</p>
                   </div>
                 )}
               </div>
@@ -228,9 +228,9 @@ export default function ContentLibrary() {
                 </button>
               ) : (
                 <form onSubmit={handleSaveCaption} className="bg-white p-6 rounded-2xl border shadow-sm">
-                  <h3 className="font-bold mb-4">Template Baru</h3>
-                  <input required value={newCaption.title} onChange={e => setNewCaption({...newCaption, title: e.target.value})} placeholder="Judul (Misal: Promo Akhir Tahun)" className="w-full p-3 border rounded-lg mb-4" />
-                  <textarea required value={newCaption.content} onChange={e => setNewCaption({...newCaption, content: e.target.value})} rows={4} placeholder="Isi Caption..." className="w-full p-3 border rounded-lg mb-4" />
+                  <h3 className="font-bold text-slate-900 mb-4">Template Baru</h3>
+                  <input required value={newCaption.title} onChange={e => setNewCaption({...newCaption, title: e.target.value})} placeholder="Judul (Misal: Promo Akhir Tahun)" className="w-full p-3 border border-slate-400 rounded-lg mb-4 text-slate-900 font-bold placeholder:text-slate-500 placeholder:font-medium" />
+                  <textarea required value={newCaption.content} onChange={e => setNewCaption({...newCaption, content: e.target.value})} rows={4} placeholder="Isi Caption..." className="w-full p-3 border border-slate-400 rounded-lg mb-4 text-slate-900 font-bold placeholder:text-slate-500 placeholder:font-medium" />
                   <div className="flex gap-2">
                     <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold">Simpan</button>
                     <button type="button" onClick={() => setShowCaptionForm(false)} className="bg-slate-200 text-slate-700 px-5 py-2 rounded-lg font-bold">Batal</button>
@@ -242,8 +242,8 @@ export default function ContentLibrary() {
                 {captions.map(c => (
                   <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative group">
                     <button onClick={() => handleDelete('captions', c.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
-                    <h4 className="font-bold text-slate-900 mb-2">{c.title}</h4>
-                    <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg italic line-clamp-3 mb-3">{c.content}</p>
+                    <h4 className="font-extrabold text-slate-900 mb-2">{c.title}</h4>
+                    <p className="text-sm text-slate-800 bg-slate-100 p-3 rounded-lg italic line-clamp-3 mb-3 font-medium">{c.content}</p>
                     <button onClick={() => copyText(c.content)} className="text-indigo-600 text-sm font-bold flex items-center gap-1"><Copy size={14}/> Salin Teks</button>
                   </div>
                 ))}
@@ -260,9 +260,9 @@ export default function ContentLibrary() {
                 </button>
               ) : (
                 <form onSubmit={handleSaveHashtag} className="bg-white p-6 rounded-2xl border shadow-sm">
-                  <h3 className="font-bold mb-4">Grup Hashtag Baru</h3>
-                  <input required value={newHashtag.title} onChange={e => setNewHashtag({...newHashtag, title: e.target.value})} placeholder="Nama Grup (Misal: Kumpulan Hashtag Fashion)" className="w-full p-3 border rounded-lg mb-4" />
-                  <input required value={newHashtag.tags} onChange={e => setNewHashtag({...newHashtag, tags: e.target.value})} placeholder="#OOTD #FashionPria #BajuMurah (Pisahkan dengan spasi)" className="w-full p-3 border rounded-lg mb-4" />
+                  <h3 className="font-bold text-slate-900 mb-4">Grup Hashtag Baru</h3>
+                  <input required value={newHashtag.title} onChange={e => setNewHashtag({...newHashtag, title: e.target.value})} placeholder="Nama Grup (Misal: Kumpulan Hashtag Fashion)" className="w-full p-3 border border-slate-400 rounded-lg mb-4 text-slate-900 font-bold placeholder:text-slate-500 placeholder:font-medium" />
+                  <input required value={newHashtag.tags} onChange={e => setNewHashtag({...newHashtag, tags: e.target.value})} placeholder="#OOTD #FashionPria #BajuMurah (Pisahkan dengan spasi)" className="w-full p-3 border border-slate-400 rounded-lg mb-4 text-slate-900 font-bold placeholder:text-slate-500 placeholder:font-medium" />
                   <div className="flex gap-2">
                     <button type="submit" className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold">Simpan</button>
                     <button type="button" onClick={() => setShowHashtagForm(false)} className="bg-slate-200 text-slate-700 px-5 py-2 rounded-lg font-bold">Batal</button>
@@ -274,7 +274,7 @@ export default function ContentLibrary() {
                 {hashtags.map(h => (
                   <div key={h.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative group">
                     <button onClick={() => handleDelete('hashtags', h.id)} className="absolute top-4 right-4 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100"><Trash2 size={18}/></button>
-                    <h4 className="font-bold text-slate-900 mb-3">{h.title}</h4>
+                    <h4 className="font-extrabold text-slate-900 mb-3">{h.title}</h4>
                     <div className="flex flex-wrap gap-1.5 mb-4">
                       {h.hashtags.map((tag: string, i: number) => (
                         <span key={i} className="text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md">{tag}</span>

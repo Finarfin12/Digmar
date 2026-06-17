@@ -114,7 +114,7 @@ export default function ChatbotTab() {
           <p className="text-slate-600 font-medium mt-1">Konfigurasi keyword dan trigger balasan untuk setiap Unit Bisnis.</p>
         </div>
         
-        <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="p-3 border border-slate-300 rounded-xl font-bold bg-slate-50 text-slate-800 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500">
+        <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="p-3 border border-slate-400 rounded-xl font-bold bg-slate-50 text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500">
           {units.map((u) => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
         </select>
       </div>
@@ -127,14 +127,14 @@ export default function ChatbotTab() {
           <form onSubmit={saveRule} className="space-y-4">
             
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Trigger Keywords</label>
-              <input value={formKeyword} onChange={e => setFormKeyword(e.target.value)} type="text" placeholder="Misal: harga, brp, price" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-medium" />
-              <p className="text-xs text-slate-500 mt-1">Pisahkan dengan koma jika lebih dari satu.</p>
+              <label className="block text-sm font-bold text-slate-900 mb-1">Trigger Keywords</label>
+              <input value={formKeyword} onChange={e => setFormKeyword(e.target.value)} type="text" placeholder="Misal: harga, brp, price" className="w-full p-2.5 border border-slate-400 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 placeholder:text-slate-500 placeholder:font-medium" />
+              <p className="text-xs text-slate-600 mt-1">Pisahkan dengan koma jika lebih dari satu.</p>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Mode Balasan</label>
-              <select value={formMode} onChange={e => setFormMode(e.target.value)} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-medium bg-white">
+              <label className="block text-sm font-bold text-slate-900 mb-1">Mode Balasan</label>
+              <select value={formMode} onChange={e => setFormMode(e.target.value)} className="w-full p-2.5 border border-slate-400 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 bg-white">
                 <option value="static_text">Teks Statis Langsung</option>
                 <option value="human_handoff">Abaikan (Serahkan ke Admin)</option>
                 <option value="ai_generated">Teruskan ke AI dengan Konteks</option>
@@ -143,16 +143,16 @@ export default function ChatbotTab() {
 
             {formMode !== 'human_handoff' && (
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
+                <label className="block text-sm font-bold text-slate-900 mb-1">
                   {formMode === 'ai_generated' ? 'Konteks Tambahan AI' : 'Teks Balasan'}
                 </label>
-                <textarea value={formContent} onChange={e => setFormContent(e.target.value)} rows={3} placeholder={formMode === 'ai_generated' ? "Misal: Jawab dengan kasual dan arahkan ke link bio" : "Masukkan balasan statis..."} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-medium" />
+                <textarea value={formContent} onChange={e => setFormContent(e.target.value)} rows={3} placeholder={formMode === 'ai_generated' ? "Misal: Jawab dengan kasual dan arahkan ke link bio" : "Masukkan balasan statis..."} className="w-full p-2.5 border border-slate-400 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900 placeholder:text-slate-500 placeholder:font-medium" />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">Prioritas (Makin besar makin didahulukan)</label>
-              <input value={formPriority} onChange={e => setFormPriority(Number(e.target.value))} type="number" className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-medium" />
+              <label className="block text-sm font-bold text-slate-900 mb-1">Prioritas (Makin besar makin didahulukan)</label>
+              <input value={formPriority} onChange={e => setFormPriority(Number(e.target.value))} type="number" className="w-full p-2.5 border border-slate-400 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm font-bold text-slate-900" />
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -171,10 +171,10 @@ export default function ChatbotTab() {
           {loading ? (
             <div className="flex justify-center p-10"><Loader2 className="animate-spin text-indigo-600" size={32}/></div>
           ) : rules.length === 0 ? (
-            <div className="bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl p-10 flex flex-col items-center text-center">
-              <Bot size={48} className="text-slate-400 mb-4" />
-              <p className="font-bold text-slate-700">Belum Ada Rule Dibuat</p>
-              <p className="text-sm text-slate-500">Tambahkan rule baru untuk Unit Bisnis ini melalui form di sebelah kiri.</p>
+            <div className="bg-slate-50 border-2 border-dashed border-slate-400 rounded-2xl p-10 flex flex-col items-center text-center">
+              <Bot size={48} className="text-slate-500 mb-4" />
+              <p className="font-extrabold text-slate-900">Belum Ada Rule Dibuat</p>
+              <p className="text-sm font-medium text-slate-600">Tambahkan rule baru untuk Unit Bisnis ini melalui form di sebelah kiri.</p>
             </div>
           ) : (
             <div className="space-y-4">

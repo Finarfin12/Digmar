@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, PlusCircle, Save, X, Trash2, Edit2 } from 'lucide-react';
+import { Briefcase, PlusCircle, Save, X, Trash2, Edit2, BrainCircuit } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export interface BusinessUnit {
@@ -104,7 +104,7 @@ export default function UnitsTab() {
               <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
             </div>
             <div className="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm mt-2">
-              <h5 className="font-extrabold text-indigo-900 mb-4 border-b pb-2">🧠 Konfigurasi Otak AI (Knowledge Base)</h5>
+              <h5 className="font-extrabold text-indigo-900 mb-4 border-b pb-2 flex items-center gap-2"><BrainCircuit size={18}/> Konfigurasi Otak AI (Knowledge Base)</h5>
               
               <div className="space-y-4">
                 <div>

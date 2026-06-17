@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Sparkles, Star } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Swal from 'sweetalert2';
 import CompetitorSpy from './CompetitorSpy';
@@ -145,7 +145,7 @@ export default function Analytics() {
               <div className="w-12 h-12 bg-pink-100 text-pink-600 rounded-2xl flex items-center justify-center mb-4"><MousePointerClick size={24}/></div>
               <p className="text-slate-500 font-bold text-sm uppercase tracking-wider mb-1">Engagement Rate</p>
               <p className="text-4xl font-black text-slate-900">{analytics.metrics.engagement_rate}</p>
-              <p className="text-emerald-500 text-sm font-bold mt-2">Sangat Baik 🌟</p>
+              <p className="text-emerald-500 text-sm font-bold mt-2 flex items-center gap-1">Sangat Baik <Star size={14}/></p>
             </div>
             
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center">

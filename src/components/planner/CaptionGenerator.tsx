@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle2, Lightbulb, Tag } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit, AIResult } from '@/types';
 
@@ -111,11 +111,11 @@ export default function CaptionGenerator({ units, formUnit, setFormUnit, onCapti
           </div>
 
           <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
-            <span className="text-xs font-extrabold text-amber-800 uppercase mb-1 block">💡 Ide Cerita Musiman</span>
+            <span className="text-xs font-extrabold text-amber-800 uppercase mb-1 flex items-center gap-1"><Lightbulb size={14}/> Ide Cerita Musiman</span>
             <p className="text-sm text-amber-900">{aiResults.cerita_musiman}</p>
           </div>
           <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <span className="text-xs font-extrabold text-slate-500 uppercase mb-1 block">🏷️ Keyword Cloud</span>
+            <span className="text-xs font-extrabold text-slate-500 uppercase mb-1 flex items-center gap-1"><Tag size={14}/> Keyword Cloud</span>
             <div className="flex flex-wrap gap-1">
               {aiResults.keyword_cloud?.map((kw: string, i: number) => <span key={i} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-md">{kw}</span>)}
             </div>
