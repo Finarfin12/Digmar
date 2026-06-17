@@ -100,8 +100,9 @@ export default function UnitsTab() {
               <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-800 mb-1">AI System Prompt Khusus (Opsional)</label>
-              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3} className="w-full p-3 border border-slate-300 rounded-lg bg-white"></textarea>
+              <label className="block text-sm font-bold text-slate-800 mb-1">Knowledge Base & Kepribadian AI (AI System Prompt)</label>
+              <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3} className="w-full p-3 border border-slate-300 rounded-lg bg-white" placeholder="Contoh: Anda adalah admin toko Sepatu. Harga sepatu sneakers Rp300.000. Jawab dengan ramah."></textarea>
+              <p className="text-xs text-slate-500 mt-1">Tuliskan harga barang, aturan bisnis, dan gaya bahasa Anda di sini. AI akan menggunakan teks ini sebagai 'otak' ketika menjawab komentar atau DM pelanggan yang masuk.</p>
             </div>
             <button disabled={loading} type="submit" className="mt-2 bg-indigo-600 text-white py-3 rounded-lg font-bold flex justify-center gap-2">
               {loading ? 'Menyimpan...' : <><Save size={18}/> Simpan</>}

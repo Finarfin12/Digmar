@@ -22,6 +22,7 @@ export default function SocialTab() {
   const [user, setUser] = useState('');
   const [token, setToken] = useState('');
   const [showToken, setShowToken] = useState(false);
+  const [autoReply, setAutoReply] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -48,12 +49,12 @@ export default function SocialTab() {
     const res = await fetch('/api/accounts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ business_unit_id: unit, platform, ig_user_id: user, access_token: token })
+      body: JSON.stringify({ business_unit_id: unit, platform, ig_user_id: user, access_token: token, auto_reply_enabled: autoReply })
     });
     setLoading(false);
     if (res.ok) {
       Swal.fire('Berhasil!', 'Disimpan & dienkripsi', 'success');
-      setShowForm(false); setUser(''); setToken(''); fetchData();
+      setShowForm(false); setUser(''); setToken(''); setAutoReply(false); fetchData();
     } else {
       Swal.fire('Error', 'Gagal menghubungkan', 'error');
     }
@@ -131,6 +132,20 @@ export default function SocialTab() {
                   <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-3 top-3 text-slate-500">{showToken ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
                 </div>
               </div>
+              {platform === 'meta_ig' && (
+                <div className="mt-2 bg-pink-50 p-4 rounded-lg border border-pink-100 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-slate-800 text-sm">🤖 Aktifkan AI Smart Auto-Reply (DM & Komentar)</div>
+                    <div className="text-xs text-slate-500">Pastikan Anda telah mengisi "AI System Prompt" di Unit Bisnis.</div>
+                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={autoReply} onChange={() => setAutoReply(!autoReply)} className="sr-only" />
+                    <div className={`w-12 h-7 rounded-full ${autoReply ? 'bg-pink-500' : 'bg-slate-300'}`}>
+                      <div className={`w-5 h-5 mt-1 ml-1 bg-white rounded-full transition-transform ${autoReply ? 'translate-x-5' : ''}`}></div>
+                    </div>
+                  </label>
+                </div>
+              )}
               <button disabled={loading} type="submit" className="mt-2 bg-pink-600 text-white py-3 rounded-lg font-bold"><Save className="inline mr-2" size={18}/>Simpan</button>
             </div>
           )}

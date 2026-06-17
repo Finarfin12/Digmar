@@ -4,6 +4,7 @@ export interface SocialAccount {
   platform: 'meta_ig' | 'linkedin' | 'threads' | 'tiktok' | 'facebook';
   ig_user_id: string;
   access_token: string;
+  auto_reply_enabled?: boolean;
 }
 
 export interface PostJob {

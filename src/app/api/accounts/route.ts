@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { business_unit_id, platform, ig_user_id, access_token, token_expiry, status } = body
+    const { business_unit_id, platform, ig_user_id, access_token, token_expiry, status, auto_reply_enabled } = body
 
     if (!business_unit_id || !platform || !ig_user_id || !access_token) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
           access_token_encrypted: encryptedToken,
           token_expiry: token_expiry || null,
           status: status || 'active',
+          auto_reply_enabled: auto_reply_enabled || false,
         }
       ])
       .select()
