@@ -205,11 +205,11 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         {/* Toggle Mode */}
         <div className={`p-5 rounded-2xl border-2 transition-all flex items-center justify-between ${isAutoPilot ? 'bg-indigo-900 border-indigo-700 text-white' : 'bg-white border-slate-200'}`}>
           <div>
-            <h3 className="font-black text-lg flex items-center gap-2">
+            <h3 className={`font-black text-lg flex items-center gap-2 ${isAutoPilot ? 'text-white' : 'text-slate-900'}`}>
               <Wand2 size={24} className={isAutoPilot ? 'text-amber-400' : 'text-indigo-600'}/> 
               1-Click Auto-Pilot
             </h3>
-            <p className={`text-sm font-medium mt-1 ${isAutoPilot ? 'text-indigo-200' : 'text-slate-500'}`}>
+            <p className={`text-sm font-medium mt-1 ${isAutoPilot ? 'text-indigo-200' : 'text-slate-600'}`}>
               Biarkan AI menulis caption dan menjadwalkan otomatis
             </p>
           </div>
@@ -311,7 +311,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         {/* Caption Area (Dependent on Mode) */}
         {isAutoPilot ? (
           <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 shadow-sm animate-in slide-in-from-bottom-4">
-            <label className="block text-sm font-bold text-indigo-900 mb-2">💡 Ide Konten / Topik</label>
+            <label className="block text-sm font-bold text-indigo-900 mb-2">Ide Konten / Topik</label>
             <textarea 
               value={autoPilotIdea} 
               onChange={e => setAutoPilotIdea(e.target.value)} 
@@ -426,7 +426,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
                 </p>
                 <button onClick={handleAutoPilot} disabled={saving} className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-4 rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 transition-all disabled:opacity-70 text-lg">
                   {saving ? <Loader2 className="animate-spin" size={24}/> : <Sparkles size={24}/>}
-                  {saving ? 'Memproses...' : '🚀 Auto-Generate & Jadwalkan'}
+                  {saving ? 'Memproses...' : 'Auto-Generate & Jadwalkan'}
                 </button>
               </div>
             ) : (
