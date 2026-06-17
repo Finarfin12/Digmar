@@ -90,23 +90,25 @@ export default function CaptionGenerator({ units, formUnit, setFormUnit, onCapti
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4 animate-in fade-in slide-in-from-bottom-4">
           <h4 className="font-bold text-slate-800 text-sm border-b pb-2">Pilih Caption Terbaik:</h4>
           
-          {[1, 2, 3].map(num => {
-            const key = `pilihan_${num}` as keyof AIResult;
-            const choice = aiResults[key] as {caption: string, hashtag: string};
-            if (!choice) return null;
-            const isSelected = selectedCaption === num;
-            
-            return (
-              <div key={num} onClick={() => selectCaption(num, choice)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${isSelected ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>Pilihan {num}</span>
-                  {isSelected && <CheckCircle2 className="text-indigo-600" size={18} />}
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {[1, 2, 3].map(num => {
+              const key = `pilihan_${num}` as keyof AIResult;
+              const choice = aiResults[key] as {caption: string, hashtag: string};
+              if (!choice) return null;
+              const isSelected = selectedCaption === num;
+              
+              return (
+                <div key={num} onClick={() => selectCaption(num, choice)} className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col ${isSelected ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300'}`}>
+                  <div className="flex justify-between items-center mb-3">
+                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>Pilihan {num}</span>
+                    {isSelected && <CheckCircle2 className="text-indigo-600" size={18} />}
+                  </div>
+                  <p className="text-sm text-slate-800 mb-4 whitespace-pre-wrap flex-1">{choice.caption}</p>
+                  <p className="text-xs font-bold text-blue-600 break-words">{choice.hashtag}</p>
                 </div>
-                <p className="text-sm text-slate-800 line-clamp-3 mb-2">{choice.caption}</p>
-                <p className="text-xs font-bold text-blue-600 truncate">{choice.hashtag}</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
 
           <div className="bg-amber-50 p-3 rounded-lg border border-amber-100">
             <span className="text-xs font-extrabold text-amber-800 uppercase mb-1 block">💡 Ide Cerita Musiman</span>

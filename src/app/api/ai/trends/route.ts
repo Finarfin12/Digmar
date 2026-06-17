@@ -136,7 +136,8 @@ Topik Berita Tren (Indonesia):
 ${trendingNews.map(n => `- ${n}`).join('\n')}
 
 Tugas Anda:
-Berdasarkan hari ini, konteks musiman, dan topik berita yang sedang tren di atas, buatlah 3 Rekomendasi Ide Konten Media Sosial yang sangat relevan dan menarik untuk bisnis ini (gabungkan bisnis (soft-selling) dengan tren yang ada jika masuk akal, jika tidak masuk akal jangan paksakan, gunakan saja konteks musim/tanggal).
+Berdasarkan hari ini, konteks musiman, dan topik berita yang sedang tren di atas, buatlah 3 Rekomendasi Ide Konten Media Sosial yang sangat relevan dan menarik untuk bisnis ini.
+SANGAT PENTING: Gunakan GAYA BAHASA YANG KEKINIAN, KASUAL, dan TIDAK KAKU. Jangan gunakan bahasa korporat atau robotik. Buatlah ide konten yang terasa segar, trendi, dan cocok untuk Gen-Z / Millennial di media sosial (Instagram/TikTok). Gabungkan soft-selling dengan tren secara natural.
 
 KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
 {

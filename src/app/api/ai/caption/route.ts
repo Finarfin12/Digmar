@@ -33,6 +33,14 @@ export async function POST(request: NextRequest) {
 Konteks Postingan: ${prompt_context}
 Gaya Bahasa (Tone): ${tone_voice || 'profesional'}
 
+INSTRUKSI SANGAT PENTING:
+Anda WAJIB menulis caption dengan SANGAT MENGHARGAI Gaya Bahasa (Tone) yang diminta.
+- Jika tone "Kasual & Santai" / "kasual": Gunakan bahasa gaul yang wajar, kekinian, santai, seakan ngobrol dengan teman (misal pakai sapaan 'kamu', 'kalian', atau sapaan akrab). JANGAN kaku/formal/kaku-robotik.
+- Jika tone "Humoris": Buatlah lucu, kocak, dan mengundang tawa.
+- Jika tone "Profesional": Gunakan bahasa formal, rapi, dan elegan.
+- Jika "Hard Selling": Fokus pada promo, FOMO, dan call to action yang kuat.
+Sesuaikan kosakata, struktur kalimat, dan sapaan dengan SEMPURNA sesuai tone tersebut. JANGAN MENGGUNAKAN BAHASA GENERIK.
+
 KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
 {
   "pilihan_1": { "caption": "...", "hashtag": "#tag1 #tag2" },
