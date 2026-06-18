@@ -29,6 +29,15 @@ const platformNames: Record<string, string> = {
   linkedin: 'LinkedIn',
 };
 
+async function getErrorMessage(res: Response, fallback: string) {
+  try {
+    const data = await res.json();
+    return data?.error || data?.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function PostScheduler({ units, accounts, initialDate, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, onSuccess: () => void }) {
   const [mode, setMode] = useState<'manual' | 'autopilot' | 'abtest'>('manual');
   const [autoPilotIdea, setAutoPilotIdea] = useState('');
@@ -179,7 +188,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           platform_captions: platformCaptions,
         })
       });
-      if (!res.ok) throw new Error('Gagal menjadwalkan post');
+      if (!res.ok) throw new Error(await getErrorMessage(res, 'Gagal menjadwalkan post'));
       Swal.fire({ title: 'Berhasil', text: 'Post terjadwal!', icon: 'success', timer: 1500, showConfirmButton: false });
       onSuccess();
     } catch (err: unknown) {

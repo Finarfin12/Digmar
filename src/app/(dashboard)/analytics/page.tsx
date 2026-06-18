@@ -43,6 +43,7 @@ export default function Analytics() {
       .then(data => {
         if (data.error) {
           Swal.fire('Error', data.error, 'error');
+          setAnalytics(null);
         } else {
           setAnalytics(data);
         }
@@ -90,7 +91,7 @@ export default function Analytics() {
             {accounts.length === 0 && <option value="" disabled>Belum ada akun sosial</option>}
             {accounts.map(acc => (
               <option key={acc.id} value={acc.id}>
-                {acc.business_units.brand_name} ({acc.platform}) - {acc.ig_user_id}
+                {acc.business_units?.brand_name || '(Tanpa Unit)'} ({acc.platform}) - {acc.ig_user_id}
               </option>
             ))}
           </select>

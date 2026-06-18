@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   }
 
   const safeData = data.map(account => {
-    const { access_token_encrypted, business_units, ...safeAccount } = account
+    const { access_token_encrypted, ...safeAccount } = account
     return {
       ...safeAccount,
       has_token: !!access_token_encrypted 

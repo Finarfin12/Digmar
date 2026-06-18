@@ -3,6 +3,72 @@ import { generateJobCode } from '@/lib/utils/job-code'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { handleApiError } from '@/lib/utils/error-handler'
+
+type PostQueueInsert = {
+  user_id: string
+  job_code: string
+  target_account_ids: string[]
+  scheduled_at: string
+  media_urls: string[]
+  caption: string
+  first_comment?: string
+  post_type: string
+  cover_url: string | null
+  status: 'waiting'
+  log_messages: unknown[]
+  platform_captions?: Record<string, string>
+}
+
+function isMissingColumnError(error: { message?: string; code?: string } | null, column: string) {
+  if (!error) return false
+  return error.code === 'PGRST204' || Boolean(error.message?.includes(`'${column}' column`) || error.message?.includes(`column "${column}"`))
+}
+
+async function insertPostQueue(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  insertData: PostQueueInsert
+) {
+  const insertVariants: PostQueueInsert[] = [insertData]
+
+  if (insertData.platform_captions) {
+    const { platform_captions, ...withoutPlatformCaptions } = insertData
+    insertVariants.push(withoutPlatformCaptions)
+  }
+
+  if (insertData.first_comment !== undefined) {
+    const { first_comment, ...withoutFirstComment } = insertData
+    insertVariants.push(withoutFirstComment)
+  }
+
+  if (insertData.platform_captions && insertData.first_comment !== undefined) {
+    const { platform_captions, first_comment, ...minimalData } = insertData
+    insertVariants.push(minimalData)
+  }
+
+  let lastError: { message?: string; code?: string } | null = null
+
+  for (const variant of insertVariants) {
+    const { data, error } = await supabase
+      .from('post_queue')
+      .insert([variant])
+      .select()
+      .single()
+
+    if (!error) return { data, error: null }
+
+    lastError = error
+    const canFallback =
+      ('platform_captions' in variant && isMissingColumnError(error, 'platform_captions')) ||
+      ('first_comment' in variant && isMissingColumnError(error, 'first_comment'))
+
+    if (!canFallback) {
+      return { data: null, error }
+    }
+  }
+
+  return { data: null, error: lastError }
+}
+
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -47,7 +113,7 @@ export async function POST(request: NextRequest) {
     const { 
       target_account_ids, 
       scheduled_at, 
-      media_urls, 
+      media_urls = [],
       caption, 
       first_comment,
       post_type, 
@@ -59,6 +125,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    const parsedSchedule = new Date(scheduled_at)
+    if (Number.isNaN(parsedSchedule.getTime())) {
+      return NextResponse.json({ error: 'Tanggal jadwal tidak valid' }, { status: 400 })
+    }
+
+    if (!Array.isArray(media_urls) || media_urls.some(url => typeof url !== 'string' || !url.trim())) {
+      return NextResponse.json({ error: 'Media tidak valid' }, { status: 400 })
+    }
+
+    if ((post_type || 'single_image') !== 'carousel' && media_urls.length > 1) {
+      return NextResponse.json({ error: 'Single post hanya boleh memakai 1 media' }, { status: 400 })
+    }
+
     const uniqueTargetAccountIds = [...new Set(target_account_ids.filter(id => typeof id === 'string'))]
     if (uniqueTargetAccountIds.length !== target_account_ids.length) {
       return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
@@ -66,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     const { data: ownedAccounts, error: ownedAccountsError } = await supabase
       .from('social_accounts')
-      .select('id, business_unit_id, business_units!inner(user_id)')
+      .select('id, business_unit_id, platform, business_units!inner(user_id)')
       .in('id', uniqueTargetAccountIds)
       .eq('business_units.user_id', user.id)
 
@@ -76,6 +155,10 @@ export async function POST(request: NextRequest) {
 
     if (!ownedAccounts || ownedAccounts.length !== uniqueTargetAccountIds.length) {
       return NextResponse.json({ error: 'One or more target accounts are not owned by this user' }, { status: 403 })
+    }
+
+    if (ownedAccounts.some(account => account.platform === 'meta_ig') && media_urls.length === 0) {
+      return NextResponse.json({ error: 'Instagram membutuhkan minimal 1 media untuk diposting' }, { status: 400 })
     }
 
     // Fase 5: Apply Variables
@@ -112,27 +195,34 @@ export async function POST(request: NextRequest) {
     }
 
     const job_code = generateJobCode()
-
-    const { data, error } = await supabase
-      .from('post_queue')
-      .insert([
-        {
-          user_id: user.id,
-          job_code,
-          target_account_ids: uniqueTargetAccountIds,
-          scheduled_at,
-          media_urls: media_urls || [],
-          caption: processedCaption,
-          first_comment: processedFirstComment,
-          post_type: post_type || 'single_image',
-          cover_url: cover_url || null,
-          status: 'waiting',
-          log_messages: [],
-          platform_captions: platform_captions || {}
+    const sanitizedPlatformCaptions: Record<string, string> = {}
+    if (platform_captions && typeof platform_captions === 'object' && !Array.isArray(platform_captions)) {
+      for (const [accountId, value] of Object.entries(platform_captions)) {
+        if (uniqueTargetAccountIds.includes(accountId) && typeof value === 'string' && value.trim()) {
+          sanitizedPlatformCaptions[accountId] = value
         }
-      ])
-      .select()
-      .single()
+      }
+    }
+
+    const insertData: PostQueueInsert = {
+      user_id: user.id,
+      job_code,
+      target_account_ids: uniqueTargetAccountIds,
+      scheduled_at: parsedSchedule.toISOString(),
+      media_urls,
+      caption: processedCaption,
+      first_comment: processedFirstComment,
+      post_type: post_type || 'single_image',
+      cover_url: cover_url || null,
+      status: 'waiting',
+      log_messages: []
+    }
+
+    if (Object.keys(sanitizedPlatformCaptions).length > 0) {
+      insertData.platform_captions = sanitizedPlatformCaptions
+    }
+
+    const { data, error } = await insertPostQueue(supabase, insertData)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
