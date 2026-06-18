@@ -3,6 +3,7 @@ import { decryptValue } from '@/lib/crypto/server';
 import { publishToInstagram, validateInstagramToken } from './instagram';
 import { publishToFacebook } from './facebook';
 import { publishToTikTok } from './tiktok';
+import { publishToThreads } from './threads';
 import type { PostJob, SocialAccount } from './types';
 
 export async function processQueue() {
@@ -234,7 +235,10 @@ export async function processQueue() {
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'threads') {
-            logs.push({ account_id: account.id, platform: 'threads', time: new Date().toISOString(), success: false, error: 'Threads API not yet fully implemented', skipped: true, ...accountTag });
+            const res = await publishToThreads(account, platformJob);
+            logs.push({ account_id: account.id, platform: 'threads', time: new Date().toISOString(), ...res, ...accountTag });
+            if (res.success) anySuccess = true;
+            else allSuccess = false;
           } else {
             logs.push({ account_id: accountDb.id, platform: accountDb.platform, time: new Date().toISOString(), success: false, error: 'Platform not yet implemented' });
             allSuccess = false;
@@ -252,22 +256,27 @@ export async function processQueue() {
     let finalStatus = 'failed';
     let retryCount = job.retry_count || 0;
     let nextRetryAt = null;
+    const skippedAccounts = logs.filter((l: Record<string, unknown>) => l.skipped).length;
+    const realAccounts = logs.filter((l: Record<string, unknown>) => l.platform && !l.skipped).length;
+    const onlySkipped = skippedAccounts > 0 && realAccounts === 0;
 
-    if (allSuccess && anySuccess) {
+    if (onlySkipped) {
+      finalStatus = 'skipped';
+      logs.push({ time: new Date().toISOString(), message: 'Semua akun di-skip (belum didukung). Tidak perlu retry.' });
+    } else if (allSuccess && anySuccess) {
       finalStatus = 'success';
     } else if (anySuccess) {
       finalStatus = 'partial';
     } else {
-      // Exponential backoff retry logic (max 3 retries)
       if (retryCount < 3) {
         finalStatus = 'waiting';
         retryCount += 1;
-        const backoffMinutes = Math.pow(2, retryCount) * 5; // 10m, 20m, 40m
+        const backoffMinutes = Math.pow(2, retryCount) * 5;
         nextRetryAt = new Date(Date.now() + backoffMinutes * 60000).toISOString();
         logs.push({ time: new Date().toISOString(), message: `Job failed, retrying at ${nextRetryAt} (Attempt ${retryCount}/3)` });
       } else {
         finalStatus = 'failed';
-        logs.push({ time: new Date().toISOString(), message: `Job failed permanently after 3 retries.` });
+        logs.push({ time: new Date().toISOString(), message: 'Job failed permanently after 3 retries.' });
       }
     }
 
@@ -291,7 +300,6 @@ export async function processQueue() {
         token_preview: l.token_preview,
         token_length: l.token_length,
       }));
-    const skippedAccounts = logs.filter((l: Record<string, unknown>) => l.skipped).length;
 
     const lastAttemptLog = logs.slice().reverse().find((l: Record<string, unknown>) => l.success === false && l.error && !l.skipped);
     results.push({

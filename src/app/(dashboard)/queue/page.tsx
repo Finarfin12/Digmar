@@ -43,6 +43,7 @@ const statusStyles: Record<string, { label: string; className: string; icon: Rea
   success: { label: 'Sudah publish', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle2 size={13} /> },
   partial: { label: 'Sebagian berhasil', className: 'bg-orange-50 text-orange-700 border-orange-200', icon: <AlertCircle size={13} /> },
   failed: { label: 'Gagal publish', className: 'bg-red-50 text-red-700 border-red-200', icon: <AlertCircle size={13} /> },
+  skipped: { label: 'Di-skip (belum didukung)', className: 'bg-slate-50 text-slate-500 border-slate-200', icon: <Clock size={13} /> },
 };
 
 function formatSchedule(value: string) {
