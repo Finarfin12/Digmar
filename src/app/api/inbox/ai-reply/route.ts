@@ -76,7 +76,17 @@ ${historyText}
       maxTokens: 500
     })
 
-    return NextResponse.json({ success: true, reply: response.content })
+    const replyText = response.content;
+
+    await supabase.from('social_messages').insert({
+      conversation_id,
+      sender_type: 'ai_auto',
+      content: replyText,
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    })
+
+    return NextResponse.json({ success: true, reply: replyText })
   } catch (err: unknown) {
     return handleApiError(err)
   }

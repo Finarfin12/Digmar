@@ -7,7 +7,8 @@ Saat ini `PostScheduler` hanya bisa memilih **satu akun** (`formAccount: string`
 Kita akan mengimplementasikan:
 - **Opsi A**: Multi-select akun via checkbox per platform (UI overhaul bagian "Akun Tujuan")
 - **Opsi C**: Per-platform caption override dengan accordion per platform
-- **Bonus Fix**: Hashtag Instagram limit naik dari 5 menjadi 30
+- **Setting Preferensi**: Pengguna bisa memilih mode default (Opsi A atau A+C) di halaman Pengaturan
+- **Bonus Fix**: Hashtag platform-aware — Instagram maksimal 5, TikTok bebas
 
 ---
 
@@ -21,7 +22,7 @@ Kita akan mengimplementasikan:
 
 > [!NOTE]
 > **Hashtag Instagram**
-> Info terbaru: Instagram **tidak menghapus batas 30 hashtag** tapi secara algoritma merekomendasikan **3-5 hashtag** untuk jangkauan terbaik (per update 2024). Kita akan ubah batasan di generator menjadi **30 hashtag total** (5 per kategori → 10 per kategori) sekaligus menambahkan *counter* karakter di caption textarea agar pengguna tetap bisa kontrol manual.
+> Instagram per update terbaru **membatasi maksimal 5 hashtag** untuk jangkauan optimal (algoritma 2024). Hashtag ke-6 dst tidak dihitung bahkan bisa mengurangi reach. Generator akan menghasilkan set terpisah per platform.
 
 ---
 
@@ -154,26 +155,67 @@ const caption = job.platform_captions?.[account.id] || job.caption;
 
 ---
 
-### D. Fix Hashtag Instagram — Generator AI
+### D. Fix Hashtag — Platform-Aware (Instagram max 5)
 
 #### [MODIFY] [hashtags/route.ts](file:///c:/antigravity/DigiMar%20automation/src/app/api/ai/hashtags/route.ts)
 
-Ubah prompt AI:
-```
-// Sebelum
-high: 5 hashtag, medium: 5 hashtag, niche: 5 hashtag = total 15
+Instagram per update terbaru **membatasi maksimal 5 hashtag** untuk jangkauan optimal. TikTok dan platform lain tidak punya batasan ketat.
 
-// Sesudah  
-high: 10 hashtag, medium: 10 hashtag, niche: 10 hashtag = total 30
+Ubah prompt AI menjadi **strategi berbeda per platform**:
+
+```typescript
+// Output JSON baru dari AI:
+{
+  "instagram": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],  // MAX 5
+  "tiktok":    ["#tag1", "#tag2", "#tag3", ... "#tag15"],       // Bebas, rekomendasi 5-15
+  "general":   ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]   // Fallback jika platform tidak spesifik
+}
 ```
 
 #### [MODIFY] [HashtagModal.tsx](file:///c:/antigravity/DigiMar%20automation/src/components/planner/HashtagModal.tsx)
-Tampilkan semua 30 hashtag (sekarang hanya 5 yang muncul per kategori).
+Tampilkan hasil dalam **tab per platform** (Instagram | TikTok | Umum) agar pengguna tahu set mana yang harus dipakai untuk platform tertentu.
 
-#### [MODIFY] PostScheduler.tsx — Caption Textarea
-Tambahkan **character counter** di textarea Caption Final:
+#### [MODIFY] PostScheduler.tsx — Caption Textarea dengan Hashtag Counter
+Tambahkan **peringatan otomatis** jika caption untuk akun Instagram mengandung lebih dari 5 hashtag:
 ```
-Caption Final                              [1.247 / 2.200 karakter]
+⚠️ Caption Instagram mengandung 8 hashtag. Instagram merekomendasikan maksimal 5.
+```
+
+---
+
+### E. Settings — Preferensi Mode Publish
+
+#### [MODIFY] Halaman Settings (tab baru atau section baru)
+
+Tambahkan pilihan **"Mode Publish Default"** di halaman Pengaturan, sehingga setiap pengguna bisa mengatur preferensi workflow-nya sendiri:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ ⚙️  Mode Publish Konten                             │
+│                                                     │
+│ ● Mode Cepat (Opsi A)                               │
+│   Pilih beberapa akun, 1 caption untuk semua.       │
+│   Cocok untuk konten yang sama di semua platform.   │
+│                                                     │
+│ ○ Mode Lanjutan (Opsi A + C)                        │
+│   Pilih beberapa akun + bisa atur caption berbeda   │
+│   per platform. Cocok untuk pengguna yang ingin     │
+│   optimasi konten per platform.                     │
+└─────────────────────────────────────────────────────┘
+```
+
+- Default: **Mode Cepat (Opsi A)** agar tidak membingungkan pengguna baru
+- Preferensi ini disimpan di tabel `configurations` (sudah ada) dengan `key = 'publish_mode'`, `value = 'simple' | 'advanced'`
+- `PostScheduler` membaca preferensi ini saat pertama dibuka:
+  - `simple`: hanya tampilkan checkbox multi-select, **tanpa** accordion override caption
+  - `advanced`: tampilkan checkbox multi-select **+** accordion override caption per platform
+
+#### [NEW] Tidak butuh migrasi DB baru
+Menggunakan tabel `configurations` yang sudah ada:
+```sql
+-- Disimpan otomatis saat user memilih
+INSERT INTO configurations (user_id, key, value_encrypted)
+VALUES (auth.uid(), 'publish_mode', encrypt_value('simple'));
 ```
 
 ---
@@ -181,14 +223,15 @@ Caption Final                              [1.247 / 2.200 karakter]
 ## Urutan Eksekusi
 
 ```
-1. DB Migration (tambah kolom platform_captions)
-2. API update (posts route — terima platform_captions)  
-3. Publisher update (baca platform_captions per akun)
-4. PostScheduler — ubah state formAccount → selectedAccounts[]
-5. PostScheduler — ganti <select> dengan Checkbox Grid
-6. PostScheduler — tambah Per-Platform Caption Accordion
-7. PostScheduler — tambah character counter
-8. HashtagModal + hashtags/route.ts — naikkan limit hashtag ke 30
+1. DB Migration (tambah kolom platform_captions ke post_queue)
+2. API update (posts route — terima & simpan platform_captions)  
+3. Publisher update (baca platform_captions per akun, fallback ke caption utama)
+4. Settings — tambah preferensi Mode Publish (simple/advanced), simpan ke configurations
+5. PostScheduler — baca preferensi, ubah state formAccount → selectedAccounts[]
+6. PostScheduler — ganti <select> dengan Checkbox Grid per platform
+7. PostScheduler — tambah accordion Per-Platform Caption (hanya jika mode = advanced)
+8. PostScheduler — tambah character counter & peringatan hashtag Instagram
+9. HashtagModal + hashtags/route.ts — hashtag platform-aware (IG max 5, TikTok bebas, tab per platform)
 ```
 
 ---
@@ -197,6 +240,8 @@ Caption Final                              [1.247 / 2.200 karakter]
 
 ### Manual Verification
 - Centang 3 akun berbeda → pastikan 1 entry di DB dengan `target_account_ids` berisi 3 UUID
-- Isi override caption TikTok berbeda → publish → cek `platform_captions` di DB
+- Ganti ke mode **Advanced** di Pengaturan → buka PostScheduler → accordion override caption muncul
+- Isi override caption TikTok berbeda → publish → cek `platform_captions` di DB berisi mapping yang benar
 - Test publisher: pastikan masing-masing akun menerima caption yang benar (bukan semua dapat caption yang sama)
-- Buka Hashtag Engine → pastikan hasil 30 hashtag muncul semua di UI
+- Ketik 6 hashtag di caption Instagram → pastikan peringatan ⚠️ muncul otomatis
+- Buka Hashtag Engine → pastikan ada 3 tab (Instagram | TikTok | Umum) dengan set hashtag berbeda

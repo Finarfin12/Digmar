@@ -22,6 +22,7 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
   const [selectedSource, setSelectedSource] = useState('mixed');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<HashtagData | null>(null);
+  const [platformTab, setPlatformTab] = useState<'instagram' | 'tiktok' | 'umum'>('umum');
   const selectedBusinessUnitId = businessUnitId || units[0]?.id || '';
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -123,11 +124,19 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
           {data && data.hashtags && (
             <div className="space-y-6 animate-in slide-in-from-bottom-4">
               <div className="flex justify-between items-center">
-                <h4 className="font-extrabold text-lg">Hasil Generator:</h4>
+                <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+                  <button onClick={() => setPlatformTab('instagram')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${platformTab === 'instagram' ? 'bg-white text-pink-600 shadow-sm' : 'text-slate-500'}`}>📸 IG (max 5)</button>
+                  <button onClick={() => setPlatformTab('tiktok')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${platformTab === 'tiktok' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>🎵 TikTok</button>
+                  <button onClick={() => setPlatformTab('umum')} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${platformTab === 'umum' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>🌐 Umum</button>
+                </div>
                 <button onClick={copyAllHashtags} className="text-indigo-600 bg-indigo-50 px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm hover:bg-indigo-100">
-                  <Copy size={16} /> Salin Semua Hashtag
+                  <Copy size={16} /> Salin Semua
                 </button>
               </div>
+
+              {platformTab !== 'umum' && (
+                <p className="text-xs text-slate-500 -mt-3 font-medium">{platformTab === 'instagram' ? 'Instagram merekomendasikan maksimal 5 hashtag untuk jangkauan optimal.' : 'TikTok: gunakan 5-15 hashtag untuk visibilitas maksimal.'}</p>
+              )}
 
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="bg-red-50 border border-red-100 p-4 rounded-2xl">

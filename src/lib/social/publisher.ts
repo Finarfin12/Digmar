@@ -85,6 +85,12 @@ export async function processQueue() {
     if (accountsData && accountsData.length > 0) {
       for (const accountDb of accountsData) {
         try {
+          const platformCaption = (job.platform_captions && typeof job.platform_captions === 'object' && !Array.isArray(job.platform_captions))
+            ? (job.platform_captions as Record<string, string>)[accountDb.id] || job.caption
+            : job.caption;
+
+          const platformJob: PostJob = { ...job, caption: platformCaption };
+
           const account: SocialAccount = {
             id: accountDb.id,
             business_unit_id: accountDb.business_unit_id,
@@ -94,17 +100,17 @@ export async function processQueue() {
           };
 
           if (account.platform === 'meta_ig') {
-            const res = await publishToInstagram(account, job);
+            const res = await publishToInstagram(account, platformJob);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'facebook') {
-            const res = await publishToFacebook(account, job);
+            const res = await publishToFacebook(account, platformJob);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'tiktok') {
-            const res = await publishToTikTok(account, job);
+            const res = await publishToTikTok(account, platformJob);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;

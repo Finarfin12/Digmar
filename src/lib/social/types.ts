@@ -19,4 +19,5 @@ export interface PostJob {
   retry_count?: number;
   next_retry_at?: string;
   log_messages: Record<string, unknown>[];
+  platform_captions?: Record<string, string>;
 }

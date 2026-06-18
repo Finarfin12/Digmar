@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
       caption, 
       first_comment,
       post_type, 
-      cover_url 
+      cover_url,
+      platform_captions 
     } = body
 
     if (!Array.isArray(target_account_ids) || target_account_ids.length === 0 || !scheduled_at) {
@@ -126,7 +127,8 @@ export async function POST(request: NextRequest) {
           post_type: post_type || 'single_image',
           cover_url: cover_url || null,
           status: 'waiting',
-          log_messages: []
+          log_messages: [],
+          platform_captions: platform_captions || {}
         }
       ])
       .select()

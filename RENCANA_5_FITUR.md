@@ -14,8 +14,9 @@
 | 3 | Enhanced Analytics | 🟠 High | 2 | 3 |
 | 4 | Content Calendar Enhancement | 🟢 Low | 0 | 3 |
 | 5 | Auto-Reply DB-First | 🟠 High | 2 | 4 |
+| 6 | Multi-Platform Publishing & Caption Override | 🟠 High | 1 | 5 |
 
-**Total: 9 file baru, 13 file edit**
+**Total: 10 file baru, 18 file edit**
 
 ---
 
@@ -479,4 +480,167 @@ File EDIT (13):
 
 ---
 
-*Rencana implementasi — 5 fitur, 10 file baru, 13 file edit, 3 sprint.*
+*Rencana implementasi — 6 fitur, 10 file baru, 18 file edit, 4 sprint.*
+
+---
+
+## 6. MULTI-PLATFORM PUBLISHING & CAPTION OVERRIDE
+
+### Gambaran
+
+Saat ini `PostScheduler` hanya bisa memilih **satu akun** sebagai target publish, sehingga konten yang sama di 3 platform harus dibuat 3 jadwal terpisah. Fitur ini menyelesaikan masalah tersebut sekaligus memungkinkan caption yang berbeda per platform.
+
+### A. Multi-Select Akun Tujuan (Opsi A)
+
+Ganti `<select>` single dengan **checkbox grid per platform** di bagian "Unit & Akun Tujuan":
+
+```
+┌─────────────────────────────────────────────┐
+│ Akun Tujuan (centang semua yang ingin diisi) │
+│                                             │
+│ ☑️  📸  DigiMar_IG  (Instagram)              │
+│ ☑️  🎵  DigiMar_TK  (TikTok)                │
+│ ☐   👥  DigiMar_FB  (Facebook)              │
+│ ☐   🧵  DigiMar_TH  (Threads)               │
+└─────────────────────────────────────────────┘
+```
+
+- Setiap baris: **ikon platform** + nama akun + platform badge berwarna
+- Akun yang belum terhubung: tampil **disabled** + label "Tambah di Pengaturan"
+- Auto-select semua akun jika hanya ada satu
+
+**Perubahan state:**
+```typescript
+// Sebelum
+const [formAccount, setFormAccount] = useState<string>('');
+
+// Sesudah
+const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+```
+
+**Perubahan payload:**
+```typescript
+// Sebelum: target_account_ids: [formAccount]
+// Sesudah: target_account_ids: selectedAccounts  // langsung array multi-platform
+```
+
+### B. Per-Platform Caption Override (Opsi C)
+
+Accordion yang muncul di bawah "Caption Final" **hanya jika mode = Advanced dan lebih dari 1 platform dipilih**:
+
+```
+Caption Final (dipakai jika tidak di-override)
+[textarea utama]
+
+▼ Override Caption Per-Platform (opsional)
+┌──────────────────────────────────────────────┐
+│ 📸 Instagram  [counter: 0/2200]              │
+│ [textarea] ⚠️ Jika > 5 hashtag, reach turun  │
+├──────────────────────────────────────────────┤
+│ 🎵 TikTok     [counter: 0/150]               │
+│ [textarea] 💡 Hook di baris pertama          │
+├──────────────────────────────────────────────┤
+│ 👥 Facebook                                  │
+│ [textarea]                                   │
+└──────────────────────────────────────────────┘
+```
+
+**State baru:**
+```typescript
+const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
+// { 'uuid-ig-account': 'Caption IG...', 'uuid-tiktok-account': 'Caption TikTok...' }
+```
+
+**Logic publisher (fallback):**
+```typescript
+const caption = job.platform_captions?.[account.id] || job.caption;
+```
+
+### C. Setting Preferensi Mode Publish
+
+Di halaman **Pengaturan**, tambahkan section **"Mode Publish Konten"**:
+
+```
+⚙️  Mode Publish Konten
+
+● Mode Cepat (Opsi A)
+  Pilih beberapa akun, 1 caption untuk semua.
+  Cocok untuk konten yang sama di semua platform.
+
+○ Mode Lanjutan (Opsi A + C)
+  Multi-select akun + caption berbeda per platform.
+  Cocok untuk optimasi konten per platform.
+```
+
+- Default: **Mode Cepat** agar tidak membingungkan pengguna baru
+- Disimpan di tabel `configurations` yang sudah ada: `key = 'publish_mode'`
+- **Tidak butuh migrasi DB baru** untuk preferensi ini
+
+### D. Hashtag Platform-Aware (Instagram max 5)
+
+Instagram per update 2024 membatasi **maksimal 5 hashtag** untuk jangkauan optimal.
+
+**Perubahan di HashtagModal:** Tampilkan hasil dalam **3 tab**:
+
+| Tab | Platform | Jumlah Hashtag |
+|-----|----------|----------------|
+| 📸 Instagram | meta_ig | Maks **5** |
+| 🎵 TikTok | tiktok | Bebas, rekomendasi 5–15 |
+| 🌐 Umum | semua | 5 (aman untuk semua platform) |
+
+**Peringatan otomatis di PostScheduler:**
+```
+⚠️ Caption Instagram mengandung 8 hashtag. Instagram merekomendasikan maksimal 5.
+```
+
+### DB Migration: `supabase/migrations/00000000000020_platform_captions.sql`
+```sql
+ALTER TABLE post_queue
+  ADD COLUMN IF NOT EXISTS platform_captions JSONB DEFAULT '{}';
+-- Berisi: { "uuid-akun-id": "teks caption override per platform" }
+```
+
+### Urutan Eksekusi (Sprint 4)
+```
+1. Migration 00000000000020 → tambah kolom platform_captions
+2. API posts/route.ts → terima & simpan platform_captions
+3. publisher.ts → baca platform_captions, fallback ke caption utama
+4. Settings → tambah radio button Mode Publish, simpan ke configurations
+5. PostScheduler → baca preferensi, ubah formAccount → selectedAccounts[]
+6. PostScheduler → ganti <select> dengan Checkbox Grid
+7. PostScheduler → accordion Per-Platform Caption (mode advanced only)
+8. PostScheduler → character counter + peringatan hashtag Instagram
+9. HashtagModal + hashtags/route.ts → output per-platform, tab UI
+```
+
+### File yang dibuat/diedit:
+| File | Action |
+|------|--------|
+| `supabase/migrations/00000000000020_platform_captions.sql` | NEW |
+| `src/components/planner/PostScheduler.tsx` | EDIT (checkbox multi-select, accordion, counter) |
+| `src/app/api/posts/route.ts` | EDIT (terima platform_captions) |
+| `src/app/api/posts/[id]/route.ts` | EDIT (update platform_captions) |
+| `src/lib/social/publisher.ts` | EDIT (baca platform_captions per akun) |
+| `src/components/planner/HashtagModal.tsx` | EDIT (tab per platform) |
+| `src/app/api/ai/hashtags/route.ts` | EDIT (output per platform) |
+| `src/app/(dashboard)/settings/page.tsx` | EDIT (tambah Mode Publish preference) |
+
+### Verification Plan
+- Centang 3 akun → pastikan `target_account_ids` di DB berisi 3 UUID
+- Ganti ke Mode Lanjutan di Pengaturan → accordion override caption muncul
+- Isi override TikTok berbeda → publish → cek `platform_captions` di DB
+- Publisher: pastikan tiap akun menerima caption yang benar (bukan semua sama)
+- Ketik 6 hashtag di caption Instagram → peringatan ⚠️ muncul otomatis
+- Hashtag Engine → 3 tab (Instagram | TikTok | Umum) dengan set hashtag berbeda
+
+---
+
+### Sprint 4: Multi-Platform Publishing
+9. Migration platform_captions + API posts update
+10. PostScheduler overhaul (checkbox + accordion + counter)
+11. Settings Mode Publish preference
+12. HashtagModal tab per platform + API hashtag platform-aware
+
+---
+
+*Rencana implementasi — 6 fitur, 10 file baru, 18 file edit, 4 sprint.*

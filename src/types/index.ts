@@ -58,6 +58,36 @@ export interface PostJob {
   error_message?: string;
 }
 
+export interface AnalyticsMetrics {
+  followers: number;
+  posts: number;
+  name: string;
+  profile_pic: string;
+  reach_7d: number;
+  impressions_7d: number;
+  engagement_rate: number;
+  profile_views_7d: number;
+  is_mock: boolean;
+}
+
+export interface ChartDataPoint {
+  date: string;
+  reach: number;
+  impressions: number;
+  engagement: number;
+}
+
+export interface TopPost {
+  id: string;
+  caption: string;
+  media_url: string;
+  likes: number;
+  comments: number;
+  reach: number;
+  engagement_rate: number;
+  published_at: string;
+}
+
 export interface SocialConversation {
   id: string;
   business_unit_id: string;

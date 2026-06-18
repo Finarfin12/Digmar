@@ -190,6 +190,8 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
     "medium": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],
     "niche": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"]
   },
+  "instagram_safe": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],
+  "tiktok_trending": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],
   "seo_keywords": ["keyword panjang 1", "keyword spesifik 2", "ide pencarian 3"]
 }
 `;
