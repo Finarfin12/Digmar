@@ -37,20 +37,23 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
       client = new OpenAICompatibleClient({
         apiKey,
         model: selectedProvider.model || process.env.DEFAULT_AI_MODEL || 'llama-3.3-70b-versatile',
-        baseURL: 'https://api.groq.com/openai/v1'
+        baseURL: 'https://api.groq.com/openai/v1',
+        timeout: 30000 // M25 Fix: Timeout
       });
       break;
     case 'openai':
       client = new OpenAICompatibleClient({
         apiKey,
-        model: selectedProvider.model || 'gpt-4o'
+        model: selectedProvider.model || 'gpt-4o',
+        timeout: 30000 // M25 Fix: Timeout
       });
       break;
     case 'openrouter':
       client = new OpenAICompatibleClient({
         apiKey,
         model: selectedProvider.model || '',
-        baseURL: selectedProvider.base_url || 'https://openrouter.ai/api/v1'
+        baseURL: selectedProvider.base_url || 'https://openrouter.ai/api/v1',
+        timeout: 30000 // M25 Fix: Timeout
       });
       break;
     case 'vps':
@@ -100,7 +103,8 @@ export async function getVisionAIProvider(userId: string): Promise<{ client: AIP
   const client = new OpenAICompatibleClient({
     apiKey,
     model: primary.vision_model,
-    baseURL: primary.vision_base_url
+    baseURL: primary.vision_base_url,
+    timeout: 30000 // M25 Fix: Timeout
   });
 
   return { client, config: primary };

@@ -25,18 +25,31 @@ async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST'
     searchParams = '?' + new URLSearchParams(stringBody);
   }
 
-  const response = await fetch(url + searchParams, {
-    method,
-    headers,
-    body: method === 'POST' ? JSON.stringify(body) : undefined
-  });
-  
-  const data = await response.json();
-  if (!response.ok || data.error) {
-    throw new Error(data.error?.message || `Facebook API Error: ${response.statusText}`);
+  let retries = 0;
+  const maxRetries = 3;
+  while (retries < maxRetries) {
+    const response = await fetch(url + searchParams, {
+      method,
+      headers,
+      body: method === 'POST' ? JSON.stringify(body) : undefined
+    });
+    
+    if (response.status >= 500 && response.status < 600) {
+      retries++;
+      if (retries === maxRetries) {
+        throw new Error(`Facebook API Error: Server Error ${response.status} after ${maxRetries} retries`);
+      }
+      await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
+      continue;
+    }
+
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || `Facebook API Error: ${response.statusText}`);
+    }
+    
+    return data;
   }
-  
-  return data;
 }
 
 export async function publishToFacebook(account: SocialAccount, job: PostJob, idempotencyKey?: string) {

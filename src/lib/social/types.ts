@@ -16,5 +16,7 @@ export interface PostJob {
   first_comment?: string;
   post_type: 'single_image' | 'carousel' | 'reels';
   cover_url?: string;
+  retry_count?: number;
+  next_retry_at?: string;
   log_messages: Record<string, unknown>[];
 }

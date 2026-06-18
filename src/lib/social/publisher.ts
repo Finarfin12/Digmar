@@ -14,6 +14,7 @@ export async function processQueue() {
     .select('*')
     .eq('status', 'waiting')
     .lte('scheduled_at', now)
+    .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
     .limit(5);
 
   if (fetchError || !waitingJobs || waitingJobs.length === 0) {
@@ -90,12 +91,36 @@ export async function processQueue() {
     }
 
     let finalStatus = 'failed';
-    if (allSuccess && anySuccess) finalStatus = 'success';
-    else if (anySuccess) finalStatus = 'partial';
+    let retryCount = job.retry_count || 0;
+    let nextRetryAt = null;
+
+    if (allSuccess && anySuccess) {
+      finalStatus = 'success';
+    } else if (anySuccess) {
+      finalStatus = 'partial';
+    } else {
+      // Exponential backoff retry logic (max 3 retries)
+      if (retryCount < 3) {
+        finalStatus = 'waiting';
+        retryCount += 1;
+        const backoffMinutes = Math.pow(2, retryCount) * 5; // 10m, 20m, 40m
+        nextRetryAt = new Date(Date.now() + backoffMinutes * 60000).toISOString();
+        logs.push({ time: new Date().toISOString(), message: `Job failed, retrying at ${nextRetryAt} (Attempt ${retryCount}/3)` });
+      } else {
+        finalStatus = 'failed';
+        logs.push({ time: new Date().toISOString(), message: `Job failed permanently after 3 retries.` });
+      }
+    }
 
     await supabase
       .from('post_queue')
-      .update({ status: finalStatus, log_messages: logs, updated_at: new Date().toISOString() })
+      .update({ 
+        status: finalStatus, 
+        log_messages: logs, 
+        retry_count: retryCount,
+        next_retry_at: nextRetryAt,
+        updated_at: new Date().toISOString() 
+      })
       .eq('id', job.id);
 
     results.push({ job: job.job_code, status: finalStatus });

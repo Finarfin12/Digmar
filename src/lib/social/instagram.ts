@@ -25,17 +25,30 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
     searchParams = '?' + new URLSearchParams(stringBody);
   }
 
-  const response = await fetch(url + searchParams, {
-    method,
-    headers,
-    body: method === 'POST' ? JSON.stringify(body) : undefined
-  });
-  
-  const data = await response.json();
-  if (!response.ok || data.error) {
-    throw new Error(data.error?.message || `Instagram API Error: ${response.statusText}`);
+  let retries = 0;
+  const maxRetries = 3;
+  while (retries < maxRetries) {
+    const response = await fetch(url + searchParams, {
+      method,
+      headers,
+      body: method === 'POST' ? JSON.stringify(body) : undefined
+    });
+    
+    if (response.status >= 500 && response.status < 600) {
+      retries++;
+      if (retries === maxRetries) {
+        throw new Error(`Instagram API Error: Server Error ${response.status} after ${maxRetries} retries`);
+      }
+      await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
+      continue;
+    }
+
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error?.message || `Instagram API Error: ${response.statusText}`);
+    }
+    return data;
   }
-  return data;
 }
 
 export async function publishToInstagram(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
@@ -73,10 +86,13 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
       }, idempotencyKey ? `${idempotencyKey}-reels` : undefined);
       containerId = res.id;
       
-      // Basic polling for Reels processing status
+      // Exponential backoff polling for Reels processing status
       let isReady = false;
-      for (let i = 0; i < 10; i++) {
-        await new Promise(r => setTimeout(r, 5000));
+      let attempt = 0;
+      const maxAttempts = 15; // Up to ~2-3 minutes total wait
+      while (attempt < maxAttempts) {
+        const waitTime = Math.min(5000 * Math.pow(1.5, attempt), 20000); // Caps at 20s per check
+        await new Promise(r => setTimeout(r, waitTime));
         const statusRes = await fetchInstagram(`${containerId}?fields=status_code`, account.access_token);
         if (statusRes.status_code === 'FINISHED') {
           isReady = true;
@@ -84,8 +100,9 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
         } else if (statusRes.status_code === 'ERROR') {
           throw new Error('Reels processing failed on Instagram.');
         }
+        attempt++;
       }
-      if (!isReady) throw new Error('Reels processing timed out.');
+      if (!isReady) throw new Error('Reels processing timed out after 15 attempts.');
     } else {
       throw new Error(`Unsupported post type: ${job.post_type}`);
     }
