@@ -18,7 +18,8 @@ export async function POST(request: NextRequest) {
       subtitle,
       brand_color = '#4f46e5',
       logo_url,
-      template_id = 'centered' // centered, split, minimal
+      template_id = 'centered', // centered, split, minimal
+      resolution = '1080x1080'
     } = await request.json()
 
     if (!business_unit_id || !title) {
@@ -237,9 +238,13 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
+    const [widthStr, heightStr] = resolution.split('x');
+    const width = parseInt(widthStr) || 1080;
+    const height = parseInt(heightStr) || 1080;
+
     const imageResponse = new ImageResponse(element, {
-      width: 1080,
-      height: 1080, // Square for Instagram
+      width,
+      height,
     })
 
     // 2. Convert to Buffer

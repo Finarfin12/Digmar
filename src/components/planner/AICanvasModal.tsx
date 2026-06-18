@@ -14,6 +14,7 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [templateId, setTemplateId] = useState<'centered' | 'split' | 'minimal'>('centered');
+  const [resolution, setResolution] = useState<'1080x1080' | '1080x1350'>('1080x1080');
   const [generating, setGenerating] = useState(false);
 
   // Jika unit tidak ditemukan, pakai default
@@ -43,7 +44,8 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
           subtitle,
           brand_color: brandColor,
           logo_url: unit.brand_logo_url,
-          template_id: templateId
+          template_id: templateId,
+          resolution
         })
       });
 
@@ -79,7 +81,7 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
         <div className="p-6 bg-slate-50 flex justify-center border-b">
           {templateId === 'centered' && (
             <div 
-              className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-center p-4 transition-all"
+              className={`rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-center p-4 transition-all ${resolution === '1080x1080' ? 'w-48 h-48' : 'w-48 h-60'}`}
               style={{ backgroundColor: brandColor }}
             >
               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, white 2px, transparent 2px)', backgroundSize: '10px 10px' }} />
@@ -91,7 +93,7 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
           )}
 
           {templateId === 'split' && (
-            <div className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex transition-all bg-white border border-slate-200">
+            <div className={`rounded-2xl shadow-inner relative overflow-hidden flex transition-all bg-white border border-slate-200 ${resolution === '1080x1080' ? 'w-48 h-48' : 'w-48 h-60'}`}>
               <div className="w-2/5 h-full relative flex items-center justify-center" style={{ backgroundColor: brandColor }}>
                 <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, white 1px, transparent 1px)', backgroundSize: '6px 6px' }} />
               </div>
@@ -105,7 +107,7 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
           )}
 
           {templateId === 'minimal' && (
-            <div className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-end p-4 transition-all bg-slate-50" style={{ border: `4px solid ${brandColor}` }}>
+            <div className={`rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-end p-4 transition-all bg-slate-50 ${resolution === '1080x1080' ? 'w-48 h-48' : 'w-48 h-60'}`} style={{ border: `4px solid ${brandColor}` }}>
               <div className="font-black text-xl leading-tight line-clamp-2 uppercase" style={{ color: brandColor }}>{title || 'JUDUL PROMO'}</div>
               <div className="font-bold text-[10px] text-slate-700 line-clamp-2 mt-1">{subtitle || 'Sub-judul opsional untuk detail ekstra.'}</div>
             </div>
@@ -140,6 +142,27 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
               </button>
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-800 mb-2">Ukuran Kanvas</label>
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+              <button 
+                type="button" 
+                onClick={() => setResolution('1080x1080')}
+                className={`flex-1 p-2 text-xs font-bold rounded-lg transition-all ${resolution === '1080x1080' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                1080 x 1080 (Square)
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setResolution('1080x1350')}
+                className={`flex-1 p-2 text-xs font-bold rounded-lg transition-all ${resolution === '1080x1350' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                1080 x 1350 (Portrait)
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-bold text-slate-800 mb-2">Copywriting Utama (Maks 10 kata)</label>
             <textarea 
