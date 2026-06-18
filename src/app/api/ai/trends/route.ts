@@ -4,14 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { XMLParser } from 'fast-xml-parser'
 import { handleApiError } from '@/lib/utils/error-handler'
 import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
-
 import { logger } from '@/lib/utils/logger'
 
 type YouTubeVideoItem = {
-  snippet: {
-    title: string
-    channelTitle: string
-  }
+  id: { videoId: string }
+  snippet: { title: string; channelTitle: string; publishedAt: string }
 }
 
 type RedditChild = {
@@ -22,7 +19,19 @@ type RedditChild = {
     score: number
     num_comments: number
     selftext?: string
+    permalink: string
+    created_utc: number
   }
+}
+
+interface SourceItem {
+  title: string
+  platform: string
+  icon: string
+  score?: number
+  comments?: number
+  date: string
+  link: string
 }
 
 export async function POST(request: NextRequest) {
@@ -33,7 +42,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Rate Limiting: 5 request per menit
   const rateLimitKey = getRateLimitIdentifier(request, user.id)
   if (!checkRateLimit(rateLimitKey, 'ai-trends', 10, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
@@ -46,7 +54,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing business_unit_id' }, { status: 400 })
     }
 
-    // 1. Get Unit Info
     const { data: unit, error: unitError } = await supabase
       .from('business_units')
       .select('brand_name, business_category, ai_system_prompt')
@@ -58,179 +65,147 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
     }
 
-    // 2. Fetch Real-time News (NewsData.io AND Google News RSS)
-    let trendingNews: string[] = [];
-    const apiKey = process.env.NEWSDATA_API_KEY;
+    const sources: SourceItem[] = []
+    const trendingNews: string[] = []
+    const apiKey = process.env.NEWSDATA_API_KEY
+    const fetchPromises: Promise<void>[] = []
 
-    const fetchPromises = [];
-
-    // Promise 1: Google News
+    // Google News RSS
     if (source === 'mixed' || source === 'google_news') {
       fetchPromises.push(
-        fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id', { next: { revalidate: 3600 } })
+        fetch('https://news.google.com/rss?hl=id&gl=ID&ceid=ID:id')
           .then(res => res.text())
           .then(xmlData => {
-            const parser = new XMLParser();
-            const jsonObj = parser.parse(xmlData);
-            const items = jsonObj?.rss?.channel?.item || [];
-            const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
-            return topItems.map((item: { title: string }) => item.title);
+            const parser = new XMLParser()
+            const jsonObj = parser.parse(xmlData)
+            const items = jsonObj?.rss?.channel?.item || []
+            const topItems = (Array.isArray(items) ? items.slice(0, 5) : [items]) as Array<{ title: string; link: string; pubDate: string }>
+            for (const item of topItems) {
+              sources.push({ title: item.title, platform: 'google_news', icon: 'google_news', date: item.pubDate || new Date().toISOString(), link: item.link || '' })
+            }
+            trendingNews.push(...topItems.map((i) => i.title))
           })
-      );
+          .catch(() => {})
+      )
     }
 
-    // Promise 2: NewsData.io
+    // NewsData.io
     if (apiKey && (source === 'mixed' || source === 'newsdata')) {
       fetchPromises.push(
-        fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&country=id&language=id`, { next: { revalidate: 3600 } })
+        fetch(`https://newsdata.io/api/1/news?apikey=${apiKey}&country=id&language=id`)
           .then(res => res.json())
           .then(data => {
-            if (data && data.results && data.results.length > 0) {
-              return data.results.slice(0, 5).map((item: { title: string }) => item.title);
+            if (data?.results) {
+              for (const item of data.results.slice(0, 5)) {
+                sources.push({ title: item.title, platform: 'newsdata', icon: 'newsdata', date: item.pubDate || item.publishedAt || new Date().toISOString(), link: item.link || '' })
+              }
+              trendingNews.push(...data.results.slice(0, 5).map((i: { title: string }) => i.title))
             }
-            return [];
           })
-      );
+          .catch(() => {})
+      )
     }
 
-    // Promise 3: YouTube Data API (mostPopular) - Hemat Kuota (1 Unit)
-    const ytApiKey = process.env.YOUTUBE_API_KEY;
+    // YouTube
+    const ytApiKey = process.env.YOUTUBE_API_KEY
     if (ytApiKey && (source === 'mixed' || source === 'youtube')) {
       fetchPromises.push(
-        fetch(`https://youtube.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=ID&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
+        fetch(`https://youtube.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=ID&maxResults=5&key=${ytApiKey}`)
           .then(res => res.json() as Promise<{ items?: YouTubeVideoItem[] }>)
           .then(data => {
-            if (data && data.items) {
-              return data.items.map(item => `[YouTube Trending] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
+            if (data?.items) {
+              for (const item of data.items) {
+                sources.push({ title: `[${item.snippet.channelTitle}] ${item.snippet.title}`, platform: 'youtube', icon: 'youtube', date: item.snippet.publishedAt, link: `https://youtube.com/watch?v=${item.id.videoId}` })
+              }
+              trendingNews.push(...data.items.map(i => `[YouTube] ${i.snippet.title} (Channel: ${i.snippet.channelTitle})`))
             }
-            return [];
           })
-      );
+          .catch(() => {})
+      )
     }
 
-    // Promise 4: Reddit Hot Posts (r/indonesia) - Sentimen & Diskusi Publik
-    // Catatan: Reddit diblokir Kominfo di Indonesia, hanya bisa diakses via VPN atau dari server luar (Vercel)
+    // Reddit
     if (source === 'mixed' || source === 'reddit') {
       fetchPromises.push(
-        fetch('https://www.reddit.com/r/indonesia/hot.json?limit=7', { 
-          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
-        })
+        fetch('https://www.reddit.com/r/indonesia/hot.json?limit=7', { headers: { 'User-Agent': 'DigiMarBot/1.0' } })
           .then(res => res.json() as Promise<{ data?: { children?: RedditChild[] } }>)
           .then(data => {
-            if (data && data.data && data.data.children) {
-              return data.data.children
-                .filter(item => !item.data.stickied) // Skip pinned
-                .slice(0, 5)
-                .map(item => {
-                  const d = item.data
-                  const snippet = d.selftext ? d.selftext.substring(0, 120).replace(/\n/g, ' ') : ''
-                  return `[Reddit r/${d.subreddit}] ${d.title} (⬆${d.score} | 💬${d.num_comments} komentar)${snippet ? ` — "${snippet}..."` : ''}`
-                })
+            if (data?.data?.children) {
+              for (const item of data.data.children.filter(c => !c.data.stickied).slice(0, 5)) {
+                const d = item.data
+                sources.push({ title: d.title, platform: 'reddit', icon: 'reddit', score: d.score, comments: d.num_comments, date: new Date(d.created_utc * 1000).toISOString(), link: `https://reddit.com${d.permalink}` })
+              }
+              trendingNews.push(...data.data.children.filter(c => !c.data.stickied).slice(0, 5).map(c => `[Reddit r/${c.data.subreddit}] ${c.data.title} (⬆${c.data.score})`))
             }
-            return []
           })
+          .catch(() => {})
       )
 
-      // Promise 4b: Reddit Search berdasarkan kategori bisnis
       if (unit.business_category) {
         fetchPromises.push(
-          fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(unit.business_category)}&sort=relevance&t=week&limit=5`, {
-            headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
-          })
+          fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(unit.business_category)}&sort=relevance&t=week&limit=5`, { headers: { 'User-Agent': 'DigiMarBot/1.0' } })
             .then(res => res.json() as Promise<{ data?: { children?: RedditChild[] } }>)
             .then(data => {
-              if (data && data.data && data.data.children) {
-                return data.data.children.slice(0, 3).map(item => {
+              if (data?.data?.children) {
+                for (const item of data.data.children.slice(0, 3)) {
                   const d = item.data
-                  return `[Reddit Sentimen "${unit.business_category}"] ${d.title} (⬆${d.score} di r/${d.subreddit})`
-                })
+                  sources.push({ title: d.title, platform: 'reddit', icon: 'reddit_hot', score: d.score, comments: d.num_comments, date: new Date(d.created_utc * 1000).toISOString(), link: `https://reddit.com${d.permalink}` })
+                }
               }
-              return []
             })
+            .catch(() => {})
         )
       }
     }
 
-    const resultsList = await Promise.allSettled(fetchPromises);
-    resultsList.forEach(result => {
-      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-        trendingNews = [...trendingNews, ...result.value];
-      } else if (result.status === 'rejected') {
-        logger.error("Gagal menarik salah satu sumber berita:", result.reason);
-      }
-    });
+    await Promise.allSettled(fetchPromises)
 
-    if (trendingNews.length === 0) {
-      trendingNews = ["Gagal memuat berita terkini."];
-    }
+    if (trendingNews.length === 0) trendingNews.push('Gagal memuat berita terkini.')
 
-    // 3. Format Date
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const currentMonth = today.getMonth() + 1; // 1-12
-    let seasonContext = "Bulan biasa";
-    if (currentMonth >= 11 || currentMonth <= 1) seasonContext = "Musim Liburan / Akhir Tahun / Awal Tahun Baru";
-    else if (currentMonth >= 3 && currentMonth <= 4) seasonContext = "Periode Ramadhan / Idul Fitri (Tergantung kalender Hijriah)";
-    else if (currentMonth >= 6 && currentMonth <= 7) seasonContext = "Musim Libur Sekolah / Musim Panas (Kemarau)";
-    else if (currentMonth === 8) seasonContext = "Bulan Kemerdekaan RI (Agustus)";
+    const today = new Date()
+    const dateStr = today.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const currentMonth = today.getMonth() + 1
+    let seasonContext = 'Bulan biasa'
+    if (currentMonth >= 11 || currentMonth <= 1) seasonContext = 'Musim Liburan / Akhir Tahun'
+    else if (currentMonth >= 3 && currentMonth <= 4) seasonContext = 'Periode Ramadhan / Idul Fitri'
+    else if (currentMonth >= 6 && currentMonth <= 7) seasonContext = 'Musim Libur Sekolah / Kemarau'
+    else if (currentMonth === 8) seasonContext = 'Bulan Kemerdekaan RI'
 
-    // 4. Generate with AI
-    const { client } = await getAIProvider(user.id, preferred_provider).catch(err => {
-      logger.error('Trend AI provider setup failed:', err)
-      throw err
-    })
-    
+    const { client } = await getAIProvider(user.id, preferred_provider).catch(err => { logger.error('Trend AI provider setup failed:', err); throw err })
+
     const aiPrompt = `
 Konteks Bisnis:
 Nama: ${unit.brand_name}
 Kategori: ${unit.business_category}
-Aturan Promosi Khusus: ${unit.ai_system_prompt || 'Tidak ada spesifikasi khusus.'}
+Aturan Khusus: ${unit.ai_system_prompt || 'Tidak ada.'}
 
-Data Hari Ini:
 Tanggal: ${dateStr}
-Konteks Musiman/Bulan: ${seasonContext}
-Topik Berita Tren (Indonesia): 
+Konteks Musiman: ${seasonContext}
+Topik Tren: 
 ${trendingNews.map(n => `- ${n}`).join('\n')}
 
-Perhatikan data dari Reddit (ditandai [Reddit ...]) — ini berisi opini mentah netizen. Gunakan sentimen dari sana (keluhan, pujian, atau diskusi) untuk ide konten yang relatable.
+Buat 3 Ide Konten relevan untuk bisnis ini. Gaya bahasa kekinian, kasual, Gen-Z / Millennial.
 
-Tugas Anda:
-Berdasarkan hari ini, konteks musiman, dan topik berita yang sedang tren di atas, buatlah 3 Rekomendasi Ide Konten Media Sosial yang sangat relevan dan menarik untuk bisnis ini.
-SANGAT PENTING: Gunakan GAYA BAHASA YANG KEKINIAN, KASUAL, dan TIDAK KAKU. Jangan gunakan bahasa korporat atau robotik. Buatlah ide konten yang terasa segar, trendi, dan cocok untuk Gen-Z / Millennial di media sosial (Instagram/TikTok). Gabungkan soft-selling dengan tren secara natural.
-
-KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
+KEMBALIKAN HANYA JSON:
 {
-  "topik_utama_hari_ini": "Satu kalimat ringkasan tentang apa yang sedang tren",
+  "topik_utama_hari_ini": "ringkasan tren",
   "ide_konten": [
-    {
-      "judul": "Judul Ide Konten",
-      "format": "Reels / Carousel / Single Image",
-      "deskripsi": "Penjelasan detail mengapa konten ini cocok di-post hari ini beserta bayangan visualnya."
-    }
+    { "judul": "...", "format": "Reels / Carousel / Single", "deskripsi": "..." }
   ]
 }
-`;
+`
 
-    const response = await client.generateText(
-      "Anda adalah analis tren sosial media jenius (Social Media Strategist).",
-      aiPrompt,
-      { temperature: 0.8, maxTokens: 1500 }
-    ).catch(err => {
-      logger.error('Trend AI provider failed:', err)
-      throw new Error('AI provider gagal merespons. Periksa API key, model, dan provider aktif di Settings.')
-    })
+    const response = await client.generateText('Anda adalah analis tren sosial media.', aiPrompt, { temperature: 0.8, maxTokens: 1500 })
+      .catch(err => { logger.error('Trend AI provider failed:', err); throw new Error('AI provider gagal merespons.') })
 
-    let parsedData;
+    let parsedData
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
     } catch {
-      return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
+      return handleApiError(new Error('Format AI tidak valid.'))
     }
 
-    return NextResponse.json({
-      berita_sumber: trendingNews,
-      ...parsedData
-    })
+    return NextResponse.json({ ...parsedData, sources })
   } catch (err: unknown) {
     return handleApiError(err)
   }

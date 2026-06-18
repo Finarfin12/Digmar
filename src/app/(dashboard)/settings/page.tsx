@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Settings2, Zap } from 'lucide-react';
+import { Settings2, Zap, CheckCircle2, ZapOff } from 'lucide-react';
 import Swal from 'sweetalert2';
 import UnitsTab from './UnitsTab';
 import SocialTab from './SocialTab';
@@ -70,18 +70,52 @@ export default function Settings() {
               </h4>
               <p className="text-sm text-slate-600 mb-4">Pilih bagaimana Anda memposting ke beberapa akun sekaligus.</p>
               <div className="grid grid-cols-2 gap-4">
-                <label className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${publishMode === 'cepat' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                  <input type="radio" name="publishMode" checked={publishMode === 'cepat'} onChange={() => savePublishMode('cepat')} className="sr-only" />
-                  <span className="block font-extrabold text-slate-900 mb-1">● Mode Cepat</span>
-                  <span className="text-xs text-slate-500">Pilih beberapa akun, 1 caption untuk semua. Cocok untuk konten seragam.</span>
-                </label>
-                <label className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${publishMode === 'lanjutan' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                  <input type="radio" name="publishMode" checked={publishMode === 'lanjutan'} onChange={() => savePublishMode('lanjutan')} className="sr-only" />
-                  <span className="block font-extrabold text-slate-900 mb-1">○ Mode Lanjutan</span>
-                  <span className="text-xs text-slate-500">Multi-select akun + caption berbeda per platform. Cocok untuk optimasi konten.</span>
-                </label>
+                <div
+                  onClick={() => savePublishMode('cepat')}
+                  className={`p-5 rounded-xl border-2 cursor-pointer transition-all relative ${publishMode === 'cepat' ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                >
+                  {publishMode === 'cepat' && (
+                    <div className="absolute top-3 right-3">
+                      <CheckCircle2 size={18} className="text-indigo-600" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${publishMode === 'cepat' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                      {publishMode === 'cepat' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Zap size={16} className={publishMode === 'cepat' ? 'text-indigo-600' : 'text-slate-400'} />
+                      <span className="font-extrabold text-slate-900">Mode Cepat</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 ml-8">Pilih beberapa akun, 1 caption untuk semua. Cocok untuk konten seragam.</p>
+                </div>
+                <div
+                  onClick={() => savePublishMode('lanjutan')}
+                  className={`p-5 rounded-xl border-2 cursor-pointer transition-all relative ${publishMode === 'lanjutan' ? 'border-indigo-500 bg-indigo-50/50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                >
+                  {publishMode === 'lanjutan' && (
+                    <div className="absolute top-3 right-3">
+                      <CheckCircle2 size={18} className="text-indigo-600" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${publishMode === 'lanjutan' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                      {publishMode === 'lanjutan' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <ZapOff size={16} className={publishMode === 'lanjutan' ? 'text-indigo-600' : 'text-slate-400'} />
+                      <span className="font-extrabold text-slate-900">Mode Lanjutan</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 ml-8">Multi-select akun + caption berbeda per platform. Cocok untuk optimasi konten.</p>
+                </div>
               </div>
-              {savingMode && <p className="text-xs text-indigo-600 mt-2 font-bold">Menyimpan...</p>}
+              {savingMode && (
+                <p className="text-xs text-indigo-600 mt-3 font-bold flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Mode disimpan
+                </p>
+              )}
             </div>
           </>
         )}
