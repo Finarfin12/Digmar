@@ -96,8 +96,7 @@ export async function POST(request: NextRequest) {
       // 4a: Search global berdasarkan topik (postingan terbaru)
       fetchPromises.push(
         fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=new&t=week&limit=7`, { 
-          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
-          signal: AbortSignal.timeout(8000)
+          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
         })
           .then(res => res.json())
           .then(data => {
@@ -118,8 +117,7 @@ export async function POST(request: NextRequest) {
       // 4b: Search berdasarkan topik yang sedang hot (engagement tinggi)
       fetchPromises.push(
         fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&t=month&limit=5`, {
-          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
-          signal: AbortSignal.timeout(8000)
+          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
         })
           .then(res => res.json())
           .then(data => {

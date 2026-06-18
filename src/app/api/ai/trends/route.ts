@@ -94,8 +94,7 @@ export async function POST(request: NextRequest) {
     if (source === 'mixed' || source === 'reddit') {
       fetchPromises.push(
         fetch('https://www.reddit.com/r/indonesia/hot.json?limit=7', { 
-          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
-          signal: AbortSignal.timeout(8000)
+          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
         })
           .then(res => res.json())
           .then(data => {
@@ -117,8 +116,7 @@ export async function POST(request: NextRequest) {
       if (unit.business_category) {
         fetchPromises.push(
           fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(unit.business_category)}&sort=relevance&t=week&limit=5`, {
-            headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
-            signal: AbortSignal.timeout(8000)
+            headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
           })
             .then(res => res.json())
             .then(data => {
