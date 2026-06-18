@@ -36,7 +36,6 @@ ALTER TABLE social_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFA
 CREATE EXTENSION IF NOT EXISTS moddatetime SCHEMA extensions;
 
 -- M17: Terapkan trigger updated_at untuk SEMUA tabel yang memiliki kolom updated_at
-CREATE TRIGGER handle_updated_at_users BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE moddatetime(updated_at);
 CREATE TRIGGER handle_updated_at_business_units BEFORE UPDATE ON business_units FOR EACH ROW EXECUTE PROCEDURE moddatetime(updated_at);
 CREATE TRIGGER handle_updated_at_social_accounts BEFORE UPDATE ON social_accounts FOR EACH ROW EXECUTE PROCEDURE moddatetime(updated_at);
 CREATE TRIGGER handle_updated_at_competitor_tracking BEFORE UPDATE ON competitor_tracking FOR EACH ROW EXECUTE PROCEDURE moddatetime(updated_at);
