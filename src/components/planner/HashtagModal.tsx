@@ -22,17 +22,23 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
   const [selectedSource, setSelectedSource] = useState('mixed');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<HashtagData | null>(null);
+  const selectedBusinessUnitId = businessUnitId || units[0]?.id || '';
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic) return;
+    if (!topic.trim()) {
+      return Swal.fire('Oops', 'Masukkan topik dulu, misalnya "Kopi Susu Gula Aren".', 'warning');
+    }
+    if (!selectedBusinessUnitId) {
+      return Swal.fire('Oops', 'Unit Bisnis belum tersedia. Pastikan Anda sudah membuat Unit Bisnis di Pengaturan.', 'warning');
+    }
     setLoading(true);
     setData(null);
     try {
       const res = await fetch('/api/ai/hashtags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_unit_id: businessUnitId, topic, source: selectedSource })
+        body: JSON.stringify({ business_unit_id: selectedBusinessUnitId, topic: topic.trim(), source: selectedSource })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Gagal mencari hashtag');
@@ -84,7 +90,7 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
             <label className="min-w-0">
               <span className="sr-only">Unit bisnis</span>
               <select 
-                value={businessUnitId} 
+                value={selectedBusinessUnitId} 
                 onChange={e => setBusinessUnitId(e.target.value)}
                 className="w-full min-w-0 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
                 required
@@ -109,7 +115,7 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
                 <option value="reddit">Reddit (Sentimen Netizen)</option>
               </select>
             </label>
-            <button disabled={loading || !topic || !businessUnitId} type="submit" className="w-full bg-indigo-600 text-white px-6 py-4 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-60">
+            <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white px-6 py-4 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-60">
               {loading ? <Loader2 className="animate-spin" /> : <Search />} Cari
             </button>
           </form>
