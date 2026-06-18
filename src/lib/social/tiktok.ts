@@ -4,7 +4,7 @@ import { SocialAccount, PostJob } from './types';
 // Note: Requires a fully approved TikTok Developer App with 'video.publish' scope
 const TIKTOK_API_BASE = 'https://open.tiktokapis.com/v2';
 
-export async function publishToTikTok(account: SocialAccount, job: PostJob) {
+export async function publishToTikTok(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
   try {
     if (job.post_type !== 'reels') {
       return { success: false, error: 'TikTok only supports video (reels) format' };
@@ -14,13 +14,18 @@ export async function publishToTikTok(account: SocialAccount, job: PostJob) {
       return { success: false, error: 'Video URL is required for TikTok' };
     }
 
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${account.access_token}`,
+      'Content-Type': 'application/json'
+    };
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey; // H3 Fix: Idempotency Key
+    }
+
     // Step 1: Initialize the upload via TikTok API
     const initRes = await fetch(`${TIKTOK_API_BASE}/post/publish/video/init/`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${account.access_token}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         post_info: {
           title: job.caption,

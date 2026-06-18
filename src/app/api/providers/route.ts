@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { encryptValue } from '@/lib/crypto/server'
+import { isValidExternalUrl } from '@/lib/utils/url'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -45,6 +46,10 @@ export async function POST(request: NextRequest) {
 
     if (!provider_name) {
       return NextResponse.json({ error: 'Provider name is required' }, { status: 400 })
+    }
+
+    if (base_url && !isValidExternalUrl(base_url)) {
+      return NextResponse.json({ error: 'Invalid or blocked base_url' }, { status: 400 })
     }
 
     let encryptedKey = null

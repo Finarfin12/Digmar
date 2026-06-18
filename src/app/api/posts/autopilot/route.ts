@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
       .from('business_units')
       .select('*')
       .eq('id', business_unit_id)
+      .eq('user_id', user.id) // H8 Fix: Verifikasi kepemilikan
       .single()
 
     if (unitError || !unit) {

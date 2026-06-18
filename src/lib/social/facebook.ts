@@ -2,7 +2,7 @@ import { SocialAccount, PostJob } from './types';
 
 const FB_API_VERSION = process.env.FB_API_VERSION || 'v25.0';
 
-async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>) {
+async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>, idempotencyKey?: string) {
   const url = `https://graph.facebook.com/${FB_API_VERSION}/${path}`;
   
   const headers: Record<string, string> = {
@@ -11,6 +11,9 @@ async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST'
   
   if (method === 'POST') {
     headers['Content-Type'] = 'application/json';
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey; // H3 Fix: Idempotency Key
+    }
   }
 
   let searchParams = '';
@@ -36,7 +39,7 @@ async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST'
   return data;
 }
 
-export async function publishToFacebook(account: SocialAccount, job: PostJob) {
+export async function publishToFacebook(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
   try {
     const pageId = account.ig_user_id; // For Facebook, we store Page ID here
     let postId: string;
@@ -47,7 +50,7 @@ export async function publishToFacebook(account: SocialAccount, job: PostJob) {
         url: job.media_urls[0],
         message: job.caption,
         published: true
-      });
+      }, idempotencyKey ? `${idempotencyKey}-photo` : undefined);
       postId = res.id;
     } else if (job.post_type === 'carousel' && job.media_urls && job.media_urls.length > 0) {
       // Multiple Images (Facebook doesn't have a strict carousel like IG, but we can post multiple photos to a feed post)
@@ -55,31 +58,31 @@ export async function publishToFacebook(account: SocialAccount, job: PostJob) {
       // For simplicity, we fallback to uploading the first image if multi-image API is too complex, 
       // or we can implement the Facebook multi-photo post:
       const attachedMedia = [];
-      for (const url of job.media_urls) {
+      for (let i = 0; i < job.media_urls.length; i++) {
         const photoRes = await fetchFacebook(`${pageId}/photos`, account.access_token, 'POST', {
-          url: url,
+          url: job.media_urls[i],
           published: false
-        });
+        }, idempotencyKey ? `${idempotencyKey}-photo-${i}` : undefined);
         attachedMedia.push({ media_fbid: photoRes.id });
       }
       
       const res = await fetchFacebook(`${pageId}/feed`, account.access_token, 'POST', {
         message: job.caption,
         attached_media: attachedMedia as any // passing array of objects
-      });
+      }, idempotencyKey ? `${idempotencyKey}-feed` : undefined);
       postId = res.id;
     } else if (job.post_type === 'reels' && job.media_urls && job.media_urls.length > 0) {
       // Video
       const res = await fetchFacebook(`${pageId}/videos`, account.access_token, 'POST', {
         file_url: job.media_urls[0],
         description: job.caption
-      });
+      }, idempotencyKey ? `${idempotencyKey}-video` : undefined);
       postId = res.id;
     } else {
       // Text only
       const res = await fetchFacebook(`${pageId}/feed`, account.access_token, 'POST', {
         message: job.caption
-      });
+      }, idempotencyKey ? `${idempotencyKey}-text` : undefined);
       postId = res.id;
     }
 

@@ -57,17 +57,17 @@ export async function processQueue() {
           };
 
           if (account.platform === 'meta_ig') {
-            const res = await publishToInstagram(account, job);
+            const res = await publishToInstagram(account, job, job.id); // H3 Fix: Idempotency Key
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'facebook') {
-            const res = await publishToFacebook(account, job);
+            const res = await publishToFacebook(account, job, job.id); // H3 Fix: Idempotency Key
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'tiktok') {
-            const res = await publishToTikTok(account, job);
+            const res = await publishToTikTok(account, job, job.id); // H3 Fix: Idempotency Key
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;

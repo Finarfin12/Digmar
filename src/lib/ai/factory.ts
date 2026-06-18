@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { decryptValue } from '@/lib/crypto/server';
+import { isValidExternalUrl } from '@/lib/utils/url';
 import { OpenAICompatibleClient } from './providers/base';
 import type { AIProviderClient, AIProviderConfig } from './providers/types';
 
@@ -16,28 +17,8 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
   const { data: providers, error } = await query;
 
   if (error || !providers || providers.length === 0) {
-    // Fallback to environment default if no custom provider is configured
-    const defaultProvider = process.env.DEFAULT_AI_PROVIDER || 'groq';
-    const defaultModel = process.env.DEFAULT_AI_MODEL || 'llama-3.3-70b-versatile';
-    
-    // We assume there's a global API key in env if no DB provider exists for fallback
-    // In a real app, you might want to enforce DB provider creation
-    const apiKey = process.env.GROQ_API_KEY || ''; // Example fallback
-    
-    return {
-      client: new OpenAICompatibleClient({
-        apiKey,
-        model: defaultModel,
-        baseURL: 'https://api.groq.com/openai/v1'
-      }),
-      config: {
-        provider_name: 'groq',
-        is_active: true,
-        priority: 1,
-        model: defaultModel,
-        config: {}
-      }
-    };
+    // H1 Fix: Hapus fallback plaintext GROQ_API_KEY
+    throw new Error('No active AI provider configured. Please set up a provider in Settings.');
   }
 
   let selectedProvider = providers[0];
@@ -74,6 +55,7 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
       break;
     case 'vps':
       if (!selectedProvider.base_url) throw new Error('VPS base_url is required');
+      if (!isValidExternalUrl(selectedProvider.base_url)) throw new Error('Invalid or blocked base_url for VPS provider'); // H2 Fix: SSRF prevention
       client = new OpenAICompatibleClient({
         apiKey,
         model: selectedProvider.model || '',
@@ -107,6 +89,10 @@ export async function getVisionAIProvider(userId: string): Promise<{ client: AIP
 
   if (!primary.vision_base_url || !primary.vision_model) {
     throw new Error('Kredensial Mata AI belum dikonfigurasi. Silakan ke Settings -> AI Provider-Vision.');
+  }
+
+  if (!isValidExternalUrl(primary.vision_base_url)) {
+    throw new Error('Invalid or blocked vision_base_url'); // H2 Fix: SSRF prevention
   }
 
   const apiKey = primary.vision_api_key_encrypted ? decryptValue(primary.vision_api_key_encrypted) : '';

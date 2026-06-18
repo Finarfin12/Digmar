@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { encryptValue } from '@/lib/crypto/server';
+import { isValidExternalUrl } from '@/lib/utils/url';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -13,6 +14,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { base_url, api_key, model } = body;
+
+    if (base_url && !isValidExternalUrl(base_url)) {
+      return NextResponse.json({ error: 'Invalid or blocked vision base_url' }, { status: 400 });
+    }
 
     let encryptedKey = null;
     if (api_key) {

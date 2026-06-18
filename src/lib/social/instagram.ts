@@ -2,7 +2,7 @@ import { SocialAccount, PostJob } from './types';
 
 const INSTAGRAM_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
 
-async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>) {
+async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>, idempotencyKey?: string) {
   const url = `https://graph.facebook.com/${INSTAGRAM_API_VERSION}/${path}`;
   
   const headers: Record<string, string> = {
@@ -11,6 +11,9 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
   
   if (method === 'POST') {
     headers['Content-Type'] = 'application/json';
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey; // H3 Fix: Idempotency Key
+    }
   }
 
   let searchParams = '';
@@ -35,7 +38,7 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
   return data;
 }
 
-export async function publishToInstagram(account: SocialAccount, job: PostJob) {
+export async function publishToInstagram(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
   try {
     let containerId: string;
 
@@ -43,15 +46,15 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob) {
       const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
         image_url: job.media_urls[0],
         caption: job.caption
-      });
+      }, idempotencyKey ? `${idempotencyKey}-media` : undefined);
       containerId = res.id;
     } else if (job.post_type === 'carousel') {
       const childIds = [];
-      for (const url of job.media_urls) {
+      for (let i = 0; i < job.media_urls.length; i++) {
         const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
-          image_url: url,
+          image_url: job.media_urls[i],
           is_carousel_item: true
-        });
+        }, idempotencyKey ? `${idempotencyKey}-child-${i}` : undefined);
         childIds.push(res.id);
       }
       
@@ -59,7 +62,7 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob) {
         caption: job.caption,
         media_type: 'CAROUSEL',
         children: childIds.join(',')
-      });
+      }, idempotencyKey ? `${idempotencyKey}-carousel` : undefined);
       containerId = carouselRes.id;
     } else if (job.post_type === 'reels') {
       const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
@@ -67,7 +70,7 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob) {
         caption: job.caption,
         media_type: 'REELS',
         cover_url: job.cover_url
-      });
+      }, idempotencyKey ? `${idempotencyKey}-reels` : undefined);
       containerId = res.id;
       
       // Basic polling for Reels processing status
@@ -90,14 +93,14 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob) {
     // Publish container
     const publishRes = await fetchInstagram(`${account.ig_user_id}/media_publish`, account.access_token, 'POST', {
       creation_id: containerId
-    });
+    }, idempotencyKey ? `${idempotencyKey}-publish` : undefined);
 
     // Fase 4: First Comment
     if (job.first_comment) {
       try {
         await fetchInstagram(`${publishRes.id}/comments`, account.access_token, 'POST', {
           message: job.first_comment
-        });
+        }, idempotencyKey ? `${idempotencyKey}-comment` : undefined);
       } catch (commentErr) {
         console.error('Failed to post first comment:', commentErr);
         // Continue and return success for the main post even if comment fails

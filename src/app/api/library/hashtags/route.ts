@@ -29,6 +29,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // H8 Fix: Verifikasi kepemilikan unit
+    const { data: unitCheck, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unitCheck) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this business unit' }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from('hashtag_banks')
       .insert({ user_id: user.id, business_unit_id, title, hashtags })
