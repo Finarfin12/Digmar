@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Eye, EyeOff, RefreshCcw, Save, Camera, PlusCircle, Trash2, X } from 'lucide-react';
+import { Eye, EyeOff, RefreshCcw, Save, Camera, PlusCircle, Trash2, X, Activity } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 import { logger } from '@/lib/utils/logger'
@@ -14,6 +14,36 @@ export default function AIVisionTab() {
   const [showForm, setShowForm] = useState(false);
   const [providerName, setProviderName] = useState('openrouter');
   const [savedConfig, setSavedConfig] = useState<{ url: string, model: string, hasKey: boolean } | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  const handleTestProvider = async () => {
+    setTesting(true);
+    try {
+      const res = await fetch('/api/ai/health', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider_type: 'vision', base_url: url, model, api_key: key })
+      });
+      const data = await res.json();
+
+      const stepsHtml = data.steps
+        ? data.steps.map((s: { step: string; status: string; detail: string; duration_ms: number }) =>
+            `<div style="margin:4px 0;padding:6px 10px;border-radius:6px;font-size:12px;text-align:left;${s.status === 'pass' ? 'background:#ecfdf5;color:#065f46' : s.status === 'fail' ? 'background:#fef2f2;color:#991b1b' : 'background:#f8fafc;color:#64748b'}">
+              <b>${s.status.toUpperCase()}</b> ${s.step}: ${s.detail} (${s.duration_ms}ms)
+            </div>`).join('')
+        : '';
+
+      Swal.fire({
+        title: data.summary === 'pass' ? '✅ Vision Provider Sehat' : '⚠️ Ada Masalah',
+        html: `<div style="max-height:400px;overflow-y:auto">${stepsHtml}</div>`,
+        icon: data.summary === 'pass' ? 'success' : 'warning',
+        confirmButtonText: 'Tutup',
+      });
+    } catch (e: unknown) {
+      Swal.fire('Error', (e as Error).message, 'error');
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const handleChange = (val: string) => {
     setProviderName(val);
@@ -145,6 +175,9 @@ export default function AIVisionTab() {
 
             <button disabled={loading} type="submit" className="mt-2 bg-amber-500 text-white py-3 rounded-lg font-bold transition-colors">
               <Save className="inline mr-2" size={18}/> Simpan Kredensial Vision
+            </button>
+            <button type="button" onClick={handleTestProvider} disabled={testing} className="mt-2 bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 transition-colors">
+              <Activity size={18} className={testing ? 'animate-spin' : ''} /> {testing ? 'Testing...' : 'Test Provider'}
             </button>
           </div>
         </form>

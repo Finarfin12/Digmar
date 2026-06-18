@@ -4,7 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { format } from 'date-fns';
 import { 
   Calendar as CalendarIcon, Loader2, Save,
-  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart, Sparkles, Wand2, GripVertical, X, ImagePlus, AlertTriangle, ChevronDown, ChevronUp
+  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart, Sparkles, Wand2, GripVertical, X, ImagePlus, AlertTriangle, ChevronDown, ChevronUp, Camera, Music, Users, Link, AtSign
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit, SocialAccount } from '@/types';
@@ -13,12 +13,12 @@ import CaptionGenerator from './CaptionGenerator';
 import LibrarySelectorModal from './LibrarySelectorModal';
 import AICanvasModal from './AICanvasModal';
 
-const platformIcons: Record<string, string> = {
-  meta_ig: '📸',
-  tiktok: '🎵',
-  facebook: '👥',
-  threads: '🧵',
-  linkedin: '💼',
+const platformIconComponents: Record<string, React.ReactNode> = {
+  meta_ig: <Camera size={14} />,
+  tiktok: <Music size={14} />,
+  facebook: <Users size={14} />,
+  threads: <AtSign size={14} />,
+  linkedin: <Link size={14} />,
 };
 
 const platformNames: Record<string, string> = {
@@ -55,6 +55,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
   const [showPerPlatformCaptions, setShowPerPlatformCaptions] = useState(false);
+  const [publishMode, setPublishMode] = useState<'cepat' | 'lanjutan'>('cepat');
 
   // Form states
   const [finalCaption, setFinalCaption] = useState('');
@@ -78,6 +79,13 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
       if (defaultAcc) setSelectedAccounts([defaultAcc.id]);
     }
   }, [accounts, formUnit]);
+
+  React.useEffect(() => {
+    fetch('/api/configurations?key=publish_mode')
+      .then(r => r.json())
+      .then(d => { if (d && d.value) setPublishMode(d.value === 'lanjutan' ? 'lanjutan' : 'cepat'); })
+      .catch(() => {});
+  }, []);
 
   const filteredAccounts = accounts.filter(a => a.business_unit_id === formUnit);
 
@@ -319,12 +327,12 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
               )}
               {filteredAccounts.map(acc => {
                 const isSelected = selectedAccounts.includes(acc.id);
-                const icon = platformIcons[acc.platform] || '📱';
+                const IconEl = platformIconComponents[acc.platform] || <Camera size={14} />;
                 const name = platformNames[acc.platform] || acc.platform;
                 return (
                   <label key={acc.id} className={`flex items-center gap-2 p-2.5 rounded-xl border-2 cursor-pointer transition-all text-sm font-bold ${isSelected ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
                     <input type="checkbox" checked={isSelected} onChange={() => toggleAccount(acc.id)} className="sr-only" />
-                    <span className="text-lg">{icon}</span>
+                    <span className="text-slate-400">{IconEl}</span>
                     <span className="truncate">{name}</span>
                   </label>
                 );
@@ -437,7 +445,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
                 )}
               </div>
 
-              {selectedAccounts.length > 1 && (
+              {publishMode === 'lanjutan' && selectedAccounts.length > 1 && (
                 <div className="mt-3 border-t border-slate-100 pt-3">
                   <button onClick={() => setShowPerPlatformCaptions(!showPerPlatformCaptions)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
                     {showPerPlatformCaptions ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -448,14 +456,14 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
                       {selectedAccounts.map(accId => {
                         const acc = accounts.find(a => a.id === accId);
                         if (!acc) return null;
-                        const icon = platformIcons[acc.platform] || '📱';
+                        const IconEl = platformIconComponents[acc.platform] || <Camera size={14} />;
                         const name = platformNames[acc.platform] || acc.platform;
                         const maxLen = acc.platform === 'tiktok' ? 150 : 2200;
                         const hCount = hashtagCount(platformCaptions[accId] || '');
                         return (
                           <div key={accId} className="p-2 border border-slate-200 rounded-lg bg-slate-50">
                             <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs font-bold text-slate-600">{icon} {name}</span>
+                              <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5"><span className="text-slate-400">{IconEl}</span> {name}</span>
                               <span className="text-[10px] text-slate-400">{(platformCaptions[accId] || '').length}/{maxLen}</span>
                             </div>
                             <textarea value={platformCaptions[accId] || ''} onChange={e => setPlatformCaptions(prev => ({ ...prev, [accId]: e.target.value }))} rows={2} className="w-full p-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700" placeholder={`Caption khusus untuk ${name} (kosongkan = pakai caption utama)`} />
