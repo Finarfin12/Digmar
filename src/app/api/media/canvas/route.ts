@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ImageResponse } from 'next/og'
 import React from 'react'
+import { handleApiError } from '@/lib/utils/error-handler'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -24,6 +25,18 @@ export async function POST(request: NextRequest) {
 
     if (!business_unit_id || !title) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Verifikasi kepemilikan
+    const { data: unit, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unit) {
+      return NextResponse.json({ error: 'Business unit not found or unauthorized' }, { status: 403 })
     }
 
     let element;
@@ -297,7 +310,6 @@ export async function POST(request: NextRequest) {
       id: dbData.id
     })
   } catch (err: unknown) {
-    console.error("Canvas Error:", err);
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { XMLParser } from 'fast-xml-parser'
+import { handleApiError } from '@/lib/utils/error-handler'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -11,11 +13,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  try {
-    const { topic, preferred_provider, source = 'mixed' } = await request.json()
+  // Rate Limiting: 5 request per menit
+  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
+  if (!checkRateLimit(ip, 'ai-hashtags', 5, 60000)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
 
-    if (!topic) {
-      return NextResponse.json({ error: 'Topic is required' }, { status: 400 })
+  try {
+    const { business_unit_id, topic, preferred_provider, source = 'mixed' } = await request.json()
+
+    if (!business_unit_id || !topic) {
+      return NextResponse.json({ error: 'Business unit ID and Topic are required' }, { status: 400 })
+    }
+
+    // M31: Verifikasi kepemilikan business_unit_id
+    const { data: unit, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unit) {
+      return NextResponse.json({ error: 'Business unit not found or unauthorized' }, { status: 403 })
     }
 
     const { client, config } = await getAIProvider(user.id, preferred_provider)
@@ -131,8 +151,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
     } catch (e) {
-      console.error("Gagal parse JSON hashtag dari AI:", response.content);
-      return NextResponse.json({ error: "Format AI tidak valid. Coba lagi." }, { status: 500 })
+      return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
     }
 
     return NextResponse.json({
@@ -140,6 +159,6 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
       berita_sumber: trendingNews // Kirim juga sumber berita agar bisa ditampilkan di UI jika mau
     })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

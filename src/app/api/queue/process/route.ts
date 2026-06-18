@@ -1,10 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
+import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse, type NextRequest } from 'next/server'
 import { generateJobCode } from '@/lib/utils/job-code'
 
-// Supabase client dengan Service Role untuk Cron
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 export async function GET(request: NextRequest) {
   // Hanya proses jika diakses dengan token atau auth khusus, 
@@ -14,7 +11,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+  const supabase = createServiceClient()
   
   try {
     // 1. Ambil semua jadwal rutin yang aktif

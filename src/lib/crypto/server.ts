@@ -9,7 +9,8 @@ function getDerivedKey(): Buffer {
     throw new Error('ENCRYPTION_KEY is not defined.')
   }
   // Using a static salt since we need deterministic key derivation for existing/future data
-  return crypto.pbkdf2Sync(ENCRYPTION_KEY, 'digimar-static-salt-v1', 100000, 32, 'sha256')
+  const salt = process.env.ENCRYPTION_SALT || 'digimar-static-salt-v1'
+  return crypto.pbkdf2Sync(ENCRYPTION_KEY, salt, 100000, 32, 'sha256')
 }
 
 export function encryptValue(text: string): string {
