@@ -89,21 +89,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Promise 4: Reddit (r/indonesia) - (Akan diblokir Kominfo jika run di lokal tanpa VPN)
+    // Promise 4: Reddit Hot Posts (r/indonesia) - Sentimen & Diskusi Publik
+    // Catatan: Reddit diblokir Kominfo di Indonesia, hanya bisa diakses via VPN atau dari server luar (Vercel)
     if (source === 'mixed' || source === 'reddit') {
       fetchPromises.push(
-        fetch('https://www.reddit.com/r/indonesia/hot.json?limit=5', { 
-          headers: { 'User-Agent': 'DigiMarBot/1.0' },
-          next: { revalidate: 3600 } 
+        fetch('https://www.reddit.com/r/indonesia/hot.json?limit=7', { 
+          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
+          signal: AbortSignal.timeout(8000)
         })
           .then(res => res.json())
           .then(data => {
             if (data && data.data && data.data.children) {
-              return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
+              return data.data.children
+                .filter((item: any) => !item.data.stickied) // Skip pinned
+                .slice(0, 5)
+                .map((item: any) => {
+                  const d = item.data
+                  const snippet = d.selftext ? d.selftext.substring(0, 120).replace(/\n/g, ' ') : ''
+                  return `[Reddit r/${d.subreddit}] ${d.title} (⬆${d.score} | 💬${d.num_comments} komentar)${snippet ? ` — "${snippet}..."` : ''}`
+                })
             }
-            return [];
+            return []
           })
-      );
+      )
+
+      // Promise 4b: Reddit Search berdasarkan kategori bisnis
+      if (unit.business_category) {
+        fetchPromises.push(
+          fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(unit.business_category)}&sort=relevance&t=week&limit=5`, {
+            headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
+            signal: AbortSignal.timeout(8000)
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.data && data.data.children) {
+                return data.data.children.slice(0, 3).map((item: any) => {
+                  const d = item.data
+                  return `[Reddit Sentimen "${unit.business_category}"] ${d.title} (⬆${d.score} di r/${d.subreddit})`
+                })
+              }
+              return []
+            })
+        )
+      }
     }
 
     const resultsList = await Promise.allSettled(fetchPromises);
@@ -143,6 +171,8 @@ Tanggal: ${dateStr}
 Konteks Musiman/Bulan: ${seasonContext}
 Topik Berita Tren (Indonesia): 
 ${trendingNews.map(n => `- ${n}`).join('\n')}
+
+Perhatikan data dari Reddit (ditandai [Reddit ...]) — ini berisi opini mentah netizen. Gunakan sentimen dari sana (keluhan, pujian, atau diskusi) untuk ide konten yang relatable.
 
 Tugas Anda:
 Berdasarkan hari ini, konteks musiman, dan topik berita yang sedang tren di atas, buatlah 3 Rekomendasi Ide Konten Media Sosial yang sangat relevan dan menarik untuk bisnis ini.

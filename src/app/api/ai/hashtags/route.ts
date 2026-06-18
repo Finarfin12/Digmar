@@ -88,21 +88,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Promise 4: Reddit Search for the topic - (Akan diblokir Kominfo jika run di lokal)
+    // Promise 4: Reddit Search berdasarkan topik — Sentimen & Diskusi Publik
+    // Catatan: Reddit diblokir Kominfo di Indonesia, hanya bisa diakses via VPN atau dari server luar (Vercel)
     if (source === 'mixed' || source === 'reddit') {
+      // 4a: Search global berdasarkan topik (postingan terbaru)
       fetchPromises.push(
-        fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&limit=5`, { 
-          headers: { 'User-Agent': 'DigiMarBot/1.0' },
-          next: { revalidate: 3600 } 
+        fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=new&t=week&limit=7`, { 
+          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
+          signal: AbortSignal.timeout(8000)
         })
           .then(res => res.json())
           .then(data => {
             if (data && data.data && data.data.children) {
-              return data.data.children.map((item: any) => `[Opini Netizen] ${item.data.title}`);
+              return data.data.children
+                .filter((item: any) => !item.data.stickied)
+                .slice(0, 5)
+                .map((item: any) => {
+                  const d = item.data
+                  const snippet = d.selftext ? d.selftext.substring(0, 150).replace(/\n/g, ' ') : ''
+                  return `[Reddit r/${d.subreddit}] ${d.title} (⬆${d.score} | 💬${d.num_comments} komentar)${snippet ? ` — "${snippet}..."` : ''}`
+                })
             }
-            return [];
+            return []
           })
-      );
+      )
+
+      // 4b: Search berdasarkan topik yang sedang hot (engagement tinggi)
+      fetchPromises.push(
+        fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&t=month&limit=5`, {
+          headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' },
+          signal: AbortSignal.timeout(8000)
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.data && data.data.children) {
+              return data.data.children
+                .filter((item: any) => item.data.score > 10) // Hanya post yang punya engagement
+                .slice(0, 3)
+                .map((item: any) => {
+                  const d = item.data
+                  return `[Reddit Trending "${topic}"] ${d.title} (⬆${d.score} di r/${d.subreddit})`
+                })
+            }
+            return []
+          })
+      )
     }
 
     const resultsList = await Promise.allSettled(fetchPromises);
@@ -115,8 +145,8 @@ export async function POST(request: NextRequest) {
     });
 
     const newsContext = trendingNews.length > 0 
-      ? `Konteks Berita Hari Ini Terkait Topik:\n${trendingNews.map(n => `- ${n}`).join('\n')}\n\nGunakan berita-berita di atas untuk menciptakan hashtag dan keyword yang sedang viral (newsjacking).`
-      : 'Tidak ada berita live terbaru yang ditemukan untuk topik ini.';
+      ? `Konteks Berita & Diskusi Terkait Topik "${topic}":\n${trendingNews.map(n => `- ${n}`).join('\n')}\n\nGunakan berita dan sentimen Reddit di atas untuk menciptakan hashtag yang sedang viral (newsjacking). Perhatikan diskusi di Reddit (ditandai [Reddit ...]) — opini mentah netizen di sana bisa menjadi ide hashtag niche yang sangat tertarget.`
+      : 'Tidak ada berita atau diskusi live terbaru yang ditemukan untuk topik ini.';
 
     const aiPrompt = `
 Tugas: Buat riset hashtag dan keyword potensial untuk diposting di media sosial Instagram/TikTok.
