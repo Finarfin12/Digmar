@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleApiError } from '@/lib/utils/error-handler'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -8,6 +10,12 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // Rate Limiting (L3 Fix): 10 request per menit
+  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
+  if (!checkRateLimit(ip, 'inbox-ai-reply', 10, 60000)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
   try {
@@ -70,6 +78,6 @@ ${historyText}
 
     return NextResponse.json({ success: true, reply: response.content })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

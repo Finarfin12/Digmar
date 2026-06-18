@@ -3,6 +3,18 @@ import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
+import { handleApiError } from '@/lib/utils/error-handler'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { z } from 'zod'
+
+const CampaignGenerateSchema = z.object({
+  business_unit_id: z.string().uuid(),
+  target_account_ids: z.array(z.string().uuid()).min(1, "Minimal satu akun target"),
+  campaign_idea: z.string().min(5, "Ide kampanye terlalu pendek").max(1000),
+  duration_days: z.number().int().min(1).max(30),
+  start_date: z.string().datetime() /* ISO string */,
+  tone_voice: z.string().optional()
+})
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -12,7 +24,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // Rate Limiting (L3 Fix): 3 request per menit (lebih berat)
+  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
+  if (!checkRateLimit(ip, 'campaigns-generate', 3, 60000)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   try {
+    const jsonBody = await request.json()
     const { 
       business_unit_id, 
       target_account_ids, 
@@ -20,11 +39,7 @@ export async function POST(request: NextRequest) {
       duration_days, 
       start_date, 
       tone_voice 
-    } = await request.json()
-
-    if (!business_unit_id || !campaign_idea || !target_account_ids || target_account_ids.length === 0 || !start_date) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
+    } = CampaignGenerateSchema.parse(jsonBody)
 
     const { data: unit, error: unitError } = await supabase
       .from('business_units')
@@ -83,8 +98,7 @@ STRATEGI KONTEN:
          throw new Error("AI tidak menghasilkan jumlah hari yang tepat.");
       }
     } catch (e) {
-      console.error("Gagal parse JSON dari AI:", aiResponse.content);
-      return NextResponse.json({ error: 'Gagal memproses respons dari AI. Silakan coba lagi.' }, { status: 500 })
+      return handleApiError(new Error("Gagal parse JSON dari AI"))
     }
 
     const baseDate = new Date(start_date);
@@ -134,6 +148,6 @@ STRATEGI KONTEN:
 
     return NextResponse.json({ success: true, count: insertedData.length })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

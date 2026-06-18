@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleApiError } from '@/lib/utils/error-handler'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -20,6 +21,27 @@ export async function POST(request: NextRequest) {
 
     if (!business_unit_id) {
       return NextResponse.json({ error: 'Business unit ID is required' }, { status: 400 })
+    }
+
+    // M2, L7 Fix: Validasi MIME Type dan Ukuran
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+    const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+
+    const isImage = allowedImageTypes.includes(file.type);
+    const isVideo = allowedVideoTypes.includes(file.type);
+
+    if (!isImage && !isVideo) {
+      return NextResponse.json({ error: 'Unsupported file type. Only JPEG, PNG, WEBP, GIF, MP4, WEBM, and MOV are allowed.' }, { status: 400 })
+    }
+
+    if (isImage && file.size > MAX_IMAGE_SIZE) {
+      return NextResponse.json({ error: 'Image size exceeds 10MB limit.' }, { status: 400 })
+    }
+
+    if (isVideo && file.size > MAX_VIDEO_SIZE) {
+      return NextResponse.json({ error: 'Video size exceeds 50MB limit.' }, { status: 400 })
     }
 
     // H8 Fix: Verifikasi kepemilikan unit
@@ -81,6 +103,6 @@ export async function POST(request: NextRequest) {
       id: dbData.id
     })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

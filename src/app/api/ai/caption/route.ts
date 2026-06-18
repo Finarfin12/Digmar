@@ -1,6 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleApiError } from '@/lib/utils/error-handler'
+import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { z } from 'zod'
+
+const CaptionPayloadSchema = z.object({
+  business_unit_id: z.string().uuid(),
+  prompt_context: z.string().min(5, "Prompt context terlalu pendek").max(1000),
+  tone_voice: z.string().optional(),
+  preferred_provider: z.string().optional()
+})
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -10,12 +20,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  try {
-    const { business_unit_id, prompt_context, tone_voice, preferred_provider } = await request.json()
+  // Rate Limiting (L3 Fix): 5 request per menit
+  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
+  if (!checkRateLimit(ip, 'ai-caption', 5, 60000)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
 
-    if (!business_unit_id || !prompt_context) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
+  try {
+    const jsonBody = await request.json()
+    const { business_unit_id, prompt_context, tone_voice, preferred_provider } = CaptionPayloadSchema.parse(jsonBody)
 
     const { data: unit, error: unitError } = await supabase
       .from('business_units')
@@ -61,12 +74,11 @@ KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
     } catch (e) {
-      console.error("Gagal parse JSON dari AI:", response.content);
-      return NextResponse.json({ error: "Format AI tidak valid. Coba lagi." }, { status: 500 })
+      return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
     }
 
     return NextResponse.json(parsedData)
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }
