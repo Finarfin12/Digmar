@@ -6,10 +6,11 @@ import UnitsTab from './UnitsTab';
 import SocialTab from './SocialTab';
 import AITab from './AITab';
 import AIVisionTab from './AIVisionTab';
+import AIImageTab from './AIImageTab';
 import ChatbotTab from './ChatbotTab';
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'units' | 'social' | 'ai' | 'chatbot' | 'vision'>('units');
+  const [activeTab, setActiveTab] = useState<'units' | 'social' | 'ai' | 'chatbot' | 'vision' | 'image'>('units');
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
@@ -30,6 +31,7 @@ export default function Settings() {
         <button onClick={() => setActiveTab('chatbot')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'chatbot' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Chatbot Rules</button>
         <button onClick={() => setActiveTab('ai')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'ai' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider</button>
         <button onClick={() => setActiveTab('vision')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'vision' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider-Vision</button>
+        <button onClick={() => setActiveTab('image')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'image' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider-Image</button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden transition-all">
@@ -38,6 +40,7 @@ export default function Settings() {
         {activeTab === 'chatbot' && <ChatbotTab />}
         {activeTab === 'ai' && <AITab />}
         {activeTab === 'vision' && <AIVisionTab />}
+        {activeTab === 'image' && <AIImageTab />}
       </div>
     </div>
   );
