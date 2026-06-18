@@ -47,17 +47,19 @@ export async function POST(request: NextRequest) {
     const fetchPromises = [];
 
     // Promise 1: Google News RSS for the topic
-    fetchPromises.push(
-      fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=id&gl=ID&ceid=ID:id`, { next: { revalidate: 3600 } })
-        .then(res => res.text())
-        .then(xmlData => {
-          const parser = new XMLParser();
-          const jsonObj = parser.parse(xmlData);
-          const items = jsonObj?.rss?.channel?.item || [];
-          const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
-          return topItems.map((item: { title: string }) => item.title);
-        })
-    );
+    if (source === 'mixed' || source === 'google_news') {
+      fetchPromises.push(
+        fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=id&gl=ID&ceid=ID:id`, { next: { revalidate: 3600 } })
+          .then(res => res.text())
+          .then(xmlData => {
+            const parser = new XMLParser();
+            const jsonObj = parser.parse(xmlData);
+            const items = jsonObj?.rss?.channel?.item || [];
+            const topItems = Array.isArray(items) ? items.slice(0, 5) : [items];
+            return topItems.map((item: { title: string }) => item.title);
+          })
+      );
+    }
 
     // Promise 2: NewsData.io for the topic
     if (apiKey && (source === 'mixed' || source === 'newsdata')) {

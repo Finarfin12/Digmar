@@ -91,6 +91,7 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
             >
               <option value="mixed">Campur Semua</option>
               <option value="youtube">YouTube Search</option>
+              <option value="google_news">Berita Google</option>
               <option value="newsdata">Berita Global</option>
               <option value="reddit">Reddit (Sentimen Netizen)</option>
             </select>
