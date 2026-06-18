@@ -17,6 +17,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // C4 Fix: Verifikasi kepemilikan conversation
+    const { data: convCheck, error: convError } = await supabase
+      .from('social_conversations')
+      .select('business_units!inner(user_id)')
+      .eq('id', conversation_id)
+      .eq('business_units.user_id', user.id)
+      .single()
+
+    if (convError || !convCheck) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this conversation' }, { status: 403 })
+    }
+
     const { data: messages, error } = await supabase
       .from('social_messages')
       .select('*')

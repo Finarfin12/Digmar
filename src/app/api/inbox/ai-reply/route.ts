@@ -20,8 +20,9 @@ export async function POST(request: NextRequest) {
     // 1. Fetch Conversation & Unit
     const { data: convo, error: convoError } = await supabase
       .from('social_conversations')
-      .select('*, business_units(ai_system_prompt, brand_name, custom_variables)')
+      .select('*, business_units!inner(user_id, ai_system_prompt, brand_name, custom_variables)')
       .eq('id', conversation_id)
+      .eq('business_units.user_id', user.id) // C5 Fix: Verifikasi kepemilikan
       .single()
 
     if (convoError || !convo) {

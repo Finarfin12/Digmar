@@ -11,9 +11,11 @@ export async function GET(request: NextRequest) {
   
   const unitId = request.nextUrl.searchParams.get('business_unit_id')
   
+  // C7 Fix: Verifikasi kepemilikan
   let query = supabase
     .from('posting_schedules')
-    .select('*')
+    .select('*, business_units!inner(user_id)')
+    .eq('business_units.user_id', user.id)
     .order('day_of_week', { ascending: true })
     .order('time_of_day', { ascending: true })
 
@@ -46,6 +48,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // C7 Fix: Verifikasi kepemilikan
+    const { data: unitCheck, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unitCheck) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this business unit' }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from('posting_schedules')
       .insert([{ business_unit_id, day_of_week, time_of_day }])
@@ -69,6 +83,18 @@ export async function DELETE(request: NextRequest) {
 
   const id = request.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing ID' }, { status: 400 })
+
+  // C7 Fix: Verifikasi kepemilikan sebelum hapus
+  const { data: checkData, error: checkError } = await supabase
+    .from('posting_schedules')
+    .select('business_units!inner(user_id)')
+    .eq('id', id)
+    .eq('business_units.user_id', user.id)
+    .single()
+
+  if (checkError || !checkData) {
+    return NextResponse.json({ error: 'Forbidden or Not Found' }, { status: 403 })
+  }
 
   const { error } = await supabase.from('posting_schedules').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

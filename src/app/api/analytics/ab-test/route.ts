@@ -18,11 +18,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // C2 Fix: Verifikasi kepemilikan business_unit
+    const { data: unitCheck, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unitCheck) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this business unit' }, { status: 403 })
+    }
+
     // Cari semua post yang memiliki ab_test_id, group by ab_test_id
     // Untuk demo, kita ambil yang statusnya apa saja, lalu pura-pura membuat analytics.
     const { data: posts, error: postsError } = await supabase
       .from('post_queue')
       .select('*')
+      .eq('business_unit_id', business_unit_id) // C2 Fix: Filter by business_unit_id
       .not('ab_test_id', 'is', null)
       .order('created_at', { ascending: false })
 

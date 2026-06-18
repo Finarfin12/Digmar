@@ -39,8 +39,11 @@ export async function GET(request: NextRequest) {
   const token = searchParams.get('hub.verify_token')
   const challenge = searchParams.get('hub.challenge')
 
-  // Ganti dengan Verify Token rahasia Anda sendiri jika sudah dipasang di Meta Developer Portal
-  const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'digimar_secret_token_123'
+  // C10 Fix: Remove hardcoded fallback
+  const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN
+  if (!VERIFY_TOKEN) {
+    return new NextResponse('Internal Server Error: Missing Verify Token config', { status: 500 })
+  }
 
   if (mode && token) {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
@@ -54,10 +57,32 @@ export async function GET(request: NextRequest) {
   return new NextResponse('Bad Request', { status: 400 })
 }
 
+import crypto from 'crypto'
+
 // MENANGKAP PAYLOAD WEBHOOK (KOMENTAR MASUK)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const rawBody = await request.text()
+    
+    // C9 Fix: Verifikasi HMAC-SHA-256 Signature
+    const signature = request.headers.get('x-hub-signature-256')
+    const appSecret = process.env.META_APP_SECRET
+    
+    if (!appSecret) {
+      console.error('META_APP_SECRET is not configured')
+      return new NextResponse('Internal Server Error', { status: 500 })
+    }
+    
+    if (!signature) {
+      return new NextResponse('Forbidden: Missing signature', { status: 403 })
+    }
+    
+    const expectedSignature = `sha256=${crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')}`
+    if (signature !== expectedSignature) {
+      return new NextResponse('Forbidden: Invalid signature', { status: 403 })
+    }
+
+    const body = JSON.parse(rawBody)
 
     // Cek apakah webhook dari Instagram
     if (body.object === 'instagram' && body.entry) {

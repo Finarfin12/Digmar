@@ -3,13 +3,20 @@ import crypto from 'crypto'
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
 const ALGORITHM = 'aes-256-gcm'
 
-export function encryptValue(text: string): string {
-  if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
-    throw new Error('ENCRYPTION_KEY must be exactly 32 characters.')
+// C11 Fix: Use KDF instead of raw key
+function getDerivedKey(): Buffer {
+  if (!ENCRYPTION_KEY) {
+    throw new Error('ENCRYPTION_KEY is not defined.')
   }
+  // Using a static salt since we need deterministic key derivation for existing/future data
+  return crypto.pbkdf2Sync(ENCRYPTION_KEY, 'digimar-static-salt-v1', 100000, 32, 'sha256')
+}
+
+export function encryptValue(text: string): string {
+  const derivedKey = getDerivedKey()
 
   const iv = crypto.randomBytes(12)
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv)
+  const cipher = crypto.createCipheriv(ALGORITHM, derivedKey, iv)
   
   let encrypted = cipher.update(text, 'utf8', 'hex')
   encrypted += cipher.final('hex')
@@ -23,9 +30,7 @@ export function encryptValue(text: string): string {
 }
 
 export function decryptValue(hexString: string): string {
-  if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
-    throw new Error('ENCRYPTION_KEY must be exactly 32 characters.')
-  }
+  const derivedKey = getDerivedKey()
 
   let cleanHex = hexString
   if (hexString.startsWith('\\x')) {
@@ -45,7 +50,7 @@ export function decryptValue(hexString: string): string {
   
   const decipher = crypto.createDecipheriv(
     ALGORITHM,
-    Buffer.from(ENCRYPTION_KEY),
+    derivedKey,
     Buffer.from(ivHex, 'hex')
   )
   

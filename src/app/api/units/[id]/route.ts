@@ -13,11 +13,12 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data, error } = await supabase
-    .from('business_units')
-    .select('*')
-    .eq('id', id)
-    .single()
+    const { data, error } = await supabase
+      .from('business_units')
+      .select('*')
+      .eq('id', id)
+      .eq('user_id', user.id) // C8 Fix: Verifikasi kepemilikan
+      .single()
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 404 })
@@ -49,6 +50,7 @@ export async function PUT(
       .from('business_units')
       .update({ ...body, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('user_id', user.id) // C8 Fix: Verifikasi kepemilikan
       .select()
       .single()
 
@@ -78,6 +80,7 @@ export async function DELETE(
     .from('business_units')
     .delete()
     .eq('id', id)
+    .eq('user_id', user.id) // C8 Fix: Verifikasi kepemilikan
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

@@ -41,6 +41,18 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  // C1 Fix: Verifikasi kepemilikan
+  const { data: checkData, error: checkError } = await supabase
+    .from('social_accounts')
+    .select('business_units!inner(user_id)')
+    .eq('id', id)
+    .eq('business_units.user_id', user.id)
+    .single()
+
+  if (checkError || !checkData) {
+    return NextResponse.json({ error: 'Forbidden or Not Found' }, { status: 403 })
+  }
+
   try {
     const body = await request.json()
     
@@ -82,6 +94,18 @@ export async function DELETE(
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // C1 Fix: Verifikasi kepemilikan
+  const { data: checkData, error: checkError } = await supabase
+    .from('social_accounts')
+    .select('business_units!inner(user_id)')
+    .eq('id', id)
+    .eq('business_units.user_id', user.id)
+    .single()
+
+  if (checkError || !checkData) {
+    return NextResponse.json({ error: 'Forbidden or Not Found' }, { status: 403 })
   }
 
   const { error } = await supabase

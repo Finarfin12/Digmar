@@ -11,9 +11,11 @@ export async function GET(request: NextRequest) {
   
   const unitId = request.nextUrl.searchParams.get('business_unit_id')
   
+  // C6 Fix: Verifikasi kepemilikan
   let query = supabase
     .from('content_queue')
-    .select('*')
+    .select('*, business_units!inner(user_id)')
+    .eq('business_units.user_id', user.id)
     .order('priority', { ascending: false })
     .order('created_at', { ascending: true })
 
@@ -54,6 +56,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing business_unit_id' }, { status: 400 })
     }
 
+    // C6 Fix: Verifikasi kepemilikan unit
+    const { data: unitCheck, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', business_unit_id)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unitCheck) {
+      return NextResponse.json({ error: 'Forbidden: You do not own this business unit' }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from('content_queue')
       .insert([
@@ -87,6 +101,18 @@ export async function DELETE(request: NextRequest) {
 
   const id = request.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing ID' }, { status: 400 })
+
+  // C6 Fix: Verifikasi kepemilikan sebelum hapus
+  const { data: checkData, error: checkError } = await supabase
+    .from('content_queue')
+    .select('business_units!inner(user_id)')
+    .eq('id', id)
+    .eq('business_units.user_id', user.id)
+    .single()
+
+  if (checkError || !checkData) {
+    return NextResponse.json({ error: 'Forbidden or Not Found' }, { status: 403 })
+  }
 
   const { error } = await supabase.from('content_queue').delete().eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
