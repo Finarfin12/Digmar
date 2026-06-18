@@ -1,12 +1,21 @@
 -- Fase 2 Security Patch Fix (M28)
 
--- Menyeragamkan penamaan platform menjadi 'meta_ig' seperti di social_accounts
--- pada tabel social_conversations dan competitor_tracking.
+-- Menyeragamkan penamaan platform menjadi konsisten di semua tabel terkait:
+-- social_accounts, social_conversations, dan competitor_tracking.
+-- Semua akan mengizinkan: 'meta_ig', 'tiktok', 'facebook', 'twitter', 'youtube', 'linkedin', 'threads'
 
+-- 1. social_accounts
+ALTER TABLE social_accounts DROP CONSTRAINT IF EXISTS chk_social_accounts_platform;
+ALTER TABLE social_accounts DROP CONSTRAINT IF EXISTS social_accounts_platform_check;
+ALTER TABLE social_accounts
+  ADD CONSTRAINT chk_social_accounts_platform CHECK (platform IN ('meta_ig', 'tiktok', 'facebook', 'twitter', 'youtube', 'linkedin', 'threads'));
+
+-- 2. social_conversations
 ALTER TABLE social_conversations DROP CONSTRAINT IF EXISTS chk_conversations_platform;
 ALTER TABLE social_conversations
-  ADD CONSTRAINT chk_conversations_platform CHECK (platform IN ('meta_ig', 'tiktok', 'facebook', 'twitter', 'youtube'));
+  ADD CONSTRAINT chk_conversations_platform CHECK (platform IN ('meta_ig', 'tiktok', 'facebook', 'twitter', 'youtube', 'linkedin', 'threads'));
 
+-- 3. competitor_tracking
 ALTER TABLE competitor_tracking DROP CONSTRAINT IF EXISTS chk_competitor_platform;
 ALTER TABLE competitor_tracking
-  ADD CONSTRAINT chk_competitor_platform CHECK (platform IN ('meta_ig', 'tiktok', 'facebook', 'twitter', 'youtube'));
+  ADD CONSTRAINT chk_competitor_platform CHECK (platform IN ('meta_ig', 'tiktok', 'facebook', 'twitter', 'youtube', 'linkedin', 'threads'));

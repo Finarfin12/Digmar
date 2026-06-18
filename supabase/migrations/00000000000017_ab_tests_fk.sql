@@ -22,10 +22,12 @@ CREATE POLICY "Users can manage their own ab_tests"
   USING (auth.uid() = user_id);
 
 -- Tambahkan trigger updated_at
-CREATE OR REPLACE TRIGGER update_ab_tests_updated_at
+CREATE EXTENSION IF NOT EXISTS moddatetime SCHEMA extensions;
+
+CREATE TRIGGER handle_updated_at_ab_tests
   BEFORE UPDATE ON ab_tests
   FOR EACH ROW
-  EXECUTE FUNCTION set_updated_at();
+  EXECUTE PROCEDURE moddatetime(updated_at);
 
 -- Tambahkan Foreign Key dari post_queue ke ab_tests
 -- IF NOT EXISTS untuk menghindari error bila constraint sudah ada.
