@@ -3,7 +3,7 @@ import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { format, addDays } from 'date-fns'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -14,8 +14,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting: 10 request per menit
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'ai-best-time', 10, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'ai-best-time', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
     }
 
-    const { client, config } = await getAIProvider(user.id)
+    const { client } = await getAIProvider(user.id)
     
     const now = new Date()
     const tomorrow = addDays(now, 1)
@@ -72,7 +72,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown atau teks tambahan ap
     let parsedData;
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
-    } catch (e) {
+    } catch {
       return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
     }
 

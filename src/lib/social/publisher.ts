@@ -8,6 +8,42 @@ import type { PostJob, SocialAccount } from './types';
 export async function processQueue() {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
+  const staleProcessingCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+  const { data: staleProcessingJobs } = await supabase
+    .from('post_queue')
+    .select('id, retry_count, log_messages')
+    .eq('status', 'processing')
+    .lt('updated_at', staleProcessingCutoff)
+    .limit(10);
+
+  if (staleProcessingJobs && staleProcessingJobs.length > 0) {
+    for (const staleJob of staleProcessingJobs) {
+      const retryCount = staleJob.retry_count || 0;
+      const shouldRetry = retryCount < 3;
+      const logs = [
+        ...(staleJob.log_messages || []),
+        {
+          time: new Date().toISOString(),
+          message: shouldRetry
+            ? 'Recovered stale processing job and returned it to waiting queue.'
+            : 'Recovered stale processing job and marked it failed after max retries.'
+        }
+      ];
+
+      await supabase
+        .from('post_queue')
+        .update({
+          status: shouldRetry ? 'waiting' : 'failed',
+          retry_count: shouldRetry ? retryCount + 1 : retryCount,
+          next_retry_at: shouldRetry ? now : null,
+          log_messages: logs,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', staleJob.id)
+        .eq('status', 'processing');
+    }
+  }
 
   const { data: waitingJobs, error: fetchError } = await supabase
     .from('post_queue')
@@ -58,17 +94,17 @@ export async function processQueue() {
           };
 
           if (account.platform === 'meta_ig') {
-            const res = await publishToInstagram(account, job, job.id); // H3 Fix: Idempotency Key
+            const res = await publishToInstagram(account, job);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'facebook') {
-            const res = await publishToFacebook(account, job, job.id); // H3 Fix: Idempotency Key
+            const res = await publishToFacebook(account, job);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'tiktok') {
-            const res = await publishToTikTok(account, job, job.id); // H3 Fix: Idempotency Key
+            const res = await publishToTikTok(account, job);
             logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;

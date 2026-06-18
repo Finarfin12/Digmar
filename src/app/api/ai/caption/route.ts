@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 import { z } from 'zod'
 
 const CaptionPayloadSchema = z.object({
@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting (L3 Fix): 5 request per menit
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'ai-caption', 5, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'ai-caption', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -73,7 +73,7 @@ KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
     let parsedData;
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
-    } catch (e) {
+    } catch {
       return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
     }
 

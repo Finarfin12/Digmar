@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting (L3 Fix): 10 request per menit
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'inbox-ai-reply', 10, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'inbox-ai-reply', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 

@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 import { z } from 'zod'
 
 const CampaignGenerateSchema = z.object({
@@ -16,6 +16,13 @@ const CampaignGenerateSchema = z.object({
   tone_voice: z.string().optional()
 })
 
+type GeneratedCampaignPost = {
+  day_offset: number;
+  post_type?: 'single_image' | 'carousel' | 'reels';
+  caption: string;
+  first_comment?: string;
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -25,8 +32,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting (L3 Fix): 3 request per menit (lebih berat)
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'campaigns-generate', 3, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'campaigns-generate', 10, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -50,6 +57,22 @@ export async function POST(request: NextRequest) {
 
     if (unitError || !unit) {
       return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
+    }
+
+    const uniqueTargetAccountIds = [...new Set(target_account_ids)]
+    const { data: ownedAccounts, error: ownedAccountsError } = await supabase
+      .from('social_accounts')
+      .select('id, business_unit_id, business_units!inner(user_id)')
+      .in('id', uniqueTargetAccountIds)
+      .eq('business_unit_id', business_unit_id)
+      .eq('business_units.user_id', user.id)
+
+    if (ownedAccountsError) {
+      return NextResponse.json({ error: ownedAccountsError.message }, { status: 500 })
+    }
+
+    if (!ownedAccounts || ownedAccounts.length !== uniqueTargetAccountIds.length) {
+      return NextResponse.json({ error: 'One or more target accounts are not owned by this user' }, { status: 403 })
     }
 
     const { client, config } = await getAIProvider(user.id)
@@ -89,15 +112,27 @@ STRATEGI KONTEN:
       maxTokens: 2500
     })
 
-    let generatedCampaign: any[] = [];
+    let generatedCampaign: GeneratedCampaignPost[] = [];
     try {
       const rawJson = aiResponse.content.replace(/```json/g, '').replace(/```/g, '').trim();
-      generatedCampaign = JSON.parse(rawJson);
+      const parsedCampaign = JSON.parse(rawJson) as unknown;
       
-      if (!Array.isArray(generatedCampaign) || generatedCampaign.length !== duration_days) {
+      if (!Array.isArray(parsedCampaign) || parsedCampaign.length !== duration_days) {
          throw new Error("AI tidak menghasilkan jumlah hari yang tepat.");
       }
-    } catch (e) {
+
+      generatedCampaign = parsedCampaign.map(post => {
+        if (
+          typeof post !== 'object' ||
+          post === null ||
+          typeof (post as GeneratedCampaignPost).day_offset !== 'number' ||
+          typeof (post as GeneratedCampaignPost).caption !== 'string'
+        ) {
+          throw new Error("Format item kampanye AI tidak valid.");
+        }
+        return post as GeneratedCampaignPost;
+      });
+    } catch {
       return handleApiError(new Error("Gagal parse JSON dari AI"))
     }
 
@@ -126,7 +161,7 @@ STRATEGI KONTEN:
       postsToInsert.push({
         user_id: user.id,
         job_code: generateJobCode(),
-        target_account_ids,
+        target_account_ids: uniqueTargetAccountIds,
         scheduled_at: format(postDate, "yyyy-MM-dd'T'HH:mm:ss"),
         media_urls: [], // Kosongkan agar diisi oleh user
         caption: finalCaption,

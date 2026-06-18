@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+const ENCRYPTION_SALT = process.env.ENCRYPTION_SALT
 const ALGORITHM = 'aes-256-gcm'
 
 // C11 Fix: Use KDF instead of raw key
@@ -8,9 +9,10 @@ function getDerivedKey(): Buffer {
   if (!ENCRYPTION_KEY) {
     throw new Error('ENCRYPTION_KEY is not defined.')
   }
-  // Using a static salt since we need deterministic key derivation for existing/future data
-  const salt = process.env.ENCRYPTION_SALT || 'digimar-static-salt-v1'
-  return crypto.pbkdf2Sync(ENCRYPTION_KEY, salt, 100000, 32, 'sha256')
+  if (!ENCRYPTION_SALT) {
+    throw new Error('ENCRYPTION_SALT is not defined.')
+  }
+  return crypto.pbkdf2Sync(ENCRYPTION_KEY, ENCRYPTION_SALT, 100000, 32, 'sha256')
 }
 
 export function encryptValue(text: string): string {

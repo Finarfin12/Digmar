@@ -10,9 +10,13 @@ BEGIN
         SELECT 1 FROM information_schema.columns 
         WHERE table_name = 'ai_providers' AND column_name = 'vision_api_key_encrypted' AND data_type = 'text'
     ) THEN
-        -- Untuk amannya, kita kosongkan value-nya saat alter type (karena formatnya beda dan mencegah error conversion)
         ALTER TABLE ai_providers 
         ALTER COLUMN vision_api_key_encrypted DROP DEFAULT,
-        ALTER COLUMN vision_api_key_encrypted TYPE BYTEA USING NULL;
+        ALTER COLUMN vision_api_key_encrypted TYPE BYTEA USING
+          CASE
+            WHEN vision_api_key_encrypted IS NULL THEN NULL
+            WHEN vision_api_key_encrypted LIKE '\x%' THEN decode(substring(vision_api_key_encrypted from 3), 'hex')
+            ELSE convert_to(vision_api_key_encrypted, 'utf8')
+          END;
     END IF;
 END $$;

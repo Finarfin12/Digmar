@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getAIProvider, getVisionAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
-import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
 
 import { handleApiError } from '@/lib/utils/error-handler'
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
       preferred_provider 
     } = await request.json()
 
-    if (!business_unit_id || !content_idea || !target_account_ids || target_account_ids.length === 0) {
+    if (!business_unit_id || !content_idea || !Array.isArray(target_account_ids) || target_account_ids.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -39,6 +38,26 @@ export async function POST(request: NextRequest) {
 
     if (unitError || !unit) {
       return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
+    }
+
+    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter(id => typeof id === 'string'))]
+    if (uniqueTargetAccountIds.length !== target_account_ids.length) {
+      return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
+    }
+
+    const { data: ownedAccounts, error: ownedAccountsError } = await supabase
+      .from('social_accounts')
+      .select('id, business_unit_id, business_units!inner(user_id)')
+      .in('id', uniqueTargetAccountIds)
+      .eq('business_unit_id', business_unit_id)
+      .eq('business_units.user_id', user.id)
+
+    if (ownedAccountsError) {
+      return NextResponse.json({ error: ownedAccountsError.message }, { status: 500 })
+    }
+
+    if (!ownedAccounts || ownedAccounts.length !== uniqueTargetAccountIds.length) {
+      return NextResponse.json({ error: 'One or more target accounts are not owned by this user' }, { status: 403 })
     }
 
     const { client, config } = await getAIProvider(user.id, preferred_provider)
@@ -97,7 +116,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa awalan markdown):
       const parsedCap = JSON.parse(capResponse.content.replace(/```json/g, '').replace(/```/g, '').trim())
       capA = parsedCap.varian_a || parsedCap.variant_a || { caption: 'Error A', first_comment: '' };
       capB = parsedCap.varian_b || parsedCap.variant_b || { caption: 'Error B', first_comment: '' };
-    } catch (e) {
+    } catch {
       throw new Error("Gagal parse caption dari AI untuk A/B test.");
     }
 
@@ -122,14 +141,29 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa awalan markdown):
     // Varian B = 26 jam dari sekarang (besok di jam yang sama)
     const timeB = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
-    const abTestId = crypto.randomUUID();
+    const { data: abTest, error: abTestError } = await supabase
+      .from('ab_tests')
+      .insert({
+        user_id: user.id,
+        business_unit_id,
+        name: content_idea,
+        status: 'draft'
+      })
+      .select('id')
+      .single()
+
+    if (abTestError || !abTest) {
+      throw abTestError || new Error('Gagal membuat A/B test.')
+    }
+
+    const abTestId = abTest.id;
 
     // --- 3. Insert 2 Posts to Queue ---
     const postsToInsert = [
       {
         user_id: user.id,
         job_code: generateJobCode(),
-        target_account_ids,
+        target_account_ids: uniqueTargetAccountIds,
         scheduled_at: timeA.toISOString(),
         media_urls,
         caption: `[VARIAN A: ${tone_a}]\n\n${capA.caption}`,
@@ -143,7 +177,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa awalan markdown):
       {
         user_id: user.id,
         job_code: generateJobCode(),
-        target_account_ids,
+        target_account_ids: uniqueTargetAccountIds,
         scheduled_at: timeB.toISOString(),
         media_urls,
         caption: `[VARIAN B: ${tone_b}]\n\n${capB.caption}`,

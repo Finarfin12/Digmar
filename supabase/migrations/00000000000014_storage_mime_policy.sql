@@ -1,7 +1,14 @@
 -- M2, L7: Storage Policy untuk MIME Type Validation
--- Menghapus policy INSERT lama yang mungkin terlalu permisif
+-- Menghapus policy lama yang mungkin terlalu permisif
 DROP POLICY IF EXISTS "Users can upload media" ON storage.objects;
 DROP POLICY IF EXISTS "Give users access to own folder" ON storage.objects;
+DROP POLICY IF EXISTS "Semua orang bisa melihat media" ON storage.objects;
+DROP POLICY IF EXISTS "User login bisa mengunggah" ON storage.objects;
+DROP POLICY IF EXISTS "User bisa menghapus medianya sendiri" ON storage.objects;
+DROP POLICY IF EXISTS "Users can upload valid media" ON storage.objects;
+DROP POLICY IF EXISTS "Public media access" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own media" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update own media" ON storage.objects;
 
 -- Membuat policy baru yang memeriksa tipe MIME (hanya mengizinkan gambar dan video)
 CREATE POLICY "Users can upload valid media"

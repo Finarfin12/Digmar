@@ -3,9 +3,28 @@ import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { XMLParser } from 'fast-xml-parser'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 
 import { logger } from '@/lib/utils/logger'
+
+type YouTubeVideoItem = {
+  snippet: {
+    title: string
+    channelTitle: string
+  }
+}
+
+type RedditChild = {
+  data: {
+    stickied?: boolean
+    subreddit: string
+    title: string
+    score: number
+    num_comments: number
+    selftext?: string
+  }
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -15,8 +34,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting: 5 request per menit
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'ai-hashtags', 5, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'ai-hashtags', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -39,7 +58,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Business unit not found or unauthorized' }, { status: 403 })
     }
 
-    const { client, config } = await getAIProvider(user.id, preferred_provider)
+    const { client } = await getAIProvider(user.id, preferred_provider)
     
     // Fetch Real-time News based on topic
     let trendingNews: string[] = [];
@@ -80,10 +99,10 @@ export async function POST(request: NextRequest) {
     if (ytApiKey && (source === 'mixed' || source === 'youtube')) {
       fetchPromises.push(
         fetch(`https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(topic)}&type=video&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
-          .then(res => res.json())
+          .then(res => res.json() as Promise<{ items?: YouTubeVideoItem[] }>)
           .then(data => {
             if (data && data.items) {
-              return data.items.map((item: any) => `[YouTube Topik] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
+              return data.items.map(item => `[YouTube Topik] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
             }
             return [];
           })
@@ -98,13 +117,13 @@ export async function POST(request: NextRequest) {
         fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=new&t=week&limit=7`, { 
           headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
         })
-          .then(res => res.json())
+          .then(res => res.json() as Promise<{ data?: { children?: RedditChild[] } }>)
           .then(data => {
             if (data && data.data && data.data.children) {
               return data.data.children
-                .filter((item: any) => !item.data.stickied)
+                .filter(item => !item.data.stickied)
                 .slice(0, 5)
-                .map((item: any) => {
+                .map(item => {
                   const d = item.data
                   const snippet = d.selftext ? d.selftext.substring(0, 150).replace(/\n/g, ' ') : ''
                   return `[Reddit r/${d.subreddit}] ${d.title} (⬆${d.score} | 💬${d.num_comments} komentar)${snippet ? ` — "${snippet}..."` : ''}`
@@ -119,13 +138,13 @@ export async function POST(request: NextRequest) {
         fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(topic)}&sort=hot&t=month&limit=5`, {
           headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
         })
-          .then(res => res.json())
+          .then(res => res.json() as Promise<{ data?: { children?: RedditChild[] } }>)
           .then(data => {
             if (data && data.data && data.data.children) {
               return data.data.children
-                .filter((item: any) => item.data.score > 10) // Hanya post yang punya engagement
+                .filter(item => item.data.score > 10) // Hanya post yang punya engagement
                 .slice(0, 3)
-                .map((item: any) => {
+                .map(item => {
                   const d = item.data
                   return `[Reddit Trending "${topic}"] ${d.title} (⬆${d.score} di r/${d.subreddit})`
                 })
@@ -176,12 +195,15 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
       "Anda adalah ahli Social Media SEO dan algoritma pencarian Instagram/TikTok.",
       aiPrompt,
       { temperature: 0.7, maxTokens: 1000 }
-    )
+    ).catch(err => {
+      logger.error('Hashtag AI provider failed:', err)
+      throw new Error('AI provider gagal merespons. Periksa API key, model, dan provider aktif di Settings.')
+    })
 
     let parsedData;
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
-    } catch (e) {
+    } catch {
       return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
     }
 

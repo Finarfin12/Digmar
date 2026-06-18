@@ -5,7 +5,7 @@ import { logger } from '@/lib/utils/logger'
 // Note: Requires a fully approved TikTok Developer App with 'video.publish' scope
 const TIKTOK_API_BASE = 'https://open.tiktokapis.com/v2';
 
-export async function publishToTikTok(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
+export async function publishToTikTok(account: SocialAccount, job: PostJob) {
   try {
     if (job.post_type !== 'reels') {
       return { success: false, error: 'TikTok only supports video (reels) format' };
@@ -19,48 +19,29 @@ export async function publishToTikTok(account: SocialAccount, job: PostJob, idem
       'Authorization': `Bearer ${account.access_token}`,
       'Content-Type': 'application/json'
     };
-    if (idempotencyKey) {
-      headers['Idempotency-Key'] = idempotencyKey; // H3 Fix: Idempotency Key
-    }
 
     // Step 1: Initialize the upload via TikTok API
-    let initRes;
-    let data;
-    let retries = 0;
-    const maxRetries = 3;
-    while (retries < maxRetries) {
-      initRes = await fetch(`${TIKTOK_API_BASE}/post/publish/video/init/`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          post_info: {
-            title: job.caption,
-            privacy_level: 'PUBLIC_TO_EVERYONE',
-            disable_duet: false,
-            disable_comment: false,
-            disable_stitch: false
-          },
-          source_info: {
-            source: 'PULL_FROM_URL',
-            video_url: job.media_urls[0]
-          }
-        })
-      });
-
-      if (initRes.status >= 500 && initRes.status < 600) {
-        retries++;
-        if (retries === maxRetries) {
-          throw new Error(`TikTok API Error: Server Error ${initRes.status} after ${maxRetries} retries`);
+    const initRes = await fetch(`${TIKTOK_API_BASE}/post/publish/video/init/`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        post_info: {
+          title: job.caption,
+          privacy_level: 'PUBLIC_TO_EVERYONE',
+          disable_duet: false,
+          disable_comment: false,
+          disable_stitch: false
+        },
+        source_info: {
+          source: 'PULL_FROM_URL',
+          video_url: job.media_urls[0]
         }
-        await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
-        continue;
-      }
+      })
+    });
 
-      data = await initRes.json();
-      if (!initRes.ok || data.error) {
-        throw new Error(data.error?.message || `TikTok API Error: ${initRes.statusText}`);
-      }
-      break;
+    const data = await initRes.json();
+    if (!initRes.ok || data.error) {
+      throw new Error(data.error?.message || `TikTok API Error: ${initRes.statusText}`);
     }
 
     const publishId = data?.data?.publish_id || data?.data?.post_id;

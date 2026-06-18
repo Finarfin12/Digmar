@@ -3,7 +3,7 @@ import { SocialAccount, PostJob } from './types';
 import { logger } from '@/lib/utils/logger'
 const INSTAGRAM_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
 
-async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>, idempotencyKey?: string) {
+async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>) {
   const url = `https://graph.facebook.com/${INSTAGRAM_API_VERSION}/${path}`;
   
   const headers: Record<string, string> = {
@@ -12,9 +12,6 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
   
   if (method === 'POST') {
     headers['Content-Type'] = 'application/json';
-    if (idempotencyKey) {
-      headers['Idempotency-Key'] = idempotencyKey; // H3 Fix: Idempotency Key
-    }
   }
 
   let searchParams = '';
@@ -26,33 +23,20 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
     searchParams = '?' + new URLSearchParams(stringBody);
   }
 
-  let retries = 0;
-  const maxRetries = 3;
-  while (retries < maxRetries) {
-    const response = await fetch(url + searchParams, {
-      method,
-      headers,
-      body: method === 'POST' ? JSON.stringify(body) : undefined
-    });
-    
-    if (response.status >= 500 && response.status < 600) {
-      retries++;
-      if (retries === maxRetries) {
-        throw new Error(`Instagram API Error: Server Error ${response.status} after ${maxRetries} retries`);
-      }
-      await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
-      continue;
-    }
+  const response = await fetch(url + searchParams, {
+    method,
+    headers,
+    body: method === 'POST' ? JSON.stringify(body) : undefined
+  });
 
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      throw new Error(data.error?.message || `Instagram API Error: ${response.statusText}`);
-    }
-    return data;
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || `Instagram API Error: ${response.statusText}`);
   }
+  return data;
 }
 
-export async function publishToInstagram(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
+export async function publishToInstagram(account: SocialAccount, job: PostJob) {
   try {
     let containerId: string;
 
@@ -60,15 +44,15 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
       const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
         image_url: job.media_urls[0],
         caption: job.caption
-      }, idempotencyKey ? `${idempotencyKey}-media` : undefined);
+      });
       containerId = res.id;
     } else if (job.post_type === 'carousel') {
       const childIds = [];
       for (let i = 0; i < job.media_urls.length; i++) {
         const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
-          image_url: job.media_urls[i],
-          is_carousel_item: true
-        }, idempotencyKey ? `${idempotencyKey}-child-${i}` : undefined);
+        image_url: job.media_urls[i],
+        is_carousel_item: true
+        });
         childIds.push(res.id);
       }
       
@@ -76,7 +60,7 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
         caption: job.caption,
         media_type: 'CAROUSEL',
         children: childIds.join(',')
-      }, idempotencyKey ? `${idempotencyKey}-carousel` : undefined);
+      });
       containerId = carouselRes.id;
     } else if (job.post_type === 'reels') {
       const res = await fetchInstagram(`${account.ig_user_id}/media`, account.access_token, 'POST', {
@@ -84,7 +68,7 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
         caption: job.caption,
         media_type: 'REELS',
         cover_url: job.cover_url
-      }, idempotencyKey ? `${idempotencyKey}-reels` : undefined);
+      });
       containerId = res.id;
       
       // Exponential backoff polling for Reels processing status
@@ -111,14 +95,14 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
     // Publish container
     const publishRes = await fetchInstagram(`${account.ig_user_id}/media_publish`, account.access_token, 'POST', {
       creation_id: containerId
-    }, idempotencyKey ? `${idempotencyKey}-publish` : undefined);
+    });
 
     // Fase 4: First Comment
     if (job.first_comment) {
       try {
         await fetchInstagram(`${publishRes.id}/comments`, account.access_token, 'POST', {
           message: job.first_comment
-        }, idempotencyKey ? `${idempotencyKey}-comment` : undefined);
+        });
       } catch (commentErr) {
         logger.error('Failed to post first comment:', commentErr);
         // Continue and return success for the main post even if comment fails

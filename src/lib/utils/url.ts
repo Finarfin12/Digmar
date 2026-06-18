@@ -6,10 +6,19 @@ export function isValidExternalUrl(urlString: string): boolean {
       return false
     }
 
-    const hostname = url.hostname
+    const hostname = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
 
-    // Block localhost
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+    // Block localhost and internal-only hostnames.
+    if (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname.endsWith('.local') ||
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.test') ||
+      hostname.endsWith('.lan') ||
+      hostname === '127.0.0.1' ||
+      hostname === '::1'
+    ) {
       return false
     }
 
@@ -26,8 +35,17 @@ export function isValidExternalUrl(urlString: string): boolean {
       if (p1 === 0) return false // 0.0.0.0/8
     }
 
+    // Block private/internal IP ranges (IPv6).
+    if (hostname.includes(':')) {
+      if (hostname === '::' || hostname === '0:0:0:0:0:0:0:0') return false
+      if (hostname.startsWith('fc') || hostname.startsWith('fd')) return false // fc00::/7 (Unique local)
+      if (hostname.startsWith('fe8') || hostname.startsWith('fe9') || hostname.startsWith('fea') || hostname.startsWith('feb')) {
+        return false // fe80::/10 (Link-local)
+      }
+    }
+
     return true
-  } catch (err) {
+  } catch {
     return false
   }
 }

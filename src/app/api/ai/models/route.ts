@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting: 10 request per menit
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'ai-models', 10, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'ai-models', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     let parsedUrl;
     try {
       parsedUrl = new URL(base_url);
-    } catch (e) {
+    } catch {
       return NextResponse.json({ error: 'Invalid base_url format' }, { status: 400 });
     }
 

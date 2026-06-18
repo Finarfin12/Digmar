@@ -14,19 +14,41 @@
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 
+function sanitizeArg(arg: unknown): unknown {
+  if (arg instanceof Error) {
+    return {
+      name: arg.name,
+      message: arg.message,
+      stack: isDevelopment ? arg.stack : undefined,
+    }
+  }
+
+  if (typeof arg === 'string') {
+    return arg
+      .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [REDACTED]')
+      .replace(/(api[_-]?key|access[_-]?token|authorization|password|secret)=([^&\s]+)/gi, '$1=[REDACTED]')
+  }
+
+  return arg
+}
+
 export const logger = {
   error: (...args: unknown[]) => {
+    const safeArgs = args.map(sanitizeArg)
     if (isDevelopment) {
-      console.error('[DigiMar ERROR]', ...args)
+      console.error('[DigiMar ERROR]', ...safeArgs)
+      return
     }
-    // Di production, kita bisa mengirim ke external logging service (Sentry, LogDNA, dll)
-    // Untuk saat ini, kita suppress agar tidak bocor ke stdout/stderr Vercel logs
+    console.error('[DigiMar ERROR]', ...safeArgs)
   },
 
   warn: (...args: unknown[]) => {
+    const safeArgs = args.map(sanitizeArg)
     if (isDevelopment) {
-      console.warn('[DigiMar WARN]', ...args)
+      console.warn('[DigiMar WARN]', ...safeArgs)
+      return
     }
+    console.warn('[DigiMar WARN]', ...safeArgs)
   },
 
   info: (...args: unknown[]) => {

@@ -3,7 +3,9 @@ import { SocialAccount, PostJob } from './types';
 import { logger } from '@/lib/utils/logger'
 const FB_API_VERSION = process.env.FB_API_VERSION || 'v25.0';
 
-async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>, idempotencyKey?: string) {
+type FacebookBodyValue = string | number | boolean | undefined | null | Array<{ media_fbid: string }>;
+
+async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, FacebookBodyValue>) {
   const url = `https://graph.facebook.com/${FB_API_VERSION}/${path}`;
   
   const headers: Record<string, string> = {
@@ -12,9 +14,6 @@ async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST'
   
   if (method === 'POST') {
     headers['Content-Type'] = 'application/json';
-    if (idempotencyKey) {
-      headers['Idempotency-Key'] = idempotencyKey; // H3 Fix: Idempotency Key
-    }
   }
 
   let searchParams = '';
@@ -26,34 +25,21 @@ async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST'
     searchParams = '?' + new URLSearchParams(stringBody);
   }
 
-  let retries = 0;
-  const maxRetries = 3;
-  while (retries < maxRetries) {
-    const response = await fetch(url + searchParams, {
-      method,
-      headers,
-      body: method === 'POST' ? JSON.stringify(body) : undefined
-    });
-    
-    if (response.status >= 500 && response.status < 600) {
-      retries++;
-      if (retries === maxRetries) {
-        throw new Error(`Facebook API Error: Server Error ${response.status} after ${maxRetries} retries`);
-      }
-      await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000));
-      continue;
-    }
+  const response = await fetch(url + searchParams, {
+    method,
+    headers,
+    body: method === 'POST' ? JSON.stringify(body) : undefined
+  });
 
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      throw new Error(data.error?.message || `Facebook API Error: ${response.statusText}`);
-    }
-    
-    return data;
+  const data = await response.json();
+  if (!response.ok || data.error) {
+    throw new Error(data.error?.message || `Facebook API Error: ${response.statusText}`);
   }
+
+  return data;
 }
 
-export async function publishToFacebook(account: SocialAccount, job: PostJob, idempotencyKey?: string) {
+export async function publishToFacebook(account: SocialAccount, job: PostJob) {
   try {
     const pageId = account.ig_user_id; // For Facebook, we store Page ID here
     let postId: string;
@@ -64,7 +50,7 @@ export async function publishToFacebook(account: SocialAccount, job: PostJob, id
         url: job.media_urls[0],
         message: job.caption,
         published: true
-      }, idempotencyKey ? `${idempotencyKey}-photo` : undefined);
+      });
       postId = res.id;
     } else if (job.post_type === 'carousel' && job.media_urls && job.media_urls.length > 0) {
       // Multiple Images (Facebook doesn't have a strict carousel like IG, but we can post multiple photos to a feed post)
@@ -76,27 +62,27 @@ export async function publishToFacebook(account: SocialAccount, job: PostJob, id
         const photoRes = await fetchFacebook(`${pageId}/photos`, account.access_token, 'POST', {
           url: job.media_urls[i],
           published: false
-        }, idempotencyKey ? `${idempotencyKey}-photo-${i}` : undefined);
+        });
         attachedMedia.push({ media_fbid: photoRes.id });
       }
       
       const res = await fetchFacebook(`${pageId}/feed`, account.access_token, 'POST', {
         message: job.caption,
-        attached_media: attachedMedia as any // passing array of objects
-      }, idempotencyKey ? `${idempotencyKey}-feed` : undefined);
+        attached_media: attachedMedia
+      });
       postId = res.id;
     } else if (job.post_type === 'reels' && job.media_urls && job.media_urls.length > 0) {
       // Video
       const res = await fetchFacebook(`${pageId}/videos`, account.access_token, 'POST', {
         file_url: job.media_urls[0],
         description: job.caption
-      }, idempotencyKey ? `${idempotencyKey}-video` : undefined);
+      });
       postId = res.id;
     } else {
       // Text only
       const res = await fetchFacebook(`${pageId}/feed`, account.access_token, 'POST', {
         message: job.caption
-      }, idempotencyKey ? `${idempotencyKey}-text` : undefined);
+      });
       postId = res.id;
     }
 

@@ -3,9 +3,28 @@ import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 import { XMLParser } from 'fast-xml-parser'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { checkRateLimit } from '@/lib/utils/rate-limit'
+import { checkRateLimit, getRateLimitIdentifier } from '@/lib/utils/rate-limit'
 
 import { logger } from '@/lib/utils/logger'
+
+type YouTubeVideoItem = {
+  snippet: {
+    title: string
+    channelTitle: string
+  }
+}
+
+type RedditChild = {
+  data: {
+    stickied?: boolean
+    subreddit: string
+    title: string
+    score: number
+    num_comments: number
+    selftext?: string
+  }
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -15,8 +34,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate Limiting: 5 request per menit
-  const ip = request.headers.get('x-forwarded-for') || '127.0.0.1'
-  if (!checkRateLimit(ip, 'ai-trends', 5, 60000)) {
+  const rateLimitKey = getRateLimitIdentifier(request, user.id)
+  if (!checkRateLimit(rateLimitKey, 'ai-trends', 10, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -79,10 +98,10 @@ export async function POST(request: NextRequest) {
     if (ytApiKey && (source === 'mixed' || source === 'youtube')) {
       fetchPromises.push(
         fetch(`https://youtube.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&regionCode=ID&maxResults=5&key=${ytApiKey}`, { next: { revalidate: 3600 } })
-          .then(res => res.json())
+          .then(res => res.json() as Promise<{ items?: YouTubeVideoItem[] }>)
           .then(data => {
             if (data && data.items) {
-              return data.items.map((item: any) => `[YouTube Trending] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
+              return data.items.map(item => `[YouTube Trending] ${item.snippet.title} (Channel: ${item.snippet.channelTitle})`);
             }
             return [];
           })
@@ -96,13 +115,13 @@ export async function POST(request: NextRequest) {
         fetch('https://www.reddit.com/r/indonesia/hot.json?limit=7', { 
           headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
         })
-          .then(res => res.json())
+          .then(res => res.json() as Promise<{ data?: { children?: RedditChild[] } }>)
           .then(data => {
             if (data && data.data && data.data.children) {
               return data.data.children
-                .filter((item: any) => !item.data.stickied) // Skip pinned
+                .filter(item => !item.data.stickied) // Skip pinned
                 .slice(0, 5)
-                .map((item: any) => {
+                .map(item => {
                   const d = item.data
                   const snippet = d.selftext ? d.selftext.substring(0, 120).replace(/\n/g, ' ') : ''
                   return `[Reddit r/${d.subreddit}] ${d.title} (⬆${d.score} | 💬${d.num_comments} komentar)${snippet ? ` — "${snippet}..."` : ''}`
@@ -118,10 +137,10 @@ export async function POST(request: NextRequest) {
           fetch(`https://www.reddit.com/search.json?q=${encodeURIComponent(unit.business_category)}&sort=relevance&t=week&limit=5`, {
             headers: { 'User-Agent': 'DigiMarBot/1.0 (by /u/digimarautomation)' }
           })
-            .then(res => res.json())
+            .then(res => res.json() as Promise<{ data?: { children?: RedditChild[] } }>)
             .then(data => {
               if (data && data.data && data.data.children) {
-                return data.data.children.slice(0, 3).map((item: any) => {
+                return data.data.children.slice(0, 3).map(item => {
                   const d = item.data
                   return `[Reddit Sentimen "${unit.business_category}"] ${d.title} (⬆${d.score} di r/${d.subreddit})`
                 })
@@ -156,7 +175,7 @@ export async function POST(request: NextRequest) {
     else if (currentMonth === 8) seasonContext = "Bulan Kemerdekaan RI (Agustus)";
 
     // 4. Generate with AI
-    const { client, config } = await getAIProvider(user.id, preferred_provider)
+    const { client } = await getAIProvider(user.id, preferred_provider)
     
     const aiPrompt = `
 Konteks Bisnis:
@@ -193,12 +212,15 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa markdown blok teks apapun):
       "Anda adalah analis tren sosial media jenius (Social Media Strategist).",
       aiPrompt,
       { temperature: 0.8, maxTokens: 1500 }
-    )
+    ).catch(err => {
+      logger.error('Trend AI provider failed:', err)
+      throw new Error('AI provider gagal merespons. Periksa API key, model, dan provider aktif di Settings.')
+    })
 
     let parsedData;
     try {
       parsedData = JSON.parse(response.content.replace(/```json/g, '').replace(/```/g, '').trim())
-    } catch (e) {
+    } catch {
       return handleApiError(new Error("Format AI tidak valid. Coba lagi."))
     }
 

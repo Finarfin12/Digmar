@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       preferred_provider 
     } = await request.json()
 
-    if (!business_unit_id || !content_idea || !target_account_ids || target_account_ids.length === 0) {
+    if (!business_unit_id || !content_idea || !Array.isArray(target_account_ids) || target_account_ids.length === 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -38,6 +38,26 @@ export async function POST(request: NextRequest) {
 
     if (unitError || !unit) {
       return NextResponse.json({ error: 'Business unit not found' }, { status: 404 })
+    }
+
+    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter(id => typeof id === 'string'))]
+    if (uniqueTargetAccountIds.length !== target_account_ids.length) {
+      return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
+    }
+
+    const { data: ownedAccounts, error: ownedAccountsError } = await supabase
+      .from('social_accounts')
+      .select('id, business_unit_id, business_units!inner(user_id)')
+      .in('id', uniqueTargetAccountIds)
+      .eq('business_unit_id', business_unit_id)
+      .eq('business_units.user_id', user.id)
+
+    if (ownedAccountsError) {
+      return NextResponse.json({ error: ownedAccountsError.message }, { status: 500 })
+    }
+
+    if (!ownedAccounts || ownedAccounts.length !== uniqueTargetAccountIds.length) {
+      return NextResponse.json({ error: 'One or more target accounts are not owned by this user' }, { status: 403 })
     }
 
     const { client, config } = await getAIProvider(user.id, preferred_provider)
@@ -90,7 +110,7 @@ Kembalikan HANYA dalam format JSON (tanpa awalan markdown apapun):
       const parsedCap = JSON.parse(capResponse.content.replace(/```json/g, '').replace(/```/g, '').trim())
       generatedCaption = parsedCap.caption;
       generatedComment = parsedCap.first_comment || '';
-    } catch (e) {
+    } catch {
       logger.error("Gagal parse caption dari AI:", capResponse.content);
       // Fallback
       generatedCaption = capResponse.content.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -98,7 +118,6 @@ Kembalikan HANYA dalam format JSON (tanpa awalan markdown apapun):
 
     // --- 2. Generate Best Time ---
     const now = new Date()
-    const tomorrow = addDays(now, 1)
     
     const btSystemPrompt = "Anda adalah Social Media Strategist jenius yang menguasai algoritma waktu tayang (best time to post)."
     const btUserPrompt = `
@@ -124,7 +143,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON:
       if (parsedBt.scheduled_at && !isNaN(new Date(parsedBt.scheduled_at).getTime())) {
         scheduledAt = parsedBt.scheduled_at
       }
-    } catch (e) {
+    } catch {
       logger.error("Gagal parse best time dari AI:", btResponse.content);
     }
 
@@ -153,7 +172,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON:
         {
           user_id: user.id,
           job_code: generateJobCode(),
-          target_account_ids,
+          target_account_ids: uniqueTargetAccountIds,
           scheduled_at: scheduledAt,
           media_urls,
           caption: finalCaption,

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   // Hanya proses jika diakses dengan token atau auth khusus, 
   // Untuk contoh cron job public, kita batasi dengan Auth header secret
   const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

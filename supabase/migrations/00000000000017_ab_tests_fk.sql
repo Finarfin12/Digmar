@@ -38,6 +38,6 @@ BEGIN
   ) THEN
     ALTER TABLE post_queue
     ADD CONSTRAINT fk_post_queue_ab_test
-    FOREIGN KEY (ab_test_id) REFERENCES ab_tests(id) ON DELETE CASCADE;
+    FOREIGN KEY (ab_test_id) REFERENCES ab_tests(id) ON DELETE SET NULL;
   END IF;
 END $$;

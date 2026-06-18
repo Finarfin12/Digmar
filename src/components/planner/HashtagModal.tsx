@@ -11,7 +11,12 @@ interface HashtagData {
   seo_keywords?: string[];
 }
 
-export default function HashtagModal({ onClose, units = [] }: { onClose: () => void, units?: any[] }) {
+interface BusinessUnitOption {
+  id: string;
+  brand_name: string;
+}
+
+export default function HashtagModal({ onClose, units = [] }: { onClose: () => void, units?: BusinessUnitOption[] }) {
   const [topic, setTopic] = useState('');
   const [businessUnitId, setBusinessUnitId] = useState(units.length > 0 ? units[0].id : '');
   const [selectedSource, setSelectedSource] = useState('mixed');
@@ -27,10 +32,10 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
       const res = await fetch('/api/ai/hashtags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_unit_id: businessUnitId, topic, preferred_provider: 'groq', source: selectedSource }) // Default provider
+        body: JSON.stringify({ business_unit_id: businessUnitId, topic, source: selectedSource })
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
+      if (!res.ok) throw new Error(json.error || 'Gagal mencari hashtag');
       setData(json);
     } catch (err: unknown) {
       Swal.fire('Error', (err as Error).message, 'error');
@@ -56,46 +61,55 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-          <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+      <div className="bg-white rounded-3xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-5 sm:p-6 border-b border-slate-200 flex justify-between items-center gap-4 bg-slate-50">
+          <h3 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2 min-w-0">
             <Hash className="text-indigo-600" /> AI Hashtag & Keyword Engine
           </h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
         </div>
         
-        <div className="p-6 overflow-y-auto flex-1 text-slate-900">
-          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2 mb-8">
-            <input 
-              type="text" 
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder="Masukkan topik, misal: 'Kopi Susu Gula Aren'" 
-              className="flex-1 p-4 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 text-lg font-medium"
-            />
-            <select 
-              value={businessUnitId} 
-              onChange={e => setBusinessUnitId(e.target.value)}
-              className="p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
-              required
-            >
-              <option value="" disabled>Pilih Unit Bisnis</option>
-              {units.map((u: any) => (
-                <option key={u.id} value={u.id}>{u.brand_name}</option>
-              ))}
-            </select>
-            <select 
-              value={selectedSource} 
-              onChange={e => setSelectedSource(e.target.value)}
-              className="p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
-            >
-              <option value="mixed">Campur Semua</option>
-              <option value="youtube">YouTube Search</option>
-              <option value="google_news">Berita Google</option>
-              <option value="newsdata">Berita Global</option>
-              <option value="reddit">Reddit (Sentimen Netizen)</option>
-            </select>
-            <button disabled={loading} type="submit" className="bg-indigo-600 text-white px-8 py-4 md:py-0 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 text-slate-900">
+          <form onSubmit={handleSearch} className="grid grid-cols-1 gap-3 mb-8 lg:grid-cols-[minmax(0,1fr)_190px_230px_140px]">
+            <label className="min-w-0">
+              <span className="sr-only">Topik hashtag</span>
+              <input 
+                type="text" 
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+                placeholder="Masukkan topik, misal: 'Kopi Susu Gula Aren'" 
+                className="w-full min-w-0 p-4 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 text-base sm:text-lg font-medium"
+              />
+            </label>
+            <label className="min-w-0">
+              <span className="sr-only">Unit bisnis</span>
+              <select 
+                value={businessUnitId} 
+                onChange={e => setBusinessUnitId(e.target.value)}
+                className="w-full min-w-0 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
+                required
+              >
+                <option value="" disabled>Pilih Unit Bisnis</option>
+                {units.map(u => (
+                  <option key={u.id} value={u.id}>{u.brand_name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="min-w-0">
+              <span className="sr-only">Sumber data</span>
+              <select 
+                value={selectedSource} 
+                onChange={e => setSelectedSource(e.target.value)}
+                className="w-full min-w-0 p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
+              >
+                <option value="mixed">Campur Semua</option>
+                <option value="youtube">YouTube Search</option>
+                <option value="google_news">Berita Google</option>
+                <option value="newsdata">Berita Global</option>
+                <option value="reddit">Reddit (Sentimen Netizen)</option>
+              </select>
+            </label>
+            <button disabled={loading || !topic || !businessUnitId} type="submit" className="w-full bg-indigo-600 text-white px-6 py-4 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-60">
               {loading ? <Loader2 className="animate-spin" /> : <Search />} Cari
             </button>
           </form>

@@ -54,8 +54,27 @@ export async function POST(request: NextRequest) {
       cover_url 
     } = body
 
-    if (!target_account_ids || target_account_ids.length === 0 || !scheduled_at) {
+    if (!Array.isArray(target_account_ids) || target_account_ids.length === 0 || !scheduled_at) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter(id => typeof id === 'string'))]
+    if (uniqueTargetAccountIds.length !== target_account_ids.length) {
+      return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
+    }
+
+    const { data: ownedAccounts, error: ownedAccountsError } = await supabase
+      .from('social_accounts')
+      .select('id, business_unit_id, business_units!inner(user_id)')
+      .in('id', uniqueTargetAccountIds)
+      .eq('business_units.user_id', user.id)
+
+    if (ownedAccountsError) {
+      return NextResponse.json({ error: ownedAccountsError.message }, { status: 500 })
+    }
+
+    if (!ownedAccounts || ownedAccounts.length !== uniqueTargetAccountIds.length) {
+      return NextResponse.json({ error: 'One or more target accounts are not owned by this user' }, { status: 403 })
     }
 
     // Fase 5: Apply Variables
@@ -63,11 +82,7 @@ export async function POST(request: NextRequest) {
     let processedFirstComment = first_comment || '';
 
     // Ambil info Unit Bisnis dari akun pertama
-    const { data: accountInfo } = await supabase
-      .from('social_accounts')
-      .select('business_unit_id')
-      .eq('id', target_account_ids[0])
-      .single()
+    const accountInfo = ownedAccounts.find(account => account.id === uniqueTargetAccountIds[0])
 
     if (accountInfo) {
       const { data: unitInfo } = await supabase
@@ -103,7 +118,7 @@ export async function POST(request: NextRequest) {
         {
           user_id: user.id,
           job_code,
-          target_account_ids,
+          target_account_ids: uniqueTargetAccountIds,
           scheduled_at,
           media_urls: media_urls || [],
           caption: processedCaption,
