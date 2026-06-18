@@ -1,13 +1,14 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles, Image as ImageIcon, ListOrdered } from 'lucide-react';
+import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles, Image as ImageIcon, ListOrdered, MessageSquare } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   const navItems = [
     { name: 'Beranda', path: '/', icon: Home },
+    { name: 'Smart Inbox', path: '/inbox', icon: MessageSquare },
     { name: 'Planner', path: '/planner', icon: Calendar },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
     { name: 'Auto-Queue', path: '/queue', icon: ListOrdered },

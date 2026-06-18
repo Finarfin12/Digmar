@@ -48,3 +48,28 @@ export interface PostJob {
   status: 'draft' | 'scheduled' | 'published' | 'failed';
   error_message?: string;
 }
+
+export interface SocialConversation {
+  id: string;
+  business_unit_id: string;
+  account_id: string;
+  platform: string;
+  type: 'dm' | 'comment';
+  customer_id: string;
+  customer_name: string;
+  customer_avatar_url?: string;
+  latest_message: string;
+  latest_message_at: string;
+  ai_sentiment: 'positif' | 'negatif' | 'netral' | 'keluhan' | 'tanya_harga' | string;
+  unread_count: number;
+}
+
+export interface SocialMessage {
+  id: string;
+  conversation_id: string;
+  sender_type: 'customer' | 'brand' | 'ai_auto';
+  content: string;
+  media_url?: string;
+  platform_message_id?: string;
+  created_at: string;
+}
