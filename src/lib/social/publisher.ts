@@ -119,8 +119,6 @@ export async function processQueue() {
     return { processed: 0, jobs: [], diagnostic };
   }
 
-  const fetchError = null; // placeholder — already handled above
-
   const results = [];
 
   for (const dbJob of waitingJobs) {
@@ -174,13 +172,35 @@ export async function processQueue() {
             // Validate token before attempting publish
             const validation = await validateInstagramToken(decryptedToken, accountDb.ig_user_id);
             if (!validation.valid) {
+              // Try to auto-discover correct IG ID if current one fails
+              let discoveredId: string | null = null;
+              try {
+                const pagesRes = await fetch(
+                  `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${decryptedToken}`,
+                  { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }
+                );
+                const pagesData = await pagesRes.json();
+                const pages = pagesData?.data || [];
+                const firstIG = pages.find((p: { instagram_business_account?: { id: string } }) => p.instagram_business_account?.id);
+                if (firstIG) discoveredId = firstIG.instagram_business_account!.id;
+              } catch { /* ignore */ }
+
+              let suggestion = validation.suggestion || validation.error;
+              if (discoveredId && discoveredId !== accountDb.ig_user_id) {
+                suggestion = `ID Instagram tersimpan (${accountDb.ig_user_id}) tidak valid untuk token ini. ID yang benar: ${discoveredId}. Silakan reconnect akun di Settings → Akun Sosial.`;
+              } else if (!discoveredId) {
+                suggestion = 'Token tidak bisa mengakses Instagram account manapun. Pastikan akun Instagram Professional terhubung ke Facebook Page.';
+              }
+
               logs.push({
                 account_id: account.id,
                 platform: 'instagram',
                 time: new Date().toISOString(),
                 success: false,
                 error: validation.error,
-                suggestion: validation.suggestion,
+                suggestion,
+                discovered_ig_id: discoveredId,
+                stored_ig_id: accountDb.ig_user_id,
                 ...accountTag,
               });
               allSuccess = false;

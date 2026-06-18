@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Share2, PlusCircle, Save, X, Trash2, Eye, EyeOff, Bot } from 'lucide-react';
+import { Share2, PlusCircle, Save, X, Trash2, Eye, EyeOff, Bot, Search, Loader2, CheckCircle2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit } from './UnitsTab';
 
@@ -24,6 +24,8 @@ export default function SocialTab() {
   const [token, setToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [autoReply, setAutoReply] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveredPages, setDiscoveredPages] = useState<Array<{page_id: string; page_name: string; ig_business_account_id: string | null; ig_username: string | null; error?: string}>>([]);
 
   const fetchData = async () => {
     try {
@@ -82,6 +84,43 @@ export default function SocialTab() {
     }
   };
 
+  const handleDiscoverPages = async () => {
+    if (!token.trim()) return Swal.fire('Error', 'Masukkan token Facebook Graph API terlebih dahulu', 'error');
+    setDiscovering(true);
+    setDiscoveredPages([]);
+    try {
+      const res = await fetch('/api/accounts/instagram-pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengambil data');
+      if (data.pages && data.pages.length > 0) {
+        setDiscoveredPages(data.pages);
+        // Auto-select first page with IG account
+        const firstWithIG = data.pages.find((p: { ig_business_account_id: string | null }) => p.ig_business_account_id);
+        if (firstWithIG) {
+          setUser(firstWithIG.ig_business_account_id);
+          Swal.fire({
+            title: 'Ditemukan!',
+            text: `Auto-select: ${firstWithIG.ig_username || firstWithIG.ig_business_account_id} (${firstWithIG.page_name})`,
+            icon: 'success',
+            timer: 2000,
+          });
+        } else {
+          Swal.fire('Peringatan', 'Tidak ada Instagram Business Account terhubung ke Facebook Pages kamu. Pastikan akun Instagram kamu sudah Professional dan terhubung.', 'warning');
+        }
+      } else {
+        Swal.fire('Error', 'Tidak ada Facebook Pages ditemukan. Pastikan token punya permission pages_show_list.', 'error');
+      }
+    } catch (e: unknown) {
+      Swal.fire('Error', (e as Error).message, 'error');
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
@@ -124,7 +163,39 @@ export default function SocialTab() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-1">ID Pengguna</label>
-                <input required value={user} onChange={e => setUser(e.target.value)} type="text" autoComplete="off" className="w-full p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
+                <div className="flex gap-2">
+                  <input required value={user} onChange={e => setUser(e.target.value)} type="text" autoComplete="off" className="flex-1 p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
+                  <button type="button" onClick={handleDiscoverPages} disabled={discovering} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap">
+                    {discovering ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                    {discovering ? 'Mencari...' : 'Discover'}
+                  </button>
+                </div>
+                {discoveredPages.length > 0 && (
+                  <div className="mt-2 space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white p-2">
+                    {discoveredPages.map((p, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => {
+                          if (p.ig_business_account_id) setUser(p.ig_business_account_id);
+                        }}
+                        className={`w-full text-left p-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
+                          user === p.ig_business_account_id ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <span>
+                          {p.page_name}
+                          {p.ig_username && <span className="text-pink-600 ml-2">@{p.ig_username}</span>}
+                        </span>
+                        {p.ig_business_account_id ? (
+                          user === p.ig_business_account_id ? <CheckCircle2 size={16} className="text-indigo-600" /> : <span className="text-xs text-slate-400">ID: {p.ig_business_account_id.substring(0, 12)}...</span>
+                        ) : (
+                          <span className="text-xs text-amber-500">⚠️ No IG linked</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-1">Access Token</label>
