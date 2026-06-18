@@ -58,7 +58,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Business unit not found or unauthorized' }, { status: 403 })
     }
 
-    const { client } = await getAIProvider(user.id, preferred_provider)
+    const { client } = await getAIProvider(user.id, preferred_provider).catch(err => {
+      logger.error('Hashtag AI provider setup failed:', err)
+      throw err
+    })
     
     // Fetch Real-time News based on topic
     let trendingNews: string[] = [];

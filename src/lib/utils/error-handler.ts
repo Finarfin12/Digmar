@@ -11,6 +11,9 @@ const safeUserMessages = [
   'Invalid or blocked vision_base_url',
   'Format AI tidak valid',
   'AI provider gagal merespons',
+  'tidak bisa didekripsi',
+  'Invalid encrypted data format',
+  'Unsupported state or unable to authenticate data',
   'ENCRYPTION_KEY is not defined',
   'ENCRYPTION_SALT is not defined',
 ];

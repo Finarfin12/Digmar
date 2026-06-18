@@ -175,7 +175,10 @@ export async function POST(request: NextRequest) {
     else if (currentMonth === 8) seasonContext = "Bulan Kemerdekaan RI (Agustus)";
 
     // 4. Generate with AI
-    const { client } = await getAIProvider(user.id, preferred_provider)
+    const { client } = await getAIProvider(user.id, preferred_provider).catch(err => {
+      logger.error('Trend AI provider setup failed:', err)
+      throw err
+    })
     
     const aiPrompt = `
 Konteks Bisnis:
