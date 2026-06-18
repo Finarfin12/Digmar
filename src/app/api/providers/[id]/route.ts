@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleApiError } from '@/lib/utils/error-handler'
 
 export async function DELETE(
   request: NextRequest,
@@ -13,15 +14,17 @@ export async function DELETE(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { error } = await supabase
-    .from('ai_providers')
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id)
+  try {
+    const { error } = await supabase
+      .from('ai_providers')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (err: unknown) {
+    return handleApiError(err)
   }
-
-  return NextResponse.json({ success: true })
 }

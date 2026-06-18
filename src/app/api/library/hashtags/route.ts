@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleApiError } from '@/lib/utils/error-handler'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
   }
 
   const { data, error } = await query
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return handleApiError(error)
   return NextResponse.json(data)
 }
 
@@ -49,8 +50,8 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
     return NextResponse.json(data)
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    return handleApiError(err)
   }
 }
 

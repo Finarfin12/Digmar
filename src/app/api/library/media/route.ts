@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import { handleApiError } from '@/lib/utils/error-handler'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return handleApiError(error)
   return NextResponse.json(data)
 }
 
@@ -48,6 +49,6 @@ export async function DELETE(request: NextRequest) {
   // Delete from db
   const { error } = await supabase.from('media_assets').delete().eq('id', id).eq('user_id', user.id)
   
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) return handleApiError(error)
   return NextResponse.json({ success: true })
 }
