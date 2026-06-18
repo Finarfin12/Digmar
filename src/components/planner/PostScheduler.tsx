@@ -4,7 +4,7 @@ import { useDropzone } from 'react-dropzone';
 import { format } from 'date-fns';
 import { 
   Calendar as CalendarIcon, Loader2, Save,
-  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart, Sparkles, Wand2, GripVertical, X
+  Image as ImageIcon, UploadCloud, FileVideo, CheckCircle2, Heart, Sparkles, Wand2, GripVertical, X, ImagePlus
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit, SocialAccount } from '@/types';
@@ -29,6 +29,11 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [showGallery, setShowGallery] = useState(false);
   const [showCanvas, setShowCanvas] = useState(false);
   const [showLibModal, setShowLibModal] = useState<'captions' | 'hashtags' | null>(null);
+
+  // Render Mode: Satori vs AI Image
+  const [renderMode, setRenderMode] = useState<'satori' | 'ai_image'>('satori');
+  const [aiImagePrompt, setAiImagePrompt] = useState('');
+  const [generatingImage, setGeneratingImage] = useState(false);
 
   // Form states
   const [formUnit, setFormUnit] = useState(units.length > 0 ? units[0].id : '');
@@ -219,6 +224,38 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
     }
   };
 
+  const handleGenerateAIImage = async () => {
+    if (!aiImagePrompt.trim()) {
+      return Swal.fire('Error', 'Masukkan prompt gambar terlebih dahulu', 'error');
+    }
+    if (aiImagePrompt.trim().length < 10) {
+      return Swal.fire('Error', 'Prompt minimal 10 karakter', 'warning');
+    }
+    setGeneratingImage(true);
+    Swal.fire({ title: 'AI sedang membuat gambar...', text: 'Ini bisa memakan waktu beberapa detik', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const res = await fetch('/api/media/ai-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_unit_id: formUnit,
+          prompt: aiImagePrompt,
+          size: '1024x1024',
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      selectFromGallery(data.url);
+      setAiImagePrompt('');
+      Swal.fire({ title: 'Gambar AI Berhasil!', text: data.revised_prompt ? `DALL-E merevisi prompt: "${data.revised_prompt.substring(0, 100)}..."` : 'Gambar fotorealistik siap digunakan.', icon: 'success', timer: 3000, showConfirmButton: false });
+    } catch (err: any) {
+      Swal.fire('Error', err.message, 'error');
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-4">
       {/* KIRI: Form Input */}
@@ -267,13 +304,51 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           <div className="flex justify-between items-center mb-3">
             <label className="block text-sm font-bold text-slate-800 flex items-center gap-2"><ImageIcon size={16}/> Media ({mediaUrls.length}{postType === 'carousel' ? '/10' : '/1'})</label>
             <div className="flex gap-2">
-              <button onClick={() => setShowCanvas(true)} className="text-xs font-bold bg-amber-50 text-amber-700 px-3 py-1 rounded-md hover:bg-amber-100 flex items-center gap-1 border border-amber-200">
+              <button onClick={() => { setRenderMode('satori'); setShowCanvas(true); }} className="text-xs font-bold bg-amber-50 text-amber-700 px-3 py-1 rounded-md hover:bg-amber-100 flex items-center gap-1 border border-amber-200">
                 <Sparkles size={12}/> AI Canvas
               </button>
               <button onClick={() => setShowGallery(true)} className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-100 border border-indigo-200">
                 Pilih dari Galeri
               </button>
             </div>
+          </div>
+
+          {/* Render Mode Toggle */}
+          <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="flex gap-2 mb-3">
+              <button 
+                onClick={() => setRenderMode('satori')} 
+                className={`flex-1 p-2 rounded-lg font-bold text-xs transition-all ${renderMode === 'satori' ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+              >
+                <Sparkles size={12} className="inline mr-1"/> Tipografi (Satori)
+              </button>
+              <button 
+                onClick={() => setRenderMode('ai_image')} 
+                className={`flex-1 p-2 rounded-lg font-bold text-xs transition-all ${renderMode === 'ai_image' ? 'bg-fuchsia-100 text-fuchsia-800 border border-fuchsia-300' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'}`}
+              >
+                <ImagePlus size={12} className="inline mr-1"/> Fotorealistik (AI)
+              </button>
+            </div>
+            {renderMode === 'ai_image' && (
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={aiImagePrompt} 
+                  onChange={e => setAiImagePrompt(e.target.value)} 
+                  placeholder="Prompt gambar: Foto sinematik secangkir kopi di pagi hari..."
+                  className="flex-1 p-2 text-xs border border-fuchsia-200 rounded-lg focus:ring-2 focus:ring-fuchsia-400 bg-white font-medium text-slate-700"
+                  onKeyDown={e => e.key === 'Enter' && handleGenerateAIImage()}
+                />
+                <button 
+                  onClick={handleGenerateAIImage} 
+                  disabled={generatingImage || !aiImagePrompt.trim()} 
+                  className="px-4 py-2 bg-fuchsia-600 hover:bg-fuchsia-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {generatingImage ? <Loader2 size={14} className="animate-spin"/> : <Wand2 size={14}/>}
+                  {generatingImage ? 'Generating...' : 'Generate'}
+                </button>
+              </div>
+            )}
           </div>
           
           {(mediaUrls.length === 0 || postType === 'carousel') && (
