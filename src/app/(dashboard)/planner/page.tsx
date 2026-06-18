@@ -156,7 +156,7 @@ export default function Planner() {
         </div>
       )}
 
-      {showHashtagModal && <HashtagModal onClose={() => setShowHashtagModal(false)} />}
+      {showHashtagModal && <HashtagModal onClose={() => setShowHashtagModal(false)} units={units} />}
       
       {showCampaignModal && (
         <CampaignArchitectModal 

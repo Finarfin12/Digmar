@@ -71,6 +71,7 @@ export default function Trends() {
             <option value="youtube">YouTube Trends</option>
             <option value="google_news">Berita Google</option>
             <option value="newsdata">Berita Global</option>
+            <option value="reddit">Reddit (Sentimen Netizen)</option>
           </select>
 
           <button onClick={generateTrends} disabled={loading || !selectedUnit} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold px-6 py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md transform hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100 whitespace-nowrap">

@@ -18,13 +18,13 @@ Dokumen ini berisi daftar ide fitur baru dan pengembangan (enhancements) untuk p
   - Melanjutkan implementasi dari database (`00000000000003_autoreply.sql`).
   - Membangun *endpoint* khusus (contoh: di `/api/webhooks/meta`) yang bisa membaca sentimen pesan masuk dan memberikan respons cerdas secara otomatis menggunakan AI tanpa campur tangan admin.
 
-- `[ ]` **Ekspansi Multi-Platform**
+- `[x]` **Ekspansi Multi-Platform**
   - Menyelesaikan integrasi TikTok *Publisher* (skema DB sudah tersedia).
-  - Menambahkan *support* untuk **Facebook Pages** dan **Twitter/X** (membuat modul `lib/social/facebook.ts` & `lib/social/twitter.ts`).
+  - Menambahkan *support* untuk **Facebook Pages** (membuat modul `lib/social/facebook.ts`).
 
 ## 📈 Peningkatan Pemasaran & Analitik
 
-- `[ ]` **Hashtag & Keyword Generator Engine**
+- `[x]` **Hashtag & Keyword Generator Engine**
   - Modul penelitian khusus di halaman *Planner* untuk mencari tagar (*hashtag*) yang sedang tren berdasarkan volume pencarian, bukan hanya mengandalkan tebakan LLM.
 
 - `[ ]` **Competitor Spy (Analisis Kompetitor)**

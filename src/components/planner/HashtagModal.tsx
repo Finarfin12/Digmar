@@ -11,8 +11,9 @@ interface HashtagData {
   seo_keywords?: string[];
 }
 
-export default function HashtagModal({ onClose }: { onClose: () => void }) {
+export default function HashtagModal({ onClose, units = [] }: { onClose: () => void, units?: any[] }) {
   const [topic, setTopic] = useState('');
+  const [businessUnitId, setBusinessUnitId] = useState(units.length > 0 ? units[0].id : '');
   const [selectedSource, setSelectedSource] = useState('mixed');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<HashtagData | null>(null);
@@ -26,7 +27,7 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/ai/hashtags', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, preferred_provider: 'groq', source: selectedSource }) // Default provider
+        body: JSON.stringify({ business_unit_id: businessUnitId, topic, preferred_provider: 'groq', source: selectedSource }) // Default provider
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -73,6 +74,17 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
               className="flex-1 p-4 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 text-lg font-medium"
             />
             <select 
+              value={businessUnitId} 
+              onChange={e => setBusinessUnitId(e.target.value)}
+              className="p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
+              required
+            >
+              <option value="" disabled>Pilih Unit Bisnis</option>
+              {units.map((u: any) => (
+                <option key={u.id} value={u.id}>{u.brand_name}</option>
+              ))}
+            </select>
+            <select 
               value={selectedSource} 
               onChange={e => setSelectedSource(e.target.value)}
               className="p-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-slate-800 bg-slate-50 cursor-pointer"
@@ -80,6 +92,7 @@ export default function HashtagModal({ onClose }: { onClose: () => void }) {
               <option value="mixed">Campur Semua</option>
               <option value="youtube">YouTube Search</option>
               <option value="newsdata">Berita Global</option>
+              <option value="reddit">Reddit (Sentimen Netizen)</option>
             </select>
             <button disabled={loading} type="submit" className="bg-indigo-600 text-white px-8 py-4 md:py-0 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition">
               {loading ? <Loader2 className="animate-spin" /> : <Search />} Cari
