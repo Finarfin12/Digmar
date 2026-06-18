@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Eye, EyeOff, RefreshCcw, Save, Camera, PlusCircle, Trash2, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+import { logger } from '@/lib/utils/logger'
 export default function AIVisionTab() {
   const [loading, setLoading] = useState(false);
   const [url, setUrl] = useState('https://openrouter.ai/api/v1');
@@ -43,7 +44,7 @@ export default function AIVisionTab() {
         }
       }
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   };
 

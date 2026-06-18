@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2, X, Search } from 'lucide-react';
 
+import { logger } from '@/lib/utils/logger'
 interface Props {
   type: 'captions' | 'hashtags';
   businessUnitId: string;
@@ -22,7 +23,7 @@ export default function LibrarySelectorModal({ type, businessUnitId, onSelect, o
         const data = await res.json();
         setItems(data || []);
       } catch (e) {
-        console.error(e);
+        logger.error(e);
       }
       setLoading(false);
     };

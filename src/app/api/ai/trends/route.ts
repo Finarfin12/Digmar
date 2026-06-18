@@ -5,6 +5,7 @@ import { XMLParser } from 'fast-xml-parser'
 import { handleApiError } from '@/lib/utils/error-handler'
 import { checkRateLimit } from '@/lib/utils/rate-limit'
 
+import { logger } from '@/lib/utils/logger'
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
       if (result.status === 'fulfilled' && Array.isArray(result.value)) {
         trendingNews = [...trendingNews, ...result.value];
       } else if (result.status === 'rejected') {
-        console.error("Gagal menarik salah satu sumber berita:", result.reason);
+        logger.error("Gagal menarik salah satu sumber berita:", result.reason);
       }
     });
 

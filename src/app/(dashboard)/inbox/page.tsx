@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Loader2, MessageSquare, Search, Phone, Video, MoreVertical, Send, CheckCheck, Bot, Sparkles, Smile, Image as ImageIcon } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+import { logger } from '@/lib/utils/logger'
 export default function InboxPage() {
   const [units, setUnits] = useState<any[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
@@ -26,7 +27,7 @@ export default function InboxPage() {
         setUnits(data);
         if (data.length > 0) setSelectedUnit(data[0].id);
       })
-      .catch(err => console.error(err));
+      .catch(err => logger.error(err));
   }, []);
 
   // Fetch Conversations when Unit changes
@@ -42,7 +43,7 @@ export default function InboxPage() {
         setLoadingConvos(false);
       })
       .catch(err => {
-        console.error(err);
+        logger.error(err);
         setLoadingConvos(false);
       });
   }, [selectedUnit]);
@@ -61,7 +62,7 @@ export default function InboxPage() {
         setLoadingMessages(false);
       })
       .catch(err => {
-        console.error(err);
+        logger.error(err);
         setLoadingMessages(false);
       });
   }, [selectedConvo]);

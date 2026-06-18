@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
 
 import crypto from 'crypto'
 
+import { logger } from '@/lib/utils/logger'
 // MENANGKAP PAYLOAD WEBHOOK (KOMENTAR MASUK)
 export async function POST(request: NextRequest) {
   try {
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     const appSecret = process.env.META_APP_SECRET
     
     if (!appSecret) {
-      console.error('META_APP_SECRET is not configured')
+      logger.error('META_APP_SECRET is not configured')
       return new NextResponse('Internal Server Error', { status: 500 })
     }
     
@@ -168,7 +169,7 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
 
             if (!postReply.ok) {
               const errData = await postReply.text();
-              console.error('Gagal mengirim balasan ke Meta:', errData);
+              logger.error('Gagal mengirim balasan ke Meta:', errData);
             } else {
               console.log(`Berhasil membalas komentar @${commenterUsername} -> ${replyText}`);
             }
@@ -250,7 +251,7 @@ Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. J
 
               if (!postReply.ok) {
                 const errData = await postReply.text();
-                console.error('Gagal mengirim DM ke Meta:', errData);
+                logger.error('Gagal mengirim DM ke Meta:', errData);
               } else {
                 console.log(`Berhasil membalas DM ke ${senderId} -> ${replyText}`);
               }
@@ -263,7 +264,7 @@ Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. J
 
     return new NextResponse('Bad Request', { status: 400 })
   } catch (err: unknown) {
-    console.error('Webhook Error:', err);
+    logger.error('Webhook Error:', err);
     return new NextResponse('Internal Server Error', { status: 500 })
   }
 }

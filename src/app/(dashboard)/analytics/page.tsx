@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 import CompetitorSpy from './CompetitorSpy';
 import ABTestAnalytics from './ABTestAnalytics';
 
+import { logger } from '@/lib/utils/logger'
 export default function Analytics() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
@@ -27,7 +28,7 @@ export default function Analytics() {
         setLoadingAccounts(false);
       })
       .catch(err => {
-        console.error(err);
+        logger.error(err);
         setLoadingAccounts(false);
       });
   }, []);
@@ -48,7 +49,7 @@ export default function Analytics() {
         setLoadingAnalytics(false);
       })
       .catch(err => {
-        console.error(err);
+        logger.error(err);
         setLoadingAnalytics(false);
       });
   }, [selectedAccount]);

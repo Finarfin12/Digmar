@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Briefcase, PlusCircle, Save, X, Trash2, Edit2, BrainCircuit } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+import { logger } from '@/lib/utils/logger'
 export interface BusinessUnit {
   id: string;
   brand_name: string;
@@ -33,7 +34,7 @@ export default function UnitsTab() {
       const res = await fetch('/api/units');
       if (res.ok) setUnits(await res.json());
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   };
 

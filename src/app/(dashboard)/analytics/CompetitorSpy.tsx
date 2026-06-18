@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Target, Search, Trash2, TrendingUp, Users, Loader2, Heart, MessageCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+import { logger } from '@/lib/utils/logger'
 export default function CompetitorSpy() {
   const [competitors, setCompetitors] = useState<any[]>([]);
   const [handle, setHandle] = useState('');
@@ -13,7 +14,7 @@ export default function CompetitorSpy() {
       const res = await fetch('/api/competitors');
       if (res.ok) setCompetitors(await res.json());
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     } finally {
       setFetching(false);
     }

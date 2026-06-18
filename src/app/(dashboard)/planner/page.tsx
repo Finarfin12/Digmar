@@ -10,6 +10,7 @@ import HashtagModal from '@/components/planner/HashtagModal';
 import CampaignArchitectModal from '@/components/planner/CampaignArchitectModal';
 import { Hash } from 'lucide-react';
 
+import { logger } from '@/lib/utils/logger'
 export default function Planner() {
   const [events, setEvents] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
@@ -50,7 +51,7 @@ export default function Planner() {
         setEvents(mappedEvents);
       }
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
   };
 

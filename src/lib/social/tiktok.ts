@@ -1,5 +1,6 @@
 import { SocialAccount, PostJob } from './types';
 
+import { logger } from '@/lib/utils/logger'
 // TikTok Content Posting API
 // Note: Requires a fully approved TikTok Developer App with 'video.publish' scope
 const TIKTOK_API_BASE = 'https://open.tiktokapis.com/v2';
@@ -97,7 +98,7 @@ export async function publishToTikTok(account: SocialAccount, job: PostJob, idem
 
     return { success: true, platform_post_id: publishId };
   } catch (err: unknown) {
-    console.error('TikTok Publish Error:', err);
+    logger.error('TikTok Publish Error:', err);
     return { success: false, error: (err as Error).message };
   }
 }

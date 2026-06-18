@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import ImageEditor from './ImageEditor';
 import { v4 as uuidv4 } from 'uuid';
 
+import { logger } from '@/lib/utils/logger'
 export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }: { businessUnitId?: string, onSelect: (url: string) => void; onClose: () => void }) {
   const supabase = createClient();
   const [galleryFiles, setGalleryFiles] = useState<{ id: string | null; url: string; file_name?: string; metadata?: Record<string, unknown> | null | any }[]>([]);
@@ -34,7 +35,7 @@ export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }:
         setGalleryFiles(filesWithUrls);
       }
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
     setLoadingGallery(false);
   };
@@ -58,7 +59,7 @@ export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }:
       setEditingImage(null);
       onSelect(publicUrl); // Directly select the newly edited image
     } catch (err) {
-      console.error('Error saving edit:', err);
+      logger.error('Error saving edit:', err);
       alert('Gagal menyimpan gambar edit.');
     } finally {
       setSavingEdit(false);

@@ -3,6 +3,7 @@ import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { handleApiError } from '@/lib/utils/error-handler'
+import { logger } from '@/lib/utils/logger'
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch(e) {
-        console.error("IG Scrape error:", e);
+        logger.error("IG Scrape error:", e);
       }
     }
 

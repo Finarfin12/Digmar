@@ -1,5 +1,6 @@
 import { SocialAccount, PostJob } from './types';
 
+import { logger } from '@/lib/utils/logger'
 const FB_API_VERSION = process.env.FB_API_VERSION || 'v25.0';
 
 async function fetchFacebook(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>, idempotencyKey?: string) {
@@ -101,7 +102,7 @@ export async function publishToFacebook(account: SocialAccount, job: PostJob, id
 
     return { success: true, platform_post_id: postId };
   } catch (err: unknown) {
-    console.error('Facebook Publish Error:', err);
+    logger.error('Facebook Publish Error:', err);
     return { success: false, error: (err as Error).message };
   }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Key, PlusCircle, Save, X, Trash2, Eye, EyeOff, RefreshCcw } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+import { logger } from '@/lib/utils/logger'
 interface ProviderConfig {
   id: string;
   provider_name: string;
@@ -28,7 +29,7 @@ export default function AITab() {
       const res = await fetch('/api/providers');
       if (res.ok) setProviders(await res.json());
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   };
 

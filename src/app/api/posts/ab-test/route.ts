@@ -5,6 +5,7 @@ import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
 
 import { handleApiError } from '@/lib/utils/error-handler'
+import { logger } from '@/lib/utils/logger'
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
           );
           imageContext = visionResponse.content;
         } catch (visionError) {
-          console.error("Vision AI failed, continuing without it:", visionError);
+          logger.error("Vision AI failed, continuing without it:", visionError);
         }
       }
     }

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/utils/logger';
 
 export function handleApiError(err: unknown) {
   const isDevelopment = process.env.NODE_ENV === 'development';
   const errorMessage = err instanceof Error ? err.message : String(err);
   
   if (isDevelopment) {
-    console.error('API Error:', err);
+    logger.error('API Error:', err);
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 

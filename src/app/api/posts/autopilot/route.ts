@@ -5,6 +5,7 @@ import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
 
 import { handleApiError } from '@/lib/utils/error-handler'
+import { logger } from '@/lib/utils/logger'
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
           imageContext = visionResponse.content;
           console.log("Vision Context Success:", imageContext);
         } catch (visionError) {
-          console.error("Vision AI failed, continuing without it:", visionError);
+          logger.error("Vision AI failed, continuing without it:", visionError);
         }
       }
     }
@@ -90,7 +91,7 @@ Kembalikan HANYA dalam format JSON (tanpa awalan markdown apapun):
       generatedCaption = parsedCap.caption;
       generatedComment = parsedCap.first_comment || '';
     } catch (e) {
-      console.error("Gagal parse caption dari AI:", capResponse.content);
+      logger.error("Gagal parse caption dari AI:", capResponse.content);
       // Fallback
       generatedCaption = capResponse.content.replace(/```json/g, '').replace(/```/g, '').trim();
     }
@@ -124,7 +125,7 @@ KEMBALIKAN HANYA DALAM FORMAT JSON:
         scheduledAt = parsedBt.scheduled_at
       }
     } catch (e) {
-      console.error("Gagal parse best time dari AI:", btResponse.content);
+      logger.error("Gagal parse best time dari AI:", btResponse.content);
     }
 
     // --- Fase 5: Variable Replace ---

@@ -3,6 +3,7 @@ import { Share2, PlusCircle, Save, X, Trash2, Eye, EyeOff, Bot } from 'lucide-re
 import Swal from 'sweetalert2';
 import type { BusinessUnit } from './UnitsTab';
 
+import { logger } from '@/lib/utils/logger'
 interface SocialAccount {
   id: string;
   business_unit_id: string;
@@ -34,7 +35,7 @@ export default function SocialTab() {
       }
       if (aRes.ok) setAccounts(await aRes.json());
     } catch (e) {
-      console.error(e);
+      logger.error(e);
     }
   };
 

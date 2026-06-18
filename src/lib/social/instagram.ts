@@ -1,5 +1,6 @@
 import { SocialAccount, PostJob } from './types';
 
+import { logger } from '@/lib/utils/logger'
 const INSTAGRAM_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
 
 async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, string | number | boolean | undefined | null>, idempotencyKey?: string) {
@@ -119,7 +120,7 @@ export async function publishToInstagram(account: SocialAccount, job: PostJob, i
           message: job.first_comment
         }, idempotencyKey ? `${idempotencyKey}-comment` : undefined);
       } catch (commentErr) {
-        console.error('Failed to post first comment:', commentErr);
+        logger.error('Failed to post first comment:', commentErr);
         // Continue and return success for the main post even if comment fails
       }
     }
