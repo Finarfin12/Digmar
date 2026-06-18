@@ -4,6 +4,7 @@ import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Spa
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Swal from 'sweetalert2';
 import CompetitorSpy from './CompetitorSpy';
+import ABTestAnalytics from './ABTestAnalytics';
 
 export default function Analytics() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -12,7 +13,7 @@ export default function Analytics() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [activeTab, setActiveTab] = useState<'performance' | 'competitors'>('performance');
+  const [activeTab, setActiveTab] = useState<'performance' | 'competitors' | 'abtest'>('performance');
 
   // Fetch Accounts
   useEffect(() => {
@@ -63,10 +64,13 @@ export default function Analytics() {
       <div className="flex space-x-2 border-b border-slate-300">
         <button onClick={() => setActiveTab('performance')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'performance' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Performance Dashboard</button>
         <button onClick={() => setActiveTab('competitors')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'competitors' ? 'border-pink-600 text-pink-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Competitor Spy</button>
+        <button onClick={() => setActiveTab('abtest')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'abtest' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>A/B Testing Lab</button>
       </div>
 
       {activeTab === 'competitors' ? (
         <CompetitorSpy />
+      ) : activeTab === 'abtest' ? (
+        <ABTestAnalytics unitId={accounts.find(a => a.id === selectedAccount)?.business_unit_id} />
       ) : (
         <>
           {/* Header & Selector */}

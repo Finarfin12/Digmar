@@ -14,9 +14,11 @@ import LibrarySelectorModal from './LibrarySelectorModal';
 import AICanvasModal from './AICanvasModal';
 
 export default function PostScheduler({ units, accounts, initialDate, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, onSuccess: () => void }) {
-  // Mode Auto-Pilot
-  const [isAutoPilot, setIsAutoPilot] = useState(false);
+  // Mode: manual, autopilot, abtest
+  const [mode, setMode] = useState<'manual' | 'autopilot' | 'abtest'>('manual');
   const [autoPilotIdea, setAutoPilotIdea] = useState('');
+  const [toneA, setToneA] = useState('Formal/Profesional');
+  const [toneB, setToneB] = useState('Humor/Santai');
 
   // Post Type
   const [postType, setPostType] = useState('single_image');
@@ -142,29 +144,47 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
     }
   };
 
-  const handleAutoPilot = async () => {
+  const handleAIGenerate = async () => {
     if (!formAccount || !autoPilotIdea || mediaUrls.length === 0) {
       return Swal.fire('Error', 'Lengkapi Ide Konten dan Media!', 'error');
     }
     setSaving(true);
     Swal.fire({ title: 'Memproses Otomatis', text: 'AI sedang berpikir...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-      const res = await fetch('/api/posts/autopilot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          business_unit_id: formUnit,
-          target_account_ids: [formAccount],
-          media_urls: mediaUrls,
-          post_type: postType,
-          content_idea: autoPilotIdea,
-          tone_voice: 'profesional',
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      
-      Swal.fire({ title: 'Selesai!', text: 'Postingan telah dibuat dan dijadwalkan otomatis oleh AI.', icon: 'success' });
+      if (mode === 'autopilot') {
+        const res = await fetch('/api/posts/autopilot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            business_unit_id: formUnit,
+            target_account_ids: [formAccount],
+            media_urls: mediaUrls,
+            post_type: postType,
+            content_idea: autoPilotIdea,
+            tone_voice: 'profesional',
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        Swal.fire({ title: 'Selesai!', text: 'Postingan telah dibuat dan dijadwalkan otomatis oleh AI.', icon: 'success' });
+      } else if (mode === 'abtest') {
+        const res = await fetch('/api/posts/ab-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            business_unit_id: formUnit,
+            target_account_ids: [formAccount],
+            media_urls: mediaUrls,
+            post_type: postType,
+            content_idea: autoPilotIdea,
+            tone_a: toneA,
+            tone_b: toneB,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        Swal.fire({ title: 'A/B Test Dibuat!', text: `2 Varian postingan telah dijadwalkan (ID: ${data.ab_test_id}).`, icon: 'success' });
+      }
       onSuccess();
     } catch (err: any) {
       Swal.fire('Error', err.message, 'error');
@@ -204,23 +224,11 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
       {/* KIRI: Form Input */}
       <div className="space-y-6">
         
-        {/* Toggle Mode */}
-        <div className={`p-5 rounded-2xl border-2 transition-all flex items-center justify-between ${isAutoPilot ? 'bg-indigo-900 border-indigo-700 text-white' : 'bg-white border-slate-200'}`}>
-          <div>
-            <h3 className={`font-black text-lg flex items-center gap-2 ${isAutoPilot ? 'text-white' : 'text-slate-900'}`}>
-              <Wand2 size={24} className={isAutoPilot ? 'text-amber-400' : 'text-indigo-600'}/> 
-              1-Click Auto-Pilot
-            </h3>
-            <p className={`text-sm font-medium mt-1 ${isAutoPilot ? 'text-indigo-200' : 'text-slate-600'}`}>
-              Biarkan AI menulis caption dan menjadwalkan otomatis
-            </p>
-          </div>
-          <button 
-            onClick={() => setIsAutoPilot(!isAutoPilot)} 
-            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${isAutoPilot ? 'bg-amber-400' : 'bg-slate-300'}`}
-          >
-            <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${isAutoPilot ? 'translate-x-7' : 'translate-x-1'}`} />
-          </button>
+        {/* Mode Selector */}
+        <div className="grid grid-cols-3 gap-2 bg-slate-100 p-2 rounded-xl">
+          <button onClick={() => setMode('manual')} className={`p-2 rounded-lg font-bold text-sm transition-all ${mode === 'manual' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:bg-slate-200'}`}>Manual</button>
+          <button onClick={() => setMode('autopilot')} className={`p-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1 ${mode === 'autopilot' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:bg-slate-200'}`}><Wand2 size={14}/> Auto-Pilot</button>
+          <button onClick={() => setMode('abtest')} className={`p-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1 ${mode === 'abtest' ? 'bg-fuchsia-600 shadow-sm text-white' : 'text-slate-500 hover:bg-slate-200'}`}>🔬 A/B Test</button>
         </div>
 
         {/* Akun & Tipe */}
@@ -318,16 +326,28 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         </div>
 
         {/* Caption Area (Dependent on Mode) */}
-        {isAutoPilot ? (
-          <div className="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 shadow-sm animate-in slide-in-from-bottom-4">
-            <label className="block text-sm font-bold text-indigo-900 mb-2">Ide Konten / Topik</label>
+        {mode !== 'manual' ? (
+          <div className={`p-5 rounded-2xl border shadow-sm animate-in slide-in-from-bottom-4 ${mode === 'abtest' ? 'bg-fuchsia-50 border-fuchsia-200' : 'bg-indigo-50 border-indigo-200'}`}>
+            <label className={`block text-sm font-bold mb-2 ${mode === 'abtest' ? 'text-fuchsia-900' : 'text-indigo-900'}`}>Ide Konten / Topik Utama</label>
             <textarea 
               value={autoPilotIdea} 
               onChange={e => setAutoPilotIdea(e.target.value)} 
               rows={3} 
-              className="w-full p-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white font-medium text-slate-800"
+              className={`w-full p-3 border rounded-lg focus:ring-2 bg-white font-medium text-slate-800 ${mode === 'abtest' ? 'border-fuchsia-200 focus:ring-fuchsia-500' : 'border-indigo-200 focus:ring-indigo-500'}`}
               placeholder="Contoh: Promo kemerdekaan diskon 50%, ajak orang untuk beli hari ini juga!"
             />
+            {mode === 'abtest' && (
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-fuchsia-900 mb-1">Tone Varian A</label>
+                  <input type="text" value={toneA} onChange={e => setToneA(e.target.value)} className="w-full p-2 border border-fuchsia-200 rounded text-sm font-medium" placeholder="Formal" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-fuchsia-900 mb-1">Tone Varian B</label>
+                  <input type="text" value={toneB} onChange={e => setToneB(e.target.value)} className="w-full p-2 border border-fuchsia-200 rounded text-sm font-medium" placeholder="Santai" />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-6 animate-in slide-in-from-bottom-4">
@@ -418,7 +438,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
               <div className="px-4 pb-6 pt-1 max-h-[150px] overflow-y-auto custom-scrollbar">
                 <p className="text-xs text-slate-800 whitespace-pre-wrap">
                   <span className="font-bold mr-1">{units.find(u => u.id === formUnit)?.brand_name || 'username'}</span>
-                  {isAutoPilot 
+                  {mode !== 'manual' 
                     ? <span className="italic text-slate-400">Caption akan di-generate otomatis oleh AI...</span> 
                     : (finalCaption || <span className="italic text-slate-400">Caption postingan...</span>)}
                 </p>
@@ -428,14 +448,14 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
           {/* Action Box */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            {isAutoPilot ? (
+            {mode !== 'manual' ? (
               <div className="text-center">
                 <p className="text-sm font-bold text-slate-500 mb-4 flex items-center justify-center gap-2">
                   <CalendarIcon size={16}/> Jadwal & Waktu Tayang akan ditentukan AI
                 </p>
-                <button onClick={handleAutoPilot} disabled={saving} className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white p-4 rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 transition-all disabled:opacity-70 text-lg">
+                <button onClick={handleAIGenerate} disabled={saving} className={`w-full text-white p-4 rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-70 text-lg ${mode === 'abtest' ? 'bg-gradient-to-r from-fuchsia-500 to-fuchsia-600 hover:from-fuchsia-600 hover:to-fuchsia-700 shadow-fuchsia-500/30' : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-indigo-500/30'}`}>
                   {saving ? <Loader2 className="animate-spin" size={24}/> : <Sparkles size={24}/>}
-                  {saving ? 'Memproses...' : 'Auto-Generate & Jadwalkan'}
+                  {saving ? 'Memproses...' : mode === 'abtest' ? 'Generate 2 Varian A/B' : 'Auto-Generate & Jadwalkan'}
                 </button>
               </div>
             ) : (
