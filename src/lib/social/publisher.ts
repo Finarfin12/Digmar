@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { decryptValue } from '@/lib/crypto/server';
-import { publishToInstagram } from './instagram';
+import { publishToInstagram, validateInstagramToken } from './instagram';
 import { publishToFacebook } from './facebook';
 import { publishToTikTok } from './tiktok';
 import type { PostJob, SocialAccount } from './types';
@@ -171,6 +171,34 @@ export async function processQueue() {
           const accountTag = { token_preview: tokenPreview, token_length: decryptedToken?.length || 0 };
 
           if (account.platform === 'meta_ig') {
+            // Validate token before attempting publish
+            const validation = await validateInstagramToken(decryptedToken, accountDb.ig_user_id);
+            if (!validation.valid) {
+              logs.push({
+                account_id: account.id,
+                platform: 'instagram',
+                time: new Date().toISOString(),
+                success: false,
+                error: validation.error,
+                suggestion: validation.suggestion,
+                ...accountTag,
+              });
+              allSuccess = false;
+              continue;
+            }
+            if (validation.suggestion) {
+              logs.push({
+                account_id: account.id,
+                platform: 'instagram',
+                time: new Date().toISOString(),
+                success: false,
+                error: validation.suggestion,
+                account_type: validation.account_type,
+                ...accountTag,
+              });
+              allSuccess = false;
+              continue;
+            }
             const res = await publishToInstagram(account, platformJob);
             logs.push({ account_id: account.id, platform: 'instagram', time: new Date().toISOString(), ...res, ...accountTag });
             if (res.success) anySuccess = true;

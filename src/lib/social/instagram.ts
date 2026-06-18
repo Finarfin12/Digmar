@@ -12,6 +12,8 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
   
   if (method === 'POST') {
     headers['Content-Type'] = 'application/json';
+  } else {
+    headers['Accept'] = 'application/json';
   }
 
   let searchParams = '';
@@ -26,7 +28,8 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
   const response = await fetch(url + searchParams, {
     method,
     headers,
-    body: method === 'POST' ? JSON.stringify(body) : undefined
+    body: method === 'POST' ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
   });
 
   const data = await response.json();
@@ -34,6 +37,51 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
     throw new Error(data.error?.message || `Instagram API Error: ${response.statusText}`);
   }
   return data;
+}
+
+export async function validateInstagramToken(token: string, igUserId: string): Promise<{ valid: boolean; account_type?: string; error?: string; suggestion?: string }> {
+  try {
+    const fields = 'id,username,account_type';
+    const res = await fetch(
+      `https://graph.facebook.com/${INSTAGRAM_API_VERSION}/${igUserId}?fields=${fields}&access_token=${token}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }
+    );
+    const profile = await res.json();
+
+    if (!res.ok || profile.error) {
+      const code = profile.error?.code;
+      const msg = profile.error?.message || `HTTP ${res.status}`;
+      
+      if (code === 190 || msg.includes('access token')) {
+        return {
+          valid: false,
+          error: msg,
+          suggestion: 'Token invalid atau expired. Reconnect akun Instagram di Settings → Akun Sosial. Pastikan pakai Meta Graph API token (bukan Instagram Basic Display).'
+        };
+      }
+      if (code === 10 || msg.includes('permission')) {
+        return {
+          valid: false,
+          error: msg,
+          suggestion: 'Token tidak punya permission yang cukup. Gunakan token dari Meta Developer Graph API Explorer dengan permission instagram_basic + instagram_content_publish.'
+        };
+      }
+      
+      return { valid: false, error: msg };
+    }
+
+    const nonProfessional = profile.account_type && !['BUSINESS', 'CREATOR'].includes(profile.account_type);
+
+    return {
+      valid: true,
+      account_type: profile.account_type || 'UNKNOWN',
+      suggestion: nonProfessional
+        ? `Akun Instagram kamu bertipe "${profile.account_type}". Harus BUSINESS atau CREATOR (Profesional) untuk bisa publish otomatis. Buka Settings → Account Type and Tools di Instagram → Switch to Professional Account.`
+        : undefined,
+    };
+  } catch (err: unknown) {
+    return { valid: false, error: (err as Error).message };
+  }
 }
 
 export async function publishToInstagram(account: SocialAccount, job: PostJob) {

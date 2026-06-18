@@ -145,11 +145,14 @@ export default function QueuePage() {
       if (!res.ok) throw new Error(data.error);
 
       const { processed, jobs, diagnostic } = data;
-      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string; retry_count?: number; token_preview?: string; accounts?: Array<{platform: string; error: string; token_preview?: string; token_length?: number}>; skipped?: number }) => {
+      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string; retry_count?: number; token_preview?: string; accounts?: Array<{platform: string; error: string; token_preview?: string; token_length?: number; suggestion?: string; account_type?: string}>; skipped?: number }) => {
         const retryInfo = j.retry_count != null ? ` (retry #${j.retry_count})` : '';
         const errInfo = j.error ? ` — ❌ ${j.error}` : '';
         const tokenInfo = j.token_preview ? `<br>  🔑 Token: ${j.token_preview} (${j.token_preview.length > 4 ? 'decrypted OK' : 'empty/corrupt'})` : '';
-        const accountErrors = j.accounts?.map(a => `  ↳ ${a.platform}: ${a.error}${a.token_preview ? ' [token: ' + a.token_preview + ']' : ''}`).join('<br>') || '';
+        const accountErrors = j.accounts?.map(a => {
+          const errMsg = `  ↳ ${a.platform}: ${a.error}${(a as { suggestion?: string; account_type?: string }).suggestion ? '\n  💡 ' + (a as { suggestion?: string }).suggestion : ''}${(a as { token_preview?: string }).token_preview ? ' [token: ' + (a as { token_preview?: string }).token_preview + ']' : ''}`;
+          return errMsg;
+        }).join('<br>') || '';
         const skipInfo = j.skipped ? `<br>  ⏭️ ${j.skipped} akun di-skip (belum diimplementasi)` : '';
         return `<b>${j.job}</b>: ${j.status}${retryInfo}${errInfo}${tokenInfo}${accountErrors ? '<br>' + accountErrors : ''}${skipInfo}`;
       }).join('<br>') || '';
