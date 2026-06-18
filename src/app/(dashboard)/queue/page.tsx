@@ -145,8 +145,11 @@ export default function QueuePage() {
       if (!res.ok) throw new Error(data.error);
 
       const { processed, jobs, diagnostic } = data;
-      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string }) =>
-        `${j.job}: ${j.status}${j.error ? ` (${j.error})` : ''}`).join('\n') || '';
+      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string; retry_count?: number }) => {
+        const retryInfo = j.retry_count != null ? ` (retry #${j.retry_count})` : '';
+        const errInfo = j.error ? ` — ❌ ${j.error}` : '';
+        return `<b>${j.job}</b>: ${j.status}${retryInfo}${errInfo}`;
+      }).join('<br>') || '';
 
       let diagHtml = '';
       if (diagnostic) {
@@ -158,9 +161,9 @@ export default function QueuePage() {
 
       if (processed > 0) {
         Swal.fire({
-          title: 'Berhasil!',
-          html: `<b>${processed} post diproses.</b><br>${jobInfo.replace(/\n/g, '<br>')}${diagHtml}`,
-          icon: 'success',
+          title: 'Hasil Publish',
+          html: `<b>${processed} post diproses:</b><br><br>${jobInfo}${diagHtml}`,
+          icon: jobs?.some((j: { status: string }) => j.status === 'success') ? 'success' : 'warning',
           width: 700,
         });
       } else {

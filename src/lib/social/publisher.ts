@@ -209,7 +209,13 @@ export async function processQueue() {
       })
       .eq('id', job.id);
 
-    results.push({ job: job.job_code, status: finalStatus });
+    const lastAttemptLog = logs.slice().reverse().find((l: Record<string, unknown>) => l.success === false || l.error);
+    results.push({
+      job: job.job_code,
+      status: finalStatus,
+      retry_count: finalStatus === 'waiting' ? retryCount : undefined,
+      error: lastAttemptLog ? String(lastAttemptLog.error || 'Unknown error') : undefined,
+    });
   }
 
   diagnostic.processed_count = results.length;
