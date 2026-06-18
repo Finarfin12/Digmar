@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -60,7 +61,7 @@ export async function PUT(
 
     return NextResponse.json(data)
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }
 

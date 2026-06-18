@@ -3,6 +3,7 @@ import { encryptValue } from '@/lib/crypto/server';
 import { isValidExternalUrl } from '@/lib/utils/url';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -57,6 +58,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, model: data.vision_model, base_url: data.vision_base_url }, { status: 200 });
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return handleApiError(err)
   }
 }

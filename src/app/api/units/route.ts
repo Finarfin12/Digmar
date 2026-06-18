@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(data, { status: 201 })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }
 
@@ -103,6 +104,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(data, { status: 200 })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

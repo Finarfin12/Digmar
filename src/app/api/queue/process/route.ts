@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { generateJobCode } from '@/lib/utils/job-code'
 
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(request: NextRequest) {
   // Hanya proses jika diakses dengan token atau auth khusus, 
   // Untuk contoh cron job public, kita batasi dengan Auth header secret
@@ -146,6 +147,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ processed })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

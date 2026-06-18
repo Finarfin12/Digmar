@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -91,7 +92,7 @@ Tolong keluarkan JSON dengan format:
     if (error) throw error;
     return NextResponse.json(data)
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }
 

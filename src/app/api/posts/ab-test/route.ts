@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { format, addDays } from 'date-fns'
 import { generateJobCode } from '@/lib/utils/job-code'
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -165,6 +166,6 @@ KEMBALIKAN HANYA DALAM FORMAT JSON BERIKUT (tanpa awalan markdown):
 
     return NextResponse.json({ success: true, data: insertedData, ab_test_id: abTestId })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

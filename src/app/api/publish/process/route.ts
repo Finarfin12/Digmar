@@ -1,6 +1,7 @@
 import { processQueue } from '@/lib/social/publisher';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   
@@ -12,6 +13,6 @@ export async function GET(request: NextRequest) {
     const result = await processQueue();
     return NextResponse.json(result);
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    return handleApiError(err)
   }
 }

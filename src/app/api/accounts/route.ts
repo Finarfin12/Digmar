@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { encryptValue } from '@/lib/crypto/server'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -91,6 +92,6 @@ export async function POST(request: NextRequest) {
     const { access_token_encrypted, ...safeData } = data
     return NextResponse.json({ ...safeData, has_token: true }, { status: 201 })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }

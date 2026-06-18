@@ -3,6 +3,7 @@ import { encryptValue } from '@/lib/crypto/server'
 import { isValidExternalUrl } from '@/lib/utils/url'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -81,6 +82,6 @@ export async function POST(request: NextRequest) {
     const { api_key_encrypted, ...safeData } = data
     return NextResponse.json({ ...safeData, has_key: !!api_key_encrypted }, { status: 201 })
   } catch (err: unknown) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
+    return handleApiError(err)
   }
 }
