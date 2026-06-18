@@ -145,29 +145,27 @@ export async function processQueue() {
 
           if (account.platform === 'meta_ig') {
             const res = await publishToInstagram(account, platformJob);
-            logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
+            logs.push({ account_id: account.id, platform: 'instagram', time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'facebook') {
             const res = await publishToFacebook(account, platformJob);
-            logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
+            logs.push({ account_id: account.id, platform: 'facebook', time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'tiktok') {
             const res = await publishToTikTok(account, platformJob);
-            logs.push({ account_id: account.id, time: new Date().toISOString(), ...res });
+            logs.push({ account_id: account.id, platform: 'tiktok', time: new Date().toISOString(), ...res });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'threads') {
-            // Placeholder for Threads API integration
-            logs.push({ account_id: account.id, time: new Date().toISOString(), success: false, error: 'Threads API not yet fully implemented' });
-            allSuccess = false;
+            logs.push({ account_id: account.id, platform: 'threads', time: new Date().toISOString(), success: false, error: 'Threads API not yet fully implemented', skipped: true });
           } else {
-            logs.push({ account_id: accountDb.id, time: new Date().toISOString(), success: false, error: 'Platform not yet implemented' });
+            logs.push({ account_id: accountDb.id, platform: accountDb.platform, time: new Date().toISOString(), success: false, error: 'Platform not yet implemented' });
             allSuccess = false;
           }
         } catch (err: unknown) {
-          logs.push({ account_id: accountDb.id, time: new Date().toISOString(), success: false, error: (err as Error).message });
+          logs.push({ account_id: accountDb.id, platform: accountDb.platform, time: new Date().toISOString(), success: false, error: (err as Error).message });
           allSuccess = false;
         }
       }
@@ -209,12 +207,20 @@ export async function processQueue() {
       })
       .eq('id', job.id);
 
-    const lastAttemptLog = logs.slice().reverse().find((l: Record<string, unknown>) => l.success === false || l.error);
+    // Build per-account error summary
+    const perAccountErrors = logs
+      .filter((l: Record<string, unknown>) => l.platform && l.success === false && !l.skipped)
+      .map((l: Record<string, unknown>) => ({ platform: l.platform, error: l.error }));
+    const skippedAccounts = logs.filter((l: Record<string, unknown>) => l.skipped).length;
+
+    const lastAttemptLog = logs.slice().reverse().find((l: Record<string, unknown>) => l.success === false && l.error && !l.skipped);
     results.push({
       job: job.job_code,
       status: finalStatus,
       retry_count: finalStatus === 'waiting' ? retryCount : undefined,
       error: lastAttemptLog ? String(lastAttemptLog.error || 'Unknown error') : undefined,
+      accounts: perAccountErrors.length > 0 ? perAccountErrors : undefined,
+      skipped: skippedAccounts > 0 ? skippedAccounts : undefined,
     });
   }
 

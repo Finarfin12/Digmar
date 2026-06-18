@@ -145,10 +145,12 @@ export default function QueuePage() {
       if (!res.ok) throw new Error(data.error);
 
       const { processed, jobs, diagnostic } = data;
-      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string; retry_count?: number }) => {
+      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string; retry_count?: number; accounts?: Array<{platform: string; error: string}>; skipped?: number }) => {
         const retryInfo = j.retry_count != null ? ` (retry #${j.retry_count})` : '';
         const errInfo = j.error ? ` — ❌ ${j.error}` : '';
-        return `<b>${j.job}</b>: ${j.status}${retryInfo}${errInfo}`;
+        const accountErrors = j.accounts?.map(a => `  ↳ ${a.platform}: ${a.error}`).join('<br>') || '';
+        const skipInfo = j.skipped ? `<br>  ⏭️ ${j.skipped} akun di-skip (belum diimplementasi)` : '';
+        return `<b>${j.job}</b>: ${j.status}${retryInfo}${errInfo}${accountErrors ? '<br>' + accountErrors : ''}${skipInfo}`;
       }).join('<br>') || '';
 
       let diagHtml = '';
