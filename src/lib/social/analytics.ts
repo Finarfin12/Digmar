@@ -29,39 +29,58 @@ export interface TopPost {
 
 const META_API_BASE = 'https://graph.facebook.com';
 
+async function readMetaResponse(res: Response) {
+  const data = await res.json().catch(() => null);
+  if (!res.ok || data?.error) {
+    const message = data?.error?.message || `Meta API request failed: ${res.status}`;
+    throw new Error(message);
+  }
+  return data;
+}
+
 export async function fetchInstagramProfile(igUserId: string, accessToken: string): Promise<{ followers: number; posts: number; name: string; profile_pic: string }> {
-  const url = `${META_API_BASE}/${process.env.META_API_VERSION || 'v18.0'}/${igUserId}?fields=followers_count,media_count,name,profile_picture_url&access_token=${accessToken}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Meta profile fetch failed: ${res.status}`);
-  const data = await res.json();
+  const version = process.env.META_API_VERSION || 'v18.0';
+  const params = new URLSearchParams({
+    fields: 'followers_count,media_count,name,username,profile_picture_url',
+    access_token: accessToken,
+  });
+  const res = await fetch(`${META_API_BASE}/${version}/${igUserId}?${params.toString()}`);
+  const data = await readMetaResponse(res);
   return {
     followers: data.followers_count || 0,
     posts: data.media_count || 0,
-    name: data.name || 'Unknown',
+    name: data.name || data.username || 'Instagram Account',
     profile_pic: data.profile_picture_url || '',
   };
 }
 
 export async function fetchInstagramInsights(igUserId: string, accessToken: string): Promise<ChartDataPoint[]> {
   const version = process.env.META_API_VERSION || 'v18.0';
-  const url = `${META_API_BASE}/${version}/${igUserId}/insights?metric=reach,impressions&period=day&access_token=${accessToken}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
+  const params = new URLSearchParams({
+    metric: 'reach,views',
+    period: 'day',
+    access_token: accessToken,
+  });
+  const res = await fetch(`${META_API_BASE}/${version}/${igUserId}/insights?${params.toString()}`);
+  const data = await readMetaResponse(res);
 
   if (!data.data || data.data.length === 0) return [];
 
   const reachMetric = data.data.find((d: Record<string, unknown>) => d.name === 'reach');
-  const impressionsMetric = data.data.find((d: Record<string, unknown>) => d.name === 'impressions');
+  const viewsMetric = data.data.find((d: Record<string, unknown>) => d.name === 'views');
 
   const points: ChartDataPoint[] = [];
-  const values = (reachMetric?.values || impressionsMetric?.values || []) as Array<{ end_time: string; value: number }>;
-  for (const entry of values.slice(-7)) {
+  const reachValues = (reachMetric?.values || []) as Array<{ end_time: string; value: number }>;
+  const viewValues = (viewsMetric?.values || []) as Array<{ end_time: string; value: number }>;
+  const values = reachValues.length > 0 ? reachValues : viewValues;
+
+  for (const [index, entry] of values.slice(-7).entries()) {
+    const date = entry.end_time?.split('T')[0] || '';
     points.push({
-      date: entry.end_time?.split('T')[0] || '',
-      reach: reachMetric ? entry.value : Math.floor(Math.random() * 500),
-      impressions: impressionsMetric ? entry.value : Math.floor(Math.random() * 1000),
-      engagement: Math.floor(Math.random() * 100),
+      date,
+      reach: reachMetric ? entry.value : 0,
+      impressions: viewValues[index]?.value || 0,
+      engagement: 0,
     });
   }
   return points;
@@ -69,10 +88,13 @@ export async function fetchInstagramInsights(igUserId: string, accessToken: stri
 
 export async function fetchInstagramTopPosts(igUserId: string, accessToken: string, limit = 10): Promise<TopPost[]> {
   const version = process.env.META_API_VERSION || 'v18.0';
-  const url = `${META_API_BASE}/${version}/${igUserId}/media?fields=id,caption,media_url,like_count,comments_count,timestamp,permalink&limit=${limit}&access_token=${accessToken}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = await res.json();
+  const params = new URLSearchParams({
+    fields: 'id,caption,media_url,like_count,comments_count,timestamp,permalink',
+    limit: String(limit),
+    access_token: accessToken,
+  });
+  const res = await fetch(`${META_API_BASE}/${version}/${igUserId}/media?${params.toString()}`);
+  const data = await readMetaResponse(res);
 
   if (!data.data) return [];
 

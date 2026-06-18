@@ -50,10 +50,14 @@ export async function processQueue() {
     .select('*')
     .eq('status', 'waiting')
     .lte('scheduled_at', now)
-    .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
+    .or(`next_retry_at.is.null,next_retry_at.lte."${now}"`)
     .limit(5);
 
-  if (fetchError || !waitingJobs || waitingJobs.length === 0) {
+  if (fetchError) {
+    throw new Error(`Query post_queue gagal: ${fetchError.message}`);
+  }
+
+  if (!waitingJobs || waitingJobs.length === 0) {
     return { processed: 0, jobs: [] };
   }
 

@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { ListOrdered, PlusCircle, Trash2, Clock, CalendarDays, Loader2, Save, Image as ImageIcon } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { ListOrdered, PlusCircle, Trash2, Clock, CalendarDays, Loader2, Image as ImageIcon, Send, AlertCircle, CheckCircle2, Hourglass, Play } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit } from '@/types';
 
@@ -22,7 +22,37 @@ interface ContentItem {
   priority: number;
 }
 
+interface ScheduledPost {
+  id: string;
+  job_code: string;
+  target_account_ids: string[];
+  scheduled_at: string;
+  media_urls: string[];
+  caption: string;
+  first_comment?: string;
+  post_type: string;
+  status: 'waiting' | 'processing' | 'success' | 'partial' | 'failed' | string;
+  log_messages?: Array<Record<string, unknown>>;
+}
+
 const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+const statusStyles: Record<string, { label: string; className: string; icon: ReactNode }> = {
+  waiting: { label: 'Menunggu publish', className: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Hourglass size={13} /> },
+  processing: { label: 'Sedang diproses', className: 'bg-blue-50 text-blue-700 border-blue-200', icon: <Loader2 size={13} className="animate-spin" /> },
+  success: { label: 'Sudah publish', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle2 size={13} /> },
+  partial: { label: 'Sebagian berhasil', className: 'bg-orange-50 text-orange-700 border-orange-200', icon: <AlertCircle size={13} /> },
+  failed: { label: 'Gagal publish', className: 'bg-red-50 text-red-700 border-red-200', icon: <AlertCircle size={13} /> },
+};
+
+function formatSchedule(value: string) {
+  return new Date(value).toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function QueuePage() {
   const [units, setUnits] = useState<BusinessUnit[]>([]);
@@ -30,6 +60,7 @@ export default function QueuePage() {
   
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [contents, setContents] = useState<ContentItem[]>([]);
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   
   const [fetching, setFetching] = useState(true);
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -51,10 +82,18 @@ export default function QueuePage() {
     setFetching(true);
     Promise.all([
       fetch(`/api/queue/schedules?business_unit_id=${selectedUnit}`).then(r => r.json()),
-      fetch(`/api/queue?business_unit_id=${selectedUnit}`).then(r => r.json())
-    ]).then(([schedData, contData]) => {
+      fetch(`/api/queue?business_unit_id=${selectedUnit}`).then(r => r.json()),
+      fetch(`/api/posts?business_unit_id=${selectedUnit}&limit=100`).then(r => r.json())
+    ]).then(async ([schedData, contData, postData]) => {
       setSchedules(schedData);
       setContents(contData);
+      let posts = Array.isArray(postData) ? postData : [];
+      if (posts.length === 0) {
+        const fallbackRes = await fetch('/api/posts?limit=100');
+        const fallbackData = await fallbackRes.json();
+        posts = Array.isArray(fallbackData) ? fallbackData : [];
+      }
+      setScheduledPosts(posts);
       setFetching(false);
     });
   }, [selectedUnit]);
@@ -87,6 +126,47 @@ export default function QueuePage() {
     if (!confirm('Hapus konten dari antrean?')) return;
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' });
     setContents(contents.filter(c => c.id !== id));
+  };
+
+  const handlePublishNow = async (postId: string) => {
+    const result = await Swal.fire({
+      title: 'Publish sekarang?',
+      text: 'Post akan segera diproses ke akun tujuan.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, publish!',
+    });
+    if (!result.isConfirmed) return;
+
+    Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const res = await fetch(`/api/posts/${postId}/publish`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const { processed, jobs } = data;
+      const jobInfo = jobs?.map((j: { job: string; status: string }) => `${j.job}: ${j.status}`).join('\n') || '';
+
+      if (processed > 0) {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: `${processed} post diproses.\n${jobInfo}`,
+          icon: 'success',
+        });
+      } else {
+        Swal.fire({
+          title: 'Tidak ada yang diproses',
+          text: 'Post mungkin sudah diproses sebelumnya atau belum waktunya.',
+          icon: 'info',
+        });
+      }
+      // refresh
+      fetch(`/api/posts?business_unit_id=${selectedUnit}&limit=100`)
+        .then(r => r.json())
+        .then(d => setScheduledPosts(Array.isArray(d) ? d : []));
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
+    }
   };
 
   return (
@@ -151,17 +231,74 @@ export default function QueuePage() {
           {/* Kolom 2: Content Queue */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 lg:col-span-2">
             <div className="flex justify-between items-center mb-6 border-b pb-3">
-              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2"><CalendarDays className="text-indigo-500" size={20}/> Wadah Antrean Konten</h3>
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2"><Send className="text-indigo-500" size={20}/> Antrean Publish Terjadwal</h3>
               <button onClick={() => Swal.fire('Info', 'Fitur Bulk Upload sedang dibangun.', 'info')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition">
                 <PlusCircle size={16}/> Tambah ke Antrean
               </button>
             </div>
 
+            {scheduledPosts.length === 0 ? (
+              <div className="text-center py-12 px-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 mb-6">
+                <CalendarDays className="mx-auto text-slate-300 mb-3" size={44} />
+                <h4 className="font-extrabold text-slate-900 text-lg mb-1">Belum Ada Publish Terjadwal</h4>
+                <p className="text-slate-500 text-sm font-medium">Posting dari Planner akan muncul di sini selama masih menunggu, diproses, atau punya riwayat publish.</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[360px] overflow-y-auto pr-2 custom-scrollbar mb-8">
+                {scheduledPosts.map(post => {
+                  const style = statusStyles[post.status] || statusStyles.waiting;
+                  const latestLog = post.log_messages?.[post.log_messages.length - 1];
+                  const latestError = latestLog?.error ? String(latestLog.error) : '';
+                  const canRetry = post.status === 'waiting' || post.status === 'failed';
+                  return (
+                    <div key={post.id} className="border border-slate-200 rounded-2xl p-4 bg-white hover:border-indigo-200 transition">
+                      <div className="flex gap-4">
+                        <div className="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200">
+                          {post.media_urls?.[0] ? (
+                            post.media_urls[0].includes('.mp4')
+                              ? <video src={post.media_urls[0]} className="w-full h-full object-cover" />
+                              : <img src={post.media_urls[0]} alt="media" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400"><ImageIcon size={24}/></div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className="font-black text-slate-900 text-sm">{formatSchedule(post.scheduled_at)}</span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-black ${style.className}`}>
+                              {style.icon} {style.label}
+                            </span>
+                            <span className="text-[11px] font-bold text-slate-400">{post.job_code}</span>
+                          </div>
+                          <p className="text-sm text-slate-700 line-clamp-2 font-medium">{post.caption || '(Tanpa Caption)'}</p>
+                          {canRetry && (
+                            <button
+                              onClick={() => handlePublishNow(post.id)}
+                              className="mt-2 inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                            >
+                              <Play size={12} /> Publish Now
+                            </button>
+                          )}
+                          {latestError && (
+                            <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2 line-clamp-2">{latestError}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex justify-between items-center mb-6 border-b pb-3">
+              <h3 className="font-black text-slate-900 text-lg flex items-center gap-2"><CalendarDays className="text-indigo-500" size={20}/> Wadah Konten Tanpa Tanggal</h3>
+            </div>
+
             {contents.length === 0 ? (
-              <div className="text-center py-20 px-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+              <div className="text-center py-16 px-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                 <ImageIcon className="mx-auto text-slate-300 mb-3" size={48} />
-                <h4 className="font-extrabold text-slate-900 text-lg mb-1">Antrean Kosong!</h4>
-                <p className="text-slate-500 text-sm font-medium">Tambahkan postingan tanpa tanggal, sistem akan otomatis mencabutnya sesuai Jadwal Rutin yang kosong.</p>
+                <h4 className="font-extrabold text-slate-900 text-lg mb-1">Antrean Konten Kosong</h4>
+                <p className="text-slate-500 text-sm font-medium">Tambahkan postingan tanpa tanggal, sistem akan otomatis menjadwalkannya sesuai Jadwal Rutin yang kosong.</p>
               </div>
             ) : (
               <div className="grid md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">

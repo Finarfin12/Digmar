@@ -121,6 +121,16 @@ export default function Analytics() {
             </div>
           )}
 
+          {!analytics.is_mock && Array.isArray(analytics.warnings) && analytics.warnings.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl flex items-center gap-3">
+              <AlertCircle size={24} />
+              <div>
+                <p className="font-bold">Sebagian Data Meta Belum Tersedia</p>
+                <p className="text-sm">{analytics.warnings.join(' ')}</p>
+              </div>
+            </div>
+          )}
+
           {/* Profile Card & Top Metrics */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col justify-center relative overflow-hidden group">
@@ -128,7 +138,7 @@ export default function Analytics() {
                 <Sparkles size={120}/>
               </div>
               <div className="flex items-center gap-4 relative z-10 mb-4">
-                <img src={analytics.metrics.profile_pic} alt="Profile" className="w-16 h-16 rounded-full border-2 border-white/20" />
+                <img src={analytics.metrics.profile_pic || `https://ui-avatars.com/api/?name=${encodeURIComponent(analytics.metrics.name || 'IG')}&background=random`} alt="Profile" className="w-16 h-16 rounded-full border-2 border-white/20" />
                 <div>
                   <h3 className="font-black text-xl">{analytics.metrics.name}</h3>
                   <p className="text-indigo-200 text-sm">{analytics.metrics.posts} Total Posts</p>
@@ -192,6 +202,11 @@ export default function Analytics() {
               </div>
               
               <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
+                {analytics.recent_comments.length === 0 && (
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-sm font-semibold text-slate-500">
+                    Belum ada komentar terbaru dari webhook Meta.
+                  </div>
+                )}
                 {analytics.recent_comments.map((comment: { id: string, username: string, text: string, time: string }) => (
                   <div key={comment.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-colors">
                     <div className="flex justify-between items-start mb-2">

@@ -79,6 +79,35 @@ export async function GET(request: NextRequest) {
   
   const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
   const status = request.nextUrl.searchParams.get('status')
+  const businessUnitId = request.nextUrl.searchParams.get('business_unit_id')
+  let unitAccountIds: string[] | null = null
+
+  if (businessUnitId) {
+    const { data: unitData, error: unitError } = await supabase
+      .from('business_units')
+      .select('id')
+      .eq('id', businessUnitId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (unitError || !unitData) {
+      return NextResponse.json({ error: 'Business unit not found or unauthorized' }, { status: 403 })
+    }
+
+    const { data: accounts, error: accountsError } = await supabase
+      .from('social_accounts')
+      .select('id')
+      .eq('business_unit_id', businessUnitId)
+
+    if (accountsError) {
+      return NextResponse.json({ error: accountsError.message }, { status: 500 })
+    }
+
+    unitAccountIds = (accounts || []).map(account => account.id)
+    if (unitAccountIds.length === 0) {
+      return NextResponse.json([])
+    }
+  }
   
   let query = supabase
     .from('post_queue')
@@ -95,6 +124,14 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (unitAccountIds) {
+    const filteredData = (data || []).filter(post => {
+      const targetIds = Array.isArray(post.target_account_ids) ? post.target_account_ids : []
+      return targetIds.some((id: string) => unitAccountIds.includes(id))
+    })
+    return NextResponse.json(filteredData)
   }
 
   return NextResponse.json(data)
