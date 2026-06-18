@@ -3,12 +3,7 @@ import { decryptValue } from '@/lib/crypto/server';
 import { isValidExternalUrl } from '@/lib/utils/url';
 import { OpenAICompatibleClient } from './providers/base';
 import type { AIProviderClient, AIProviderConfig } from './providers/types';
-
-type VisionProviderConfig = AIProviderConfig & {
-  vision_base_url?: string;
-  vision_api_key_encrypted?: string;
-  vision_model?: string;
-};
+import type { VisionProviderConfig } from '@/types';
 
 function decryptProviderSecret(encryptedValue: string | null | undefined, label: string): string {
   if (!encryptedValue) return '';
@@ -92,36 +87,30 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
 export async function getVisionAIProvider(userId: string): Promise<{ client: AIProviderClient, config: VisionProviderConfig }> {
   const supabase = await createClient();
   
-  const { data: providers, error } = await supabase
-    .from('ai_providers')
+  const { data, error } = await supabase
+    .from('vision_ai_providers')
     .select('*')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .order('priority', { ascending: true })
-    .limit(1);
+    .limit(1)
+    .single();
 
-  if (error || !providers || providers.length === 0) {
-    throw new Error('Tidak ada AI provider aktif. Gagal memulai Vision AI.');
-  }
-
-  const primary = providers[0];
-
-  if (!primary.vision_base_url || !primary.vision_model) {
+  if (error || !data) {
     throw new Error('Kredensial Mata AI belum dikonfigurasi. Silakan ke Settings -> AI Provider-Vision.');
   }
 
-  if (!isValidExternalUrl(primary.vision_base_url)) {
-    throw new Error('Invalid or blocked vision_base_url'); // H2 Fix: SSRF prevention
+  if (!isValidExternalUrl(data.base_url)) {
+    throw new Error('Invalid or blocked vision base_url');
   }
 
-  const apiKey = decryptProviderSecret(primary.vision_api_key_encrypted, 'API key Vision AI');
+  const apiKey = decryptProviderSecret(data.api_key_encrypted, 'API key Vision AI');
 
   const client = new OpenAICompatibleClient({
     apiKey,
-    model: primary.vision_model,
-    baseURL: primary.vision_base_url,
-    timeout: 30000 // M25 Fix: Timeout
+    model: data.model || '',
+    baseURL: data.base_url,
+    timeout: 30000
   });
 
-  return { client, config: primary as VisionProviderConfig };
+  return { client, config: data as VisionProviderConfig };
 }

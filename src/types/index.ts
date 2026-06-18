@@ -38,6 +38,15 @@ export interface ImageProviderConfig {
   is_active?: boolean;
 }
 
+export interface VisionProviderConfig {
+  id?: string;
+  provider_type: string;
+  base_url: string;
+  model: string | null;
+  has_key: boolean;
+  is_active?: boolean;
+}
+
 export interface AIResult {
   pilihan_1?: { caption: string; hashtag: string };
   pilihan_2?: { caption: string; hashtag: string };
