@@ -1,0 +1,3 @@
+ALTER TABLE business_units
+ADD COLUMN IF NOT EXISTS brand_color TEXT NOT NULL DEFAULT '#4f46e5',
+ADD COLUMN IF NOT EXISTS brand_logo_url TEXT;

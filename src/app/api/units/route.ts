@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { brand_name, business_category, ai_system_prompt } = body
+    const { brand_name, business_category, ai_system_prompt, custom_variables, use_vision_ai, brand_color, brand_logo_url } = body
 
     if (!brand_name) {
       return NextResponse.json({ error: 'Brand name is required' }, { status: 400 })
@@ -46,6 +46,10 @@ export async function POST(request: NextRequest) {
           brand_name,
           business_category: business_category || '',
           ai_system_prompt: ai_system_prompt || 'Kamu adalah asisten marketing profesional...',
+          custom_variables: custom_variables || {},
+          use_vision_ai: !!use_vision_ai,
+          brand_color: brand_color || '#4f46e5',
+          brand_logo_url: brand_logo_url || null
         }
       ])
       .select()
@@ -71,7 +75,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { id, brand_name, business_category, ai_system_prompt } = body
+    const { id, brand_name, business_category, ai_system_prompt, custom_variables, use_vision_ai, brand_color, brand_logo_url } = body
 
     if (!id || !brand_name) {
       return NextResponse.json({ error: 'ID and Brand name are required' }, { status: 400 })
@@ -83,6 +87,10 @@ export async function PUT(request: NextRequest) {
         brand_name,
         business_category: business_category || '',
         ai_system_prompt: ai_system_prompt || '',
+        custom_variables: custom_variables || {},
+        use_vision_ai: !!use_vision_ai,
+        brand_color: brand_color || '#4f46e5',
+        brand_logo_url: brand_logo_url || null
       })
       .eq('id', id)
       .eq('user_id', user.id)

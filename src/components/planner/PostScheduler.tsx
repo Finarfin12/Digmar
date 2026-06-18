@@ -11,6 +11,7 @@ import type { BusinessUnit, SocialAccount } from '@/types';
 import MediaGalleryModal from './MediaGalleryModal';
 import CaptionGenerator from './CaptionGenerator';
 import LibrarySelectorModal from './LibrarySelectorModal';
+import AICanvasModal from './AICanvasModal';
 
 export default function PostScheduler({ units, accounts, initialDate, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, onSuccess: () => void }) {
   // Mode Auto-Pilot
@@ -24,6 +25,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [showCanvas, setShowCanvas] = useState(false);
   const [showLibModal, setShowLibModal] = useState<'captions' | 'hashtags' | null>(null);
 
   // Form states
@@ -256,7 +258,14 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex justify-between items-center mb-3">
             <label className="block text-sm font-bold text-slate-800 flex items-center gap-2"><ImageIcon size={16}/> Media ({mediaUrls.length}{postType === 'carousel' ? '/10' : '/1'})</label>
-            <button onClick={() => setShowGallery(true)} className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-100">Pilih dari Galeri</button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowCanvas(true)} className="text-xs font-bold bg-amber-50 text-amber-700 px-3 py-1 rounded-md hover:bg-amber-100 flex items-center gap-1 border border-amber-200">
+                <Sparkles size={12}/> AI Canvas
+              </button>
+              <button onClick={() => setShowGallery(true)} className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-100 border border-indigo-200">
+                Pilih dari Galeri
+              </button>
+            </div>
           </div>
           
           {(mediaUrls.length === 0 || postType === 'carousel') && (
@@ -453,6 +462,17 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
       {/* Modals */}
       {showGallery && <MediaGalleryModal businessUnitId={formUnit} onSelect={selectFromGallery} onClose={() => setShowGallery(false)} />}
+      
+      {showCanvas && (
+        <AICanvasModal 
+          unit={units.find(u => u.id === formUnit) || null} 
+          onClose={() => setShowCanvas(false)} 
+          onSuccess={(url) => {
+            selectFromGallery(url);
+            setShowCanvas(false);
+          }} 
+        />
+      )}
       
       {showLibModal && (
         <LibrarySelectorModal 
