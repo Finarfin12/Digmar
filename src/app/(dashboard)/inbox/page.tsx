@@ -117,12 +117,12 @@ export default function InboxPage() {
   const handleSendMessage = async () => {
     if (!replyText.trim() || !selectedConvo) return;
     
-    // Optimistic UI Update
+    const sendingText = replyText;
     const newMsg = {
       id: Math.random().toString(),
       conversation_id: selectedConvo.id,
       sender_type: 'brand',
-      content: replyText,
+      content: sendingText,
       created_at: new Date().toISOString()
     };
     
@@ -130,15 +130,26 @@ export default function InboxPage() {
     setReplyText('');
     setTimeout(() => scrollToBottom(), 100);
 
-    // TODO: Connect to actual Send API (Mock for now)
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      title: 'Pesan Terkirim',
-      icon: 'success',
-      showConfirmButton: false,
-      timer: 1500
-    });
+    try {
+      const res = await fetch('/api/inbox/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: selectedConvo.id,
+          message: sendingText,
+          sender_type: 'brand'
+        })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        Swal.fire({ toast: true, position: 'top-end', title: 'Gagal mengirim', text: data.error, icon: 'error', timer: 2000 });
+      } else {
+        Swal.fire({ toast: true, position: 'top-end', title: 'Pesan Terkirim', icon: 'success', showConfirmButton: false, timer: 1500 });
+      }
+    } catch (err: any) {
+      Swal.fire({ toast: true, position: 'top-end', title: 'Gagal mengirim', text: err.message, icon: 'error', timer: 2000 });
+    }
   };
 
   const getSentimentColor = (sentiment: string) => {

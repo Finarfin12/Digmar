@@ -172,6 +172,16 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
               logger.error('Gagal mengirim balasan ke Meta:', errData);
             } else {
               console.log(`Berhasil membalas komentar @${commenterUsername} -> ${replyText}`);
+              
+              const replyData = await postReply.json().catch(() => ({}));
+              await supabase.from('social_messages').insert({
+                conversation_id: null,
+                sender_type: 'ai_auto',
+                content: replyText,
+                platform_message_id: replyData.id || null,
+                status: 'sent',
+                sent_at: new Date().toISOString(),
+              });
             }
           }
         }
@@ -254,6 +264,16 @@ Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. J
                 logger.error('Gagal mengirim DM ke Meta:', errData);
               } else {
                 console.log(`Berhasil membalas DM ke ${senderId} -> ${replyText}`);
+                
+                const dmReplyData = await postReply.json().catch(() => ({}));
+                await supabase.from('social_messages').insert({
+                  conversation_id: null,
+                  sender_type: 'ai_auto',
+                  content: replyText,
+                  platform_message_id: dmReplyData.message_id || null,
+                  status: 'sent',
+                  sent_at: new Date().toISOString(),
+                });
               }
             }
           }

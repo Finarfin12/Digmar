@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from 'react';
-import { PlusCircle, Calendar as CalendarIcon, X, Sparkles } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, X, Sparkles, Filter, Upload } from 'lucide-react';
 import Swal from 'sweetalert2';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -8,24 +8,51 @@ import interactionPlugin from '@fullcalendar/interaction';
 import PostScheduler from '@/components/planner/PostScheduler';
 import HashtagModal from '@/components/planner/HashtagModal';
 import CampaignArchitectModal from '@/components/planner/CampaignArchitectModal';
+import BulkImportModal from '@/components/planner/BulkImportModal';
 import { Hash } from 'lucide-react';
 
 import { logger } from '@/lib/utils/logger'
+
+const platformColors: Record<string, string> = {
+  meta_ig: '#E1306C',
+  facebook: '#1877F2',
+  tiktok: '#000000',
+  threads: '#000000',
+  linkedin: '#0A66C2',
+};
+
+const statusIcons: Record<string, string> = {
+  waiting: '⏳',
+  processing: '🔄',
+  success: '✅',
+  published: '✅',
+  partial: '⚠️',
+  failed: '❌',
+};
+
+function getEventColor(status: string, platform: string): string {
+  if (status === 'failed') return '#ef4444';
+  return platformColors[platform] || '#3b82f6';
+}
+
 export default function Planner() {
   const [events, setEvents] = useState<any[]>([]);
+  const [allPosts, setAllPosts] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   
   const [showModal, setShowModal] = useState(false);
   const [showHashtagModal, setShowHashtagModal] = useState(false);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  const [filterPlatform, setFilterPlatform] = useState<string>('all');
+  const [filterUnit, setFilterUnit] = useState<string>('all');
   
   const calendarRef = useRef<FullCalendar>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     try {
@@ -40,20 +67,51 @@ export default function Planner() {
       
       if (pRes.ok) {
         const posts = await pRes.json();
-        const mappedEvents = posts.map((p: { id: string, caption: string, scheduled_at: string, status: string, job_code: string }) => ({
-          id: p.id,
-          title: p.job_code,
-          start: p.scheduled_at,
-          backgroundColor: p.status === 'published' ? '#10b981' : p.status === 'failed' ? '#ef4444' : '#3b82f6',
-          borderColor: 'transparent',
-          extendedProps: { ...p }
-        }));
-        setEvents(mappedEvents);
+        setAllPosts(posts);
+        mapEvents(posts);
       }
     } catch (err) {
       logger.error(err);
     }
   };
+
+  const getAccountPlatform = (targetAccountIds: string[]): string => {
+    if (!targetAccountIds || targetAccountIds.length === 0) return 'unknown';
+    const acc = accounts.find((a: any) => a.id === targetAccountIds[0]);
+    return acc?.platform || 'unknown';
+  };
+
+  const mapEvents = (posts: any[]) => {
+    let filtered = posts;
+    if (filterPlatform !== 'all') {
+      filtered = filtered.filter(p => getAccountPlatform(p.target_account_ids) === filterPlatform);
+    }
+    if (filterUnit !== 'all') {
+      filtered = filtered.filter(p => {
+        const acc = accounts.find((a: any) => a.id === p.target_account_ids?.[0]);
+        return acc?.business_unit_id === filterUnit;
+      });
+    }
+
+    const mappedEvents = filtered.map((p: any) => {
+      const platform = getAccountPlatform(p.target_account_ids);
+      const icon = statusIcons[p.status] || '';
+      return {
+        id: p.id,
+        title: `${icon} ${p.job_code}`,
+        start: p.scheduled_at,
+        backgroundColor: getEventColor(p.status, platform),
+        borderColor: p.status === 'waiting' ? 'rgba(255,255,255,0.4)' : 'transparent',
+        borderStyle: p.status === 'waiting' ? 'dashed' : 'solid',
+        textColor: platform === 'tiktok' || platform === 'threads' ? '#ffffff' : '#ffffff',
+        classNames: [p.status === 'processing' ? 'animate-pulse' : ''],
+        extendedProps: { ...p, platform }
+      };
+    });
+    setEvents(mappedEvents);
+  };
+
+  useEffect(() => { mapEvents(allPosts); }, [filterPlatform, filterUnit]);
 
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);
@@ -89,7 +147,10 @@ export default function Planner() {
             <p className="text-slate-600 text-sm font-medium">Klik tanggal untuk menjadwalkan, atau geser (drag) post yang sudah ada.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <button onClick={() => setShowBulkModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold text-sm">
+            <Upload size={16} /> Import CSV
+          </button>
           <button onClick={() => setShowCampaignModal(true)} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/30 transition-all font-extrabold border border-amber-400">
             <Sparkles size={18} className="text-yellow-100" /> Campaign Architect
           </button>
@@ -101,6 +162,23 @@ export default function Planner() {
           </button>
         </div>
       </header>
+
+      {/* Filter Bar */}
+      <div className="flex gap-3 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+        <Filter size={16} className="text-slate-400 ml-2" />
+        <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700">
+          <option value="all">Semua Unit</option>
+          {units.map((u: any) => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
+        </select>
+        <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700">
+          <option value="all">Semua Platform</option>
+          <option value="meta_ig">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="tiktok">TikTok</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="threads">Threads</option>
+        </select>
+      </div>
       
       <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 overflow-hidden calendar-container text-slate-900">
         <style dangerouslySetInnerHTML={{__html: `
@@ -169,6 +247,19 @@ export default function Planner() {
           }}
         />
       )}
+
+      {showBulkModal && (
+        <BulkImportModal
+          units={units}
+          accounts={accounts}
+          onClose={() => setShowBulkModal(false)}
+          onSuccess={() => {
+            fetchData();
+            setShowBulkModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
+
