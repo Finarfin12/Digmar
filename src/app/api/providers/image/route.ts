@@ -13,12 +13,10 @@ export async function GET() {
 
   try {
     const { data, error } = await supabase
-      .from('ai_providers')
-      .select('image_provider_type, image_model, image_api_key_encrypted, image_config')
+      .from('image_ai_providers')
+      .select('*')
       .eq('user_id', user.id)
       .eq('is_active', true)
-      .not('image_provider_type', 'is', null)
-      .order('priority', { ascending: true })
       .limit(1)
 
     if (error) {
@@ -27,19 +25,18 @@ export async function GET() {
 
     if (!data || data.length === 0) {
       return NextResponse.json({
-        image_provider_type: null,
-        image_model: null,
-        has_image_key: false,
-        image_config: null,
+        provider_type: null,
+        model: null,
+        has_key: false,
+        config: null,
       })
     }
 
     const provider = data[0]
+    const { api_key_encrypted, ...safe } = provider
     return NextResponse.json({
-      image_provider_type: provider.image_provider_type,
-      image_model: provider.image_model,
-      has_image_key: !!provider.image_api_key_encrypted,
-      image_config: provider.image_config,
+      ...safe,
+      has_key: !!api_key_encrypted,
     })
   } catch (err: unknown) {
     return handleApiError(err)
@@ -56,48 +53,42 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { image_provider_type, image_api_key, image_model, image_config } = body
+    const { provider_type, api_key, model, config } = body
 
-    if (!image_provider_type) {
-      return NextResponse.json({ error: 'image_provider_type wajib diisi' }, { status: 400 })
+    if (!provider_type) {
+      return NextResponse.json({ error: 'provider_type wajib diisi' }, { status: 400 })
     }
 
-    if (!['dalle', 'stability', 'leonardo'].includes(image_provider_type)) {
-      return NextResponse.json({ error: 'image_provider_type tidak valid. Pilihan: dalle, stability, leonardo' }, { status: 400 })
+    if (!['dalle', 'stability', 'leonardo'].includes(provider_type)) {
+      return NextResponse.json({ error: 'provider_type tidak valid. Pilihan: dalle, stability, leonardo' }, { status: 400 })
     }
 
-    if (!image_api_key) {
-      return NextResponse.json({ error: 'image_api_key wajib diisi' }, { status: 400 })
+    if (!api_key) {
+      return NextResponse.json({ error: 'api_key wajib diisi' }, { status: 400 })
     }
 
-    let encryptedKey: string | null = null
+    let encryptedKey: string;
     try {
-      encryptedKey = encryptValue(image_api_key)
+      encryptedKey = encryptValue(api_key)
     } catch {
       return NextResponse.json({ error: 'Gagal mengenkripsi API key. Pastikan ENCRYPTION_KEY sudah dikonfigurasi.' }, { status: 500 })
     }
 
-    const { data: existing, error: findError } = await supabase
-      .from('ai_providers')
+    const { data: existing } = await supabase
+      .from('image_ai_providers')
       .select('id')
       .eq('user_id', user.id)
-      .eq('is_active', true)
-      .not('image_provider_type', 'is', null)
-      .order('priority', { ascending: true })
       .limit(1)
-
-    if (findError) {
-      return NextResponse.json({ error: findError.message }, { status: 500 })
-    }
 
     if (existing && existing.length > 0) {
       const { error: updateError } = await supabase
-        .from('ai_providers')
+        .from('image_ai_providers')
         .update({
-          image_provider_type,
-          image_api_key_encrypted: encryptedKey,
-          image_model: image_model || null,
-          image_config: image_config || {},
+          provider_type,
+          api_key_encrypted: encryptedKey,
+          model: model || null,
+          config: config || {},
+          is_active: true,
         })
         .eq('id', existing[0].id)
 
@@ -105,59 +96,52 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: updateError.message }, { status: 500 })
       }
     } else {
-      const { data: primaryProvider, error: primaryError } = await supabase
-        .from('ai_providers')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('priority', { ascending: true })
-        .limit(1)
+      const { error: insertError } = await supabase
+        .from('image_ai_providers')
+        .insert({
+          user_id: user.id,
+          provider_type,
+          api_key_encrypted: encryptedKey,
+          model: model || null,
+          config: config || {},
+        })
 
-      if (primaryError) {
-        return NextResponse.json({ error: primaryError.message }, { status: 500 })
-      }
-
-      if (primaryProvider && primaryProvider.length > 0) {
-        const { error: updateError } = await supabase
-          .from('ai_providers')
-          .update({
-            image_provider_type,
-            image_api_key_encrypted: encryptedKey,
-            image_model: image_model || null,
-            image_config: image_config || {},
-          })
-          .eq('id', primaryProvider[0].id)
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 500 })
-        }
-      } else {
-        const { error: insertError } = await supabase
-          .from('ai_providers')
-          .insert({
-            user_id: user.id,
-            provider_name: 'groq',
-            image_provider_type,
-            image_api_key_encrypted: encryptedKey,
-            image_model: image_model || null,
-            image_config: image_config || {},
-            is_active: true,
-            priority: 1,
-          })
-
-        if (insertError) {
-          return NextResponse.json({ error: insertError.message }, { status: 500 })
-        }
+      if (insertError) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 })
       }
     }
 
     return NextResponse.json({
       success: true,
-      image_provider_type,
-      image_model: image_model || null,
-      has_image_key: true,
-      image_config: image_config || {},
+      provider_type,
+      model: model || null,
+      has_key: true,
+      config: config || {},
     })
+  } catch (err: unknown) {
+    return handleApiError(err)
+  }
+}
+
+export async function DELETE() {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { error } = await supabase
+      .from('image_ai_providers')
+      .delete()
+      .eq('user_id', user.id)
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
   } catch (err: unknown) {
     return handleApiError(err)
   }

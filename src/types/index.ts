@@ -30,10 +30,12 @@ export interface ProviderConfig {
 }
 
 export interface ImageProviderConfig {
-  image_provider_type: 'dalle' | 'stability' | 'leonardo' | null;
-  image_model: string | null;
-  has_image_key: boolean;
-  image_config: Record<string, unknown> | null;
+  id?: string;
+  provider_type: string;
+  model: string | null;
+  has_key: boolean;
+  config: Record<string, unknown> | null;
+  is_active?: boolean;
 }
 
 export interface AIResult {

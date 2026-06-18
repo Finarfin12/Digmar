@@ -18,37 +18,41 @@ export interface ImageGenerationResult {
   model: string;
 }
 
+export async function getUserImageProvider(userId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('image_ai_providers')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_active', true)
+    .limit(1)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
 export async function generateAIImage(
   userId: string,
   request: ImageGenerationRequest
 ): Promise<ImageGenerationResult> {
-  const supabase = await createClient();
+  const provider = await getUserImageProvider(userId);
 
-  const { data: providers, error } = await supabase
-    .from('ai_providers')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .not('image_provider_type', 'is', null)
-    .order('priority', { ascending: true })
-    .limit(1);
-
-  if (error || !providers || providers.length === 0) {
+  if (!provider) {
     throw new Error('Belum ada image AI provider yang dikonfigurasi. Tambahkan di Settings > AI Provider.');
   }
 
-  const provider = providers[0];
   let apiKey: string;
-
   try {
-    apiKey = decryptValue(provider.image_api_key_encrypted);
+    apiKey = decryptValue(provider.api_key_encrypted);
   } catch {
     throw new Error('Gagal mendekripsi image API key. Simpan ulang kredensial di Settings.');
   }
 
-  const model = provider.image_model || getDefaultModel(provider.image_provider_type);
+  const model = provider.model || getDefaultModel(provider.provider_type);
 
-  switch (provider.image_provider_type) {
+  switch (provider.provider_type) {
     case 'dalle':
       return generateDalleImage(apiKey, model, request);
     case 'stability':
@@ -56,7 +60,7 @@ export async function generateAIImage(
     case 'leonardo':
       return generateLeonardoImage(apiKey, model, request);
     default:
-      throw new Error(`Provider image tidak didukung: ${provider.image_provider_type}`);
+      throw new Error(`Provider image tidak didukung: ${provider.provider_type}`);
   }
 }
 
