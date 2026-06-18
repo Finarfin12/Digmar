@@ -83,23 +83,43 @@ export async function processQueue() {
     }
   }
 
-  // 4. Fetch jobs that are due
-  const { data: waitingJobs, error: fetchError } = await supabase
+  // 4. Fetch jobs that are due — split into two queries to avoid PostgREST .or() parsing issues
+  const { data: jobsNullRetry, error: nullErr } = await supabase
     .from('post_queue')
     .select('*')
     .eq('status', 'waiting')
     .lte('scheduled_at', now)
-    .or(`next_retry_at.is.null,next_retry_at.lte."${now}"`)
+    .is('next_retry_at', null)
     .limit(5);
 
-  if (fetchError) {
-    diagnostic.query_error = fetchError.message;
-    throw new Error(`Query post_queue gagal: ${fetchError.message}`);
+  if (nullErr) {
+    diagnostic.query_error = nullErr.message;
+    throw new Error(`Query post_queue (null retry) gagal: ${nullErr.message}`);
   }
 
-  if (!waitingJobs || waitingJobs.length === 0) {
+  const { data: jobsDueRetry, error: dueErr } = await supabase
+    .from('post_queue')
+    .select('*')
+    .eq('status', 'waiting')
+    .lte('scheduled_at', now)
+    .lte('next_retry_at', now)
+    .limit(5);
+
+  if (dueErr) {
+    diagnostic.query_error = dueErr.message;
+    throw new Error(`Query post_queue (due retry) gagal: ${dueErr.message}`);
+  }
+
+  const seen = new Set<string>();
+  const waitingJobs = [...(jobsNullRetry || []), ...(jobsDueRetry || [])]
+    .filter(j => { if (seen.has(j.id)) return false; seen.add(j.id); return true; })
+    .slice(0, 5);
+
+  if (waitingJobs.length === 0) {
     return { processed: 0, jobs: [], diagnostic };
   }
+
+  const fetchError = null; // placeholder — already handled above
 
   const results = [];
 
@@ -135,31 +155,38 @@ export async function processQueue() {
 
           const platformJob: PostJob = { ...job, caption: platformCaption };
 
+          const decryptedToken = decryptValue(accountDb.access_token_encrypted);
           const account: SocialAccount = {
             id: accountDb.id,
             business_unit_id: accountDb.business_unit_id,
             platform: accountDb.platform,
             ig_user_id: accountDb.ig_user_id,
-            access_token: decryptValue(accountDb.access_token_encrypted)
+            access_token: decryptedToken
           };
+
+          // Token diagnostic: show masked preview
+          const tokenPreview = decryptedToken
+            ? decryptedToken.substring(0, 8) + '...' + decryptedToken.substring(decryptedToken.length - 4)
+            : '(empty)';
+          const accountTag = { token_preview: tokenPreview, token_length: decryptedToken?.length || 0 };
 
           if (account.platform === 'meta_ig') {
             const res = await publishToInstagram(account, platformJob);
-            logs.push({ account_id: account.id, platform: 'instagram', time: new Date().toISOString(), ...res });
+            logs.push({ account_id: account.id, platform: 'instagram', time: new Date().toISOString(), ...res, ...accountTag });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'facebook') {
             const res = await publishToFacebook(account, platformJob);
-            logs.push({ account_id: account.id, platform: 'facebook', time: new Date().toISOString(), ...res });
+            logs.push({ account_id: account.id, platform: 'facebook', time: new Date().toISOString(), ...res, ...accountTag });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'tiktok') {
             const res = await publishToTikTok(account, platformJob);
-            logs.push({ account_id: account.id, platform: 'tiktok', time: new Date().toISOString(), ...res });
+            logs.push({ account_id: account.id, platform: 'tiktok', time: new Date().toISOString(), ...res, ...accountTag });
             if (res.success) anySuccess = true;
             else allSuccess = false;
           } else if (account.platform === 'threads') {
-            logs.push({ account_id: account.id, platform: 'threads', time: new Date().toISOString(), success: false, error: 'Threads API not yet fully implemented', skipped: true });
+            logs.push({ account_id: account.id, platform: 'threads', time: new Date().toISOString(), success: false, error: 'Threads API not yet fully implemented', skipped: true, ...accountTag });
           } else {
             logs.push({ account_id: accountDb.id, platform: accountDb.platform, time: new Date().toISOString(), success: false, error: 'Platform not yet implemented' });
             allSuccess = false;
@@ -210,7 +237,12 @@ export async function processQueue() {
     // Build per-account error summary
     const perAccountErrors = logs
       .filter((l: Record<string, unknown>) => l.platform && l.success === false && !l.skipped)
-      .map((l: Record<string, unknown>) => ({ platform: l.platform, error: l.error }));
+      .map((l: Record<string, unknown>) => ({
+        platform: l.platform,
+        error: l.error,
+        token_preview: l.token_preview,
+        token_length: l.token_length,
+      }));
     const skippedAccounts = logs.filter((l: Record<string, unknown>) => l.skipped).length;
 
     const lastAttemptLog = logs.slice().reverse().find((l: Record<string, unknown>) => l.success === false && l.error && !l.skipped);
@@ -219,6 +251,7 @@ export async function processQueue() {
       status: finalStatus,
       retry_count: finalStatus === 'waiting' ? retryCount : undefined,
       error: lastAttemptLog ? String(lastAttemptLog.error || 'Unknown error') : undefined,
+      token_preview: lastAttemptLog?.token_preview,
       accounts: perAccountErrors.length > 0 ? perAccountErrors : undefined,
       skipped: skippedAccounts > 0 ? skippedAccounts : undefined,
     });
