@@ -8,14 +8,52 @@ import type { PostJob, SocialAccount } from './types';
 export async function processQueue() {
   const supabase = createServiceClient();
   const now = new Date().toISOString();
+  const nowDate = new Date();
   const staleProcessingCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
+  const diagnostic: Record<string, unknown> = {
+    server_time: now,
+    service_key_configured: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+
+  // 1. Check total waiting jobs (regardless of scheduled_at)
+  const { count: totalWaiting, error: countError } = await supabase
+    .from('post_queue')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'waiting');
+
+  diagnostic.total_waiting_jobs = countError ? `count error: ${countError.message}` : (totalWaiting || 0);
+
+  // 2. Check all jobs with their scheduled times for debugging
+  const { data: allPending, error: allErr } = await supabase
+    .from('post_queue')
+    .select('id, job_code, scheduled_at, status, retry_count, next_retry_at')
+    .in('status', ['waiting', 'failed', 'processing'])
+    .order('scheduled_at', { ascending: true })
+    .limit(20);
+
+  if (allPending && allPending.length > 0) {
+    diagnostic.pending_jobs = allPending.map(j => ({
+      job_code: j.job_code,
+      status: j.status,
+      scheduled_at: j.scheduled_at,
+      is_due: new Date(j.scheduled_at) <= nowDate,
+      retry_count: j.retry_count,
+      next_retry_at: j.next_retry_at,
+    }));
+  } else {
+    diagnostic.pending_jobs = allErr ? `query error: ${allErr.message}` : [];
+  }
+
+  // 3. Recover stale processing jobs
   const { data: staleProcessingJobs } = await supabase
     .from('post_queue')
     .select('id, retry_count, log_messages')
     .eq('status', 'processing')
     .lt('updated_at', staleProcessingCutoff)
     .limit(10);
+
+  diagnostic.stale_processing_count = staleProcessingJobs?.length || 0;
 
   if (staleProcessingJobs && staleProcessingJobs.length > 0) {
     for (const staleJob of staleProcessingJobs) {
@@ -45,6 +83,7 @@ export async function processQueue() {
     }
   }
 
+  // 4. Fetch jobs that are due
   const { data: waitingJobs, error: fetchError } = await supabase
     .from('post_queue')
     .select('*')
@@ -54,11 +93,12 @@ export async function processQueue() {
     .limit(5);
 
   if (fetchError) {
+    diagnostic.query_error = fetchError.message;
     throw new Error(`Query post_queue gagal: ${fetchError.message}`);
   }
 
   if (!waitingJobs || waitingJobs.length === 0) {
-    return { processed: 0, jobs: [] };
+    return { processed: 0, jobs: [], diagnostic };
   }
 
   const results = [];
@@ -172,5 +212,6 @@ export async function processQueue() {
     results.push({ job: job.job_code, status: finalStatus });
   }
 
-  return { processed: results.length, jobs: results };
+  diagnostic.processed_count = results.length;
+  return { processed: results.length, jobs: results, diagnostic };
 }

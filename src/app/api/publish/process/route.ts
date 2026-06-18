@@ -11,7 +11,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await processQueue();
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      message: result.processed === 0 
+        ? 'Tidak ada job yang perlu diproses. Cek diagnostic.pending_jobs untuk detail.'
+        : `${result.processed} job diproses.`
+    });
   } catch (err: unknown) {
     return handleApiError(err)
   }

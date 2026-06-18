@@ -144,20 +144,31 @@ export default function QueuePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      const { processed, jobs } = data;
-      const jobInfo = jobs?.map((j: { job: string; status: string }) => `${j.job}: ${j.status}`).join('\n') || '';
+      const { processed, jobs, diagnostic } = data;
+      const jobInfo = jobs?.map((j: { job: string; status: string; error?: string }) =>
+        `${j.job}: ${j.status}${j.error ? ` (${j.error})` : ''}`).join('\n') || '';
+
+      let diagHtml = '';
+      if (diagnostic) {
+        diagHtml = `<br><br><b>🔍 Diagnostic:</b><br>
+          Server time: ${diagnostic.server_time}<br>
+          Total waiting: ${diagnostic.total_waiting_jobs}<br>
+          Total pending: ${(diagnostic.pending_jobs as unknown[])?.length || 0}`;
+      }
 
       if (processed > 0) {
         Swal.fire({
           title: 'Berhasil!',
-          text: `${processed} post diproses.\n${jobInfo}`,
+          html: `<b>${processed} post diproses.</b><br>${jobInfo.replace(/\n/g, '<br>')}${diagHtml}`,
           icon: 'success',
+          width: 700,
         });
       } else {
         Swal.fire({
           title: 'Tidak ada yang diproses',
-          text: 'Post mungkin sudah diproses sebelumnya atau belum waktunya.',
+          html: `Post mungkin sudah diproses sebelumnya atau belum waktunya.${diagHtml}`,
           icon: 'info',
+          width: 700,
         });
       }
       // refresh
