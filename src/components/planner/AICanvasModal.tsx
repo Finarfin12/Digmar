@@ -13,6 +13,7 @@ interface AICanvasModalProps {
 export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModalProps) {
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
+  const [templateId, setTemplateId] = useState<'centered' | 'split' | 'minimal'>('centered');
   const [generating, setGenerating] = useState(false);
 
   // Jika unit tidak ditemukan, pakai default
@@ -41,7 +42,8 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
           title,
           subtitle,
           brand_color: brandColor,
-          logo_url: unit.brand_logo_url
+          logo_url: unit.brand_logo_url,
+          template_id: templateId
         })
       });
 
@@ -75,20 +77,69 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
 
         {/* Preview */}
         <div className="p-6 bg-slate-50 flex justify-center border-b">
-          <div 
-            className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-center p-4"
-            style={{ backgroundColor: brandColor }}
-          >
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, white 2px, transparent 2px)', backgroundSize: '10px 10px' }} />
-            <div className="relative z-10 text-white flex flex-col gap-2">
-              <div className="font-black text-lg leading-tight line-clamp-3">{title || 'Judul Utama Promo'}</div>
-              <div className="font-medium text-[10px] text-white/80 line-clamp-2">{subtitle || 'Sub-judul opsional untuk detail ekstra.'}</div>
+          {templateId === 'centered' && (
+            <div 
+              className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-center p-4 transition-all"
+              style={{ backgroundColor: brandColor }}
+            >
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, white 2px, transparent 2px)', backgroundSize: '10px 10px' }} />
+              <div className="relative z-10 text-white flex flex-col gap-2">
+                <div className="font-black text-lg leading-tight line-clamp-3">{title || 'Judul Utama Promo'}</div>
+                <div className="font-medium text-[10px] text-white/80 line-clamp-2">{subtitle || 'Sub-judul opsional untuk detail ekstra.'}</div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {templateId === 'split' && (
+            <div className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex transition-all bg-white border border-slate-200">
+              <div className="w-2/5 h-full relative flex items-center justify-center" style={{ backgroundColor: brandColor }}>
+                <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, white 1px, transparent 1px)', backgroundSize: '6px 6px' }} />
+              </div>
+              <div className="w-3/5 h-full p-3 flex flex-col justify-center">
+                <div className="font-black text-[14px] text-slate-800 leading-tight line-clamp-3 mb-1">{title || 'Judul Utama Promo'}</div>
+                <div className="font-medium text-[8px] text-slate-500 line-clamp-2" style={{ borderLeft: `2px solid ${brandColor}`, paddingLeft: '4px' }}>
+                  {subtitle || 'Sub-judul opsional.'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {templateId === 'minimal' && (
+            <div className="w-48 h-48 rounded-2xl shadow-inner relative overflow-hidden flex flex-col justify-end p-4 transition-all bg-slate-50" style={{ border: `4px solid ${brandColor}` }}>
+              <div className="font-black text-xl leading-tight line-clamp-2 uppercase" style={{ color: brandColor }}>{title || 'JUDUL PROMO'}</div>
+              <div className="font-bold text-[10px] text-slate-700 line-clamp-2 mt-1">{subtitle || 'Sub-judul opsional untuk detail ekstra.'}</div>
+            </div>
+          )}
         </div>
 
         {/* Body */}
         <form onSubmit={handleGenerate} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-800 mb-2">Pilih Template</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button 
+                type="button" 
+                onClick={() => setTemplateId('centered')}
+                className={`p-2 rounded-xl text-xs font-bold border-2 transition-colors ${templateId === 'centered' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                Centered
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setTemplateId('split')}
+                className={`p-2 rounded-xl text-xs font-bold border-2 transition-colors ${templateId === 'split' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                Split Content
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setTemplateId('minimal')}
+                className={`p-2 rounded-xl text-xs font-bold border-2 transition-colors ${templateId === 'minimal' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              >
+                Minimalist
+              </button>
+            </div>
+          </div>
           <div>
             <label className="block text-sm font-bold text-slate-800 mb-2">Copywriting Utama (Maks 10 kata)</label>
             <textarea 
