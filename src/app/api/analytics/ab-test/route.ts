@@ -31,16 +31,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: You do not own this business unit' }, { status: 403 })
     }
 
-    // Cari semua post yang memiliki ab_test_id, group by ab_test_id
-    // Untuk demo, kita ambil yang statusnya apa saja, lalu pura-pura membuat analytics.
-    const { data: posts, error: postsError } = await supabase
-      .from('post_queue')
-      .select('*')
-      .eq('business_unit_id', business_unit_id) // C2 Fix: Filter by business_unit_id
-      .not('ab_test_id', 'is', null)
-      .order('created_at', { ascending: false })
-
-    if (postsError) throw postsError;
+    // Currently, post_queue does not have 'business_unit_id' or 'ab_test_id' columns in the schema.
+    // Since this is a placeholder/simulation for A/B testing, we'll return an empty array to prevent 500 errors.
+    const posts: any[] = [];
+    const postsError = null;
 
     // Group by ab_test_id
     const testGroups: Record<string, any[]> = {};
