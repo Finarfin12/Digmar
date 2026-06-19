@@ -662,7 +662,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
                   </button>
                 </div>
                 <input type="datetime-local" value={scheduledDate ? format(scheduledDate as Date, "yyyy-MM-dd'T'HH:mm") : ''} onChange={e => setScheduledDate(new Date(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white text-slate-900 font-medium" />
-                <button onClick={handleSaveManual} disabled={saving} className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white p-4 rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-70 text-lg">
+                <button onClick={() => handleSaveDraftOrSchedule(false)} disabled={saving} className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white p-4 rounded-xl font-extrabold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all disabled:opacity-70 text-lg">
                   {saving ? <Loader2 className="animate-spin" size={24}/> : <Save size={24}/>}
                   {saving ? 'Menyimpan...' : `Simpan ke ${selectedAccounts.length} Akun`}
                 </button>
