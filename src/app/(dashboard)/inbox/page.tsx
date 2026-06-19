@@ -86,6 +86,7 @@ export default function InboxPage() {
       }
 
       let totalSynced = 0;
+      let lastError = '';
       for (const account of accounts) {
         const res = await fetch('/api/inbox/backfill', {
           method: 'POST',
@@ -93,7 +94,11 @@ export default function InboxPage() {
           body: JSON.stringify({ account_id: account.id }),
         });
         const data = await res.json();
-        if (data.success) totalSynced += data.messages_synced || 0;
+        if (data.success) {
+          totalSynced += data.messages_synced || 0;
+        } else {
+          lastError = data.error || data.info || 'Unknown error';
+        }
       }
 
       // Refresh
@@ -101,12 +106,21 @@ export default function InboxPage() {
       const convData = await convRes.json();
       if (convData.success) setConversations(convData.data || []);
 
-      Swal.fire({
-        title: 'Selesai!',
-        text: `Berhasil sinkron ${totalSynced} pesan baru dari Instagram.`,
-        icon: 'success',
-        timer: 3000,
-      });
+      if (lastError) {
+        Swal.fire({
+          title: 'Sync Gagal',
+          text: lastError,
+          icon: 'error',
+          footer: 'Cek permission di Facebook Developer: pages_manage_metadata + pages_messaging harus Active',
+        });
+      } else {
+        Swal.fire({
+          title: 'Selesai!',
+          text: `Berhasil sinkron ${totalSynced} pesan baru dari Instagram.`,
+          icon: 'success',
+          timer: 3000,
+        });
+      }
     } catch (err: unknown) {
       Swal.fire('Error', (err as Error).message, 'error');
     }
