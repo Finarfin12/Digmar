@@ -150,6 +150,7 @@ export function getMockChartData(): ChartDataPoint[] {
 const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
 
 export async function fetchThreadsProfile(userId: string, accessToken: string): Promise<{ followers: number; posts: number; name: string; profile_pic: string }> {
+  // 1. Get basic profile
   const params = new URLSearchParams({
     fields: 'id,username,name,threads_profile_picture_url',
     access_token: accessToken,
@@ -157,9 +158,34 @@ export async function fetchThreadsProfile(userId: string, accessToken: string): 
   const res = await fetch(`${THREADS_API_BASE}/${userId}?${params.toString()}`);
   const data = await readMetaResponse(res);
   
+  let followers = 0;
+  let posts = 0;
+
+  // 2. Get Follower count via insights (requires threads_manage_insights)
+  try {
+    const followersRes = await fetch(`${THREADS_API_BASE}/${userId}/threads_insights?metric=followers_count&access_token=${accessToken}`);
+    if (followersRes.ok) {
+      const followersData = await followersRes.json();
+      const vals = followersData.data?.find((d: any) => d.name === 'followers_count')?.values;
+      // Get the latest day's follower count
+      if (vals && vals.length > 0) {
+        followers = vals[vals.length - 1].value || 0;
+      }
+    }
+  } catch (e) {}
+
+  // 3. Get total posts count (approximation by fetching recent threads)
+  try {
+    const postsRes = await fetch(`${THREADS_API_BASE}/${userId}/threads?access_token=${accessToken}`);
+    if (postsRes.ok) {
+      const postsData = await postsRes.json();
+      posts = postsData.data?.length || 0; // returns up to 25 items by default, accurate for new accounts
+    }
+  } catch (e) {}
+
   return {
-    followers: 0, // Memerlukan endpoint khusus profile_lookup yang mungkin belum disupport token
-    posts: 0,
+    followers,
+    posts,
     name: data.name || data.username || 'Threads Account',
     profile_pic: data.threads_profile_picture_url || '',
   };
