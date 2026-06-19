@@ -106,11 +106,53 @@ export async function POST(request: NextRequest) {
               .from('social_accounts')
               .select('*, business_units(user_id, ai_system_prompt)')
               .eq('ig_user_id', igUserId)
-              .eq('auto_reply_enabled', true)
               .single()
 
             if (!account || !account.business_units) {
-              console.log(`Auto-reply disabled or account not found for IG: ${igUserId}`);
+              console.log(`Account not found for IG: ${igUserId}`);
+              continue;
+            }
+
+            // SIMPAN PERCAKAPAN & PESAN MASUK
+            const customerId = commentVal.from?.id || commenterUsername || 'unknown';
+            let conversationId;
+            const { data: existingConv } = await supabase
+              .from('social_conversations')
+              .select('id')
+              .eq('account_id', account.id)
+              .eq('type', 'comment')
+              .eq('customer_id', customerId)
+              .single();
+
+            if (existingConv) {
+              conversationId = existingConv.id;
+              await supabase.from('social_conversations')
+                .update({ latest_message: commentText, latest_message_at: new Date().toISOString() })
+                .eq('id', conversationId);
+            } else {
+              const { data: newConv } = await supabase.from('social_conversations').insert({
+                business_unit_id: account.business_unit_id,
+                account_id: account.id,
+                platform: account.platform,
+                type: 'comment',
+                customer_id: customerId,
+                customer_name: commenterUsername || 'User',
+                latest_message: commentText,
+              }).select('id').single();
+              conversationId = newConv?.id;
+            }
+
+            if (conversationId) {
+              await supabase.from('social_messages').insert({
+                conversation_id: conversationId,
+                sender_type: 'customer',
+                content: commentText,
+                platform_message_id: commentId
+              });
+            }
+
+            // LANJUT KE AUTO-REPLY JIKA AKTIF
+            if (!account.auto_reply_enabled) {
               continue;
             }
 
@@ -175,7 +217,7 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
               
               const replyData = await postReply.json().catch(() => ({}));
               await supabase.from('social_messages').insert({
-                conversation_id: null,
+                conversation_id: conversationId,
                 sender_type: 'ai_auto',
                 content: replyText,
                 platform_message_id: replyData.id || null,
@@ -201,10 +243,52 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
                 .from('social_accounts')
                 .select('*, business_units(user_id, ai_system_prompt)')
                 .eq('ig_user_id', recipientId)
-                .eq('auto_reply_enabled', true)
                 .single()
 
               if (!account || !account.business_units) continue;
+
+              // SIMPAN PERCAKAPAN & PESAN MASUK DM
+              const customerId = senderId;
+              let conversationId;
+              const { data: existingConv } = await supabase
+                .from('social_conversations')
+                .select('id')
+                .eq('account_id', account.id)
+                .eq('type', 'dm')
+                .eq('customer_id', customerId)
+                .single();
+
+              if (existingConv) {
+                conversationId = existingConv.id;
+                await supabase.from('social_conversations')
+                  .update({ latest_message: messageText, latest_message_at: new Date().toISOString() })
+                  .eq('id', conversationId);
+              } else {
+                const { data: newConv } = await supabase.from('social_conversations').insert({
+                  business_unit_id: account.business_unit_id,
+                  account_id: account.id,
+                  platform: account.platform,
+                  type: 'dm',
+                  customer_id: customerId,
+                  customer_name: `IG User ${customerId}`,
+                  latest_message: messageText,
+                }).select('id').single();
+                conversationId = newConv?.id;
+              }
+
+              if (conversationId) {
+                await supabase.from('social_messages').insert({
+                  conversation_id: conversationId,
+                  sender_type: 'customer',
+                  content: messageText,
+                  platform_message_id: msgEvent.message.mid || null
+                });
+              }
+
+              // LANJUT KE AUTO-REPLY JIKA AKTIF
+              if (!account.auto_reply_enabled) {
+                continue;
+              }
 
               const userId = account.business_units.user_id;
               const businessUnitId = account.business_unit_id;
@@ -267,7 +351,7 @@ Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. J
                 
                 const dmReplyData = await postReply.json().catch(() => ({}));
                 await supabase.from('social_messages').insert({
-                  conversation_id: null,
+                  conversation_id: conversationId,
                   sender_type: 'ai_auto',
                   content: replyText,
                   platform_message_id: dmReplyData.message_id || null,
