@@ -126,8 +126,17 @@ export async function POST(request: NextRequest) {
 
             if (existingConv) {
               conversationId = existingConv.id;
+              const { data: curConv } = await supabase
+                .from('social_conversations')
+                .select('unread_count')
+                .eq('id', conversationId)
+                .single();
               await supabase.from('social_conversations')
-                .update({ latest_message: commentText, latest_message_at: new Date().toISOString() })
+                .update({
+                  latest_message: commentText,
+                  latest_message_at: new Date().toISOString(),
+                  unread_count: (curConv?.unread_count || 0) + 1,
+                })
                 .eq('id', conversationId);
             } else {
               const { data: newConv, error: convErr } = await supabase.from('social_conversations').insert({
@@ -138,6 +147,7 @@ export async function POST(request: NextRequest) {
                 customer_id: customerId,
                 customer_name: commenterUsername || 'User',
                 latest_message: commentText,
+                unread_count: 1,
               }).select('id').single();
               if (convErr) console.error('Supabase insert conv error:', convErr);
               conversationId = newConv?.id;
@@ -230,7 +240,151 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
           }
         }
 
-        // Penanganan Direct Message (DM)
+        // Penanganan Direct Message (DM) — format modern Instagram API
+        // Instagram DM webhook modern mengirim events via changes[].field === 'messages'
+        const messagesChanges = entry.changes?.filter((c: { field: string }) => c.field === 'messages') || [];
+        for (const change of messagesChanges) {
+          const msgVal = change.value;
+          if (!msgVal || !msgVal.messages) continue;
+
+          for (const msg of msgVal.messages) {
+            const senderId = msg.from?.id;
+            const recipientId = msgVal.id; // Instagram Business Account ID yang menerima
+            const messageText = msg.text || '';
+            const messageId = msg.id;
+            const hasMedia = msg.attachments?.length > 0;
+
+            if (!senderId || senderId === recipientId) continue;
+
+            const supabase = createServiceClient();
+            const { data: account } = await supabase
+              .from('social_accounts')
+              .select('*, business_units(user_id, ai_system_prompt)')
+              .eq('ig_user_id', recipientId)
+              .single();
+
+            if (!account || !account.business_units) continue;
+
+            // Fetch real customer name dari Instagram API
+            let displayName = `IG User ${senderId}`;
+            try {
+              const token = decryptValue(account.access_token_encrypted);
+              const userRes = await fetch(
+                `https://graph.facebook.com/v25.0/${senderId}?fields=id,username,name&access_token=${token}`,
+                { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
+              );
+              const userData = await userRes.json();
+              if (!userData.error) {
+                displayName = userData.name || userData.username || displayName;
+              }
+            } catch { /* fallback ke placeholder */ }
+
+            // Cari atau buat conversation
+            let conversationId;
+            const { data: existingConv } = await supabase
+              .from('social_conversations')
+              .select('id')
+              .eq('account_id', account.id)
+              .eq('type', 'dm')
+              .eq('customer_id', senderId)
+              .single();
+
+            const content = hasMedia ? `${messageText || '(Media dikirim)'}` : messageText;
+
+            if (existingConv) {
+              conversationId = existingConv.id;
+              const { data: curConv } = await supabase
+                .from('social_conversations')
+                .select('unread_count')
+                .eq('id', conversationId)
+                .single();
+              await supabase.from('social_conversations')
+                .update({
+                  latest_message: content,
+                  latest_message_at: new Date().toISOString(),
+                  unread_count: (curConv?.unread_count || 0) + 1,
+                })
+                .eq('id', conversationId);
+            } else {
+              const { data: newConv, error: convErr } = await supabase.from('social_conversations').insert({
+                business_unit_id: account.business_unit_id,
+                account_id: account.id,
+                platform: account.platform,
+                type: 'dm',
+                customer_id: senderId,
+                customer_name: displayName,
+                customer_avatar_url: '',
+                latest_message: content,
+                unread_count: 1,
+              }).select('id').single();
+              if (convErr) logger.error('Supabase insert conv DM error:', convErr);
+              conversationId = newConv?.id;
+            }
+
+            if (conversationId) {
+              await supabase.from('social_messages').insert({
+                conversation_id: conversationId,
+                sender_type: 'customer',
+                content,
+                platform_message_id: messageId || null,
+              });
+            }
+
+            // Auto-reply jika aktif
+            if (!account.auto_reply_enabled || !conversationId) continue;
+
+            const userId = account.business_units.user_id;
+            const businessUnitId = account.business_unit_id;
+            const systemPrompt = account.business_units.ai_system_prompt || 'Anda adalah asisten CS.';
+
+            const ruleEval = await evaluateChatbotRules(supabase, businessUnitId, messageText);
+
+            if (ruleEval.action === 'handoff') continue;
+
+            let replyText = '';
+            if (ruleEval.action === 'reply' && ruleEval.replyText) {
+              replyText = ruleEval.replyText;
+            } else {
+              const { client } = await getAIProvider(userId);
+              const ruleInject = ruleEval.ruleContext ? `\nINSTRUKSI KHUSUS DARI RULE: ${ruleEval.ruleContext}\n` : '';
+              const aiPrompt = `
+Konteks Bisnis: ${systemPrompt}${ruleInject}
+
+Pelanggan (${displayName}) mengirim DM: "${messageText}"
+Balas dengan natural dan ramah. Maksimal 3 kalimat.`;
+              const aiResponse = await client.generateText(
+                "Anda adalah Customer Service yang ramah.",
+                aiPrompt,
+                { temperature: 0.7, maxTokens: 200 }
+              );
+              replyText = aiResponse.content.trim().replace(/"/g, '');
+            }
+
+            try {
+              const token = decryptValue(account.access_token_encrypted);
+              const postReply = await fetch(`https://graph.facebook.com/v18.0/me/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ recipient: { id: senderId }, message: { text: replyText } })
+              });
+              if (postReply.ok) {
+                const dmReplyData = await postReply.json().catch(() => ({}));
+                await supabase.from('social_messages').insert({
+                  conversation_id: conversationId,
+                  sender_type: 'ai_auto',
+                  content: replyText,
+                  platform_message_id: dmReplyData.message_id || null,
+                  status: 'sent',
+                  sent_at: new Date().toISOString(),
+                });
+              }
+            } catch (err) {
+              logger.error('Failed to send DM reply:', err);
+            }
+          }
+        }
+
+        // Legacy DM format (Facebook Messenger PSID-based)
         if (entry.messaging) {
           for (const msgEvent of entry.messaging) {
             if (msgEvent.message && msgEvent.message.text) {

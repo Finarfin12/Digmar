@@ -30,22 +30,27 @@ export default function InboxPage() {
       .catch(err => logger.error(err));
   }, []);
 
-  // Fetch Conversations when Unit changes
+  // Fetch Conversations when Unit changes — with polling
   useEffect(() => {
     if (!selectedUnit) return;
-    setLoadingConvos(true);
-    fetch(`/api/inbox?business_unit_id=${selectedUnit}`)
-      .then(res => res.json())
-      .then(data => {
+
+    const fetchConvos = async () => {
+      try {
+        const res = await fetch(`/api/inbox?business_unit_id=${selectedUnit}`);
+        const data = await res.json();
         if (data.success) {
           setConversations(data.data || []);
         }
         setLoadingConvos(false);
-      })
-      .catch(err => {
+      } catch (err) {
         logger.error(err);
         setLoadingConvos(false);
-      });
+      }
+    };
+
+    fetchConvos();
+    const interval = setInterval(fetchConvos, 30000);
+    return () => clearInterval(interval);
   }, [selectedUnit]);
 
   // Fetch Messages when Conversation selected
