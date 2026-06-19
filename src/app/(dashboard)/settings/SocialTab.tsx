@@ -52,7 +52,8 @@ export default function SocialTab() {
     // Mencegah duplikasi: 1 Platform per Unit Bisnis
     const existingAccount = accounts.find(a => a.business_unit_id === unit && a.platform === platform);
     if (existingAccount) {
-      return Swal.fire('Batas Akun', `Unit Bisnis ini sudah memiliki akun ${platform === 'meta_ig' ? 'Instagram' : platform === 'facebook' ? 'Facebook' : 'Threads'} terhubung. Maksimal 1 akun per platform untuk setiap unit. Hapus akun lama jika ingin menggantinya.`, 'warning');
+      const platformName = platform === 'meta_ig' ? 'Instagram' : platform === 'facebook' ? 'Facebook' : platform === 'tiktok' ? 'TikTok' : 'Threads';
+      return Swal.fire('Batas Akun', `Unit Bisnis ini sudah memiliki akun ${platformName} terhubung. Maksimal 1 akun per platform untuk setiap unit. Hapus akun lama jika ingin menggantinya.`, 'warning');
     }
 
     setLoading(true);
