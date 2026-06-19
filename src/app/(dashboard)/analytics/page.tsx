@@ -260,6 +260,7 @@ export default function Analytics() {
               </div>
             </div>
           </div>
+          </div>
         </>
       )}
       </>
