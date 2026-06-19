@@ -41,7 +41,9 @@ async function fetchInstagram(path: string, token: string, method: 'GET' | 'POST
 
 export async function validateInstagramToken(token: string, igUserId: string): Promise<{ valid: boolean; account_type?: string; error?: string; suggestion?: string }> {
   try {
-    const fields = 'id,username,account_type';
+    // account_type hanya tersedia untuk Instagram User Token (Basic Display API yang sudah deprecated)
+    // Page Access Token (yang dipakai untuk publishing) hanya support field: id, username, name
+    const fields = 'id,username,name';
     const res = await fetch(
       `https://graph.facebook.com/${INSTAGRAM_API_VERSION}/${igUserId}?fields=${fields}&access_token=${token}`,
       { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }
@@ -56,28 +58,39 @@ export async function validateInstagramToken(token: string, igUserId: string): P
         return {
           valid: false,
           error: msg,
-          suggestion: 'Token invalid atau expired. Reconnect akun Instagram di Settings → Akun Sosial. Pastikan pakai Meta Graph API token (bukan Instagram Basic Display).'
+          suggestion: 'Token invalid atau expired. Reconnect akun Instagram di Settings → Akun Sosial. Pastikan pakai Page Access Token dari Meta Graph API Explorer (/me/accounts), bukan Instagram Basic Display token.'
         };
       }
       if (code === 10 || msg.includes('permission')) {
         return {
           valid: false,
           error: msg,
-          suggestion: 'Token tidak punya permission yang cukup. Gunakan token dari Meta Developer Graph API Explorer dengan permission instagram_basic + instagram_content_publish.'
+          suggestion: 'Token tidak punya permission yang cukup. Gunakan Page Access Token dari /me/accounts dengan permission instagram_basic + instagram_content_publish + pages_manage_posts.'
+        };
+      }
+      if (code === 100 || msg.includes('nonexisting field')) {
+        return {
+          valid: false,
+          error: msg,
+          suggestion: 'Token tidak kompatibel. Pastikan menggunakan Page Access Token dari /me/accounts, bukan User Token atau token lama.'
         };
       }
       
       return { valid: false, error: msg };
     }
 
-    const nonProfessional = profile.account_type && !['BUSINESS', 'CREATOR'].includes(profile.account_type);
+    // Verifikasi bahwa IG User ID cocok
+    if (profile.id && profile.id !== igUserId) {
+      return {
+        valid: false,
+        error: `IG User ID tidak cocok. Diharapkan: ${igUserId}, Ditemukan: ${profile.id}`,
+        suggestion: 'Pastikan IG User ID yang dimasukkan di Settings sesuai dengan akun Instagram yang terhubung ke Page ini.'
+      };
+    }
 
     return {
       valid: true,
-      account_type: profile.account_type || 'UNKNOWN',
-      suggestion: nonProfessional
-        ? `Akun Instagram kamu bertipe "${profile.account_type}". Harus BUSINESS atau CREATOR (Profesional) untuk bisa publish otomatis. Buka Settings → Account Type and Tools di Instagram → Switch to Professional Account.`
-        : undefined,
+      account_type: 'BUSINESS', // Page Access Token hanya bisa dipakai oleh Business/Creator account
     };
   } catch (err: unknown) {
     return { valid: false, error: (err as Error).message };
