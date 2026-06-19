@@ -1,18 +1,34 @@
 import type { SocialAccount, PostJob } from './types';
 
-const THREADS_API_VERSION = process.env.INSTAGRAM_API_VERSION || 'v25.0';
+// Threads API hanya support v1.0 — jangan pakai versi lain
+const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
 
-async function fetchThreadsAPI(path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: Record<string, unknown>) {
-  const url = `https://graph.threads.net/${THREADS_API_VERSION}/${path}`;
+async function fetchThreadsAPI(
+  path: string,
+  token: string,
+  method: 'GET' | 'POST' = 'GET',
+  body?: Record<string, unknown>
+) {
+  // Hapus leading slash jika ada
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+
+  let url: string;
+  if (method === 'GET') {
+    // Threads API GET: token via query param (Bearer header tidak didukung untuk GET)
+    const separator = cleanPath.includes('?') ? '&' : '?';
+    url = `${THREADS_API_BASE}/${cleanPath}${separator}access_token=${token}`;
+  } else {
+    url = `${THREADS_API_BASE}/${cleanPath}`;
+  }
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
   };
 
+  // POST: gunakan Bearer header
   if (method === 'POST') {
-    headers['Content-Type'] = 'application/json';
-  } else {
-    headers['Accept'] = 'application/json';
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const response = await fetch(url, {
@@ -34,10 +50,10 @@ export async function publishToThreads(account: SocialAccount, job: PostJob) {
     let containerId: string;
 
     if (job.post_type === 'carousel') {
-      // Threads supports carousel via children
+      // Buat child containers dulu
       const children: string[] = [];
       for (const mediaUrl of job.media_urls) {
-        const isVideo = mediaUrl.includes('.mp4');
+        const isVideo = mediaUrl.match(/\.(mp4|mov|avi)$/i);
         const mediaType = isVideo ? 'VIDEO' : 'IMAGE';
 
         const res = await fetchThreadsAPI(`${account.ig_user_id}/threads`, account.access_token, 'POST', {
@@ -54,19 +70,28 @@ export async function publishToThreads(account: SocialAccount, job: PostJob) {
         text: job.caption,
       });
       containerId = carouselRes.id;
+
+    } else if (job.media_urls.length === 0) {
+      // Text-only post
+      const res = await fetchThreadsAPI(`${account.ig_user_id}/threads`, account.access_token, 'POST', {
+        media_type: 'TEXT',
+        text: job.caption,
+      });
+      containerId = res.id;
+
     } else {
-      // Single image or video
-      const hasVideo = job.media_urls.some((url: string) => url.includes('.mp4'));
-      const mediaType = hasVideo ? 'VIDEO' : 'IMAGE';
+      // Single image atau video
+      const isVideo = job.media_urls[0]?.match(/\.(mp4|mov|avi)$/i);
+      const mediaType = isVideo ? 'VIDEO' : 'IMAGE';
 
       const createBody: Record<string, unknown> = {
         media_type: mediaType,
         text: job.caption,
       };
 
-      if (hasVideo) {
+      if (isVideo) {
         createBody.video_url = job.media_urls[0];
-      } else if (job.media_urls[0]) {
+      } else {
         createBody.image_url = job.media_urls[0];
       }
 
@@ -74,10 +99,15 @@ export async function publishToThreads(account: SocialAccount, job: PostJob) {
       containerId = res.id;
     }
 
-    // Poll until ready
+    // Poll status container sampai FINISHED
     let isReady = false;
     for (let attempt = 0; attempt < 20; attempt++) {
-      const statusRes = await fetchThreadsAPI(`${containerId}?fields=status,id`, account.access_token);
+      const statusRes = await fetchThreadsAPI(
+        `${containerId}?fields=status,error_message`,
+        account.access_token,
+        'GET'
+      );
+
       if (statusRes.status === 'FINISHED') {
         isReady = true;
         break;
@@ -85,15 +115,16 @@ export async function publishToThreads(account: SocialAccount, job: PostJob) {
       if (statusRes.status === 'ERROR' || statusRes.status === 'EXPIRED') {
         throw new Error(`Threads container ${statusRes.status}: ${statusRes.error_message || 'Unknown error'}`);
       }
+      // Backoff: 2s, 2.6s, 3.4s, ... max 15s
       const waitTime = Math.min(2000 * Math.pow(1.3, attempt), 15000);
       await new Promise(r => setTimeout(r, waitTime));
     }
 
     if (!isReady) {
-      throw new Error('Threads media container timed out after polling.');
+      throw new Error('Threads media container timed out setelah polling 20x.');
     }
 
-    // Publish
+    // Publish container
     const publishRes = await fetchThreadsAPI(`${account.ig_user_id}/threads_publish`, account.access_token, 'POST', {
       creation_id: containerId,
     });
