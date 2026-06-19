@@ -110,7 +110,7 @@ export default function Trends() {
             <option value="newsdata">Berita Global</option>
             <option value="reddit">Reddit</option>
             {units.find(u => u.id === selectedUnit)?.use_serpapi && (
-              <option value="serpapi">📈 Google Trends (SerpApi)</option>
+              <option value="serpapi">Google Trends (SerpApi)</option>
             )}
           </select>
           <button onClick={generateTrends} disabled={loading || !selectedUnit} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold px-6 py-3.5 rounded-xl flex items-center gap-2 transition-all shadow-md disabled:opacity-70 whitespace-nowrap">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Briefcase, PlusCircle, Save, X, Trash2, Edit2, BrainCircuit } from 'lucide-react';
+import { Briefcase, PlusCircle, Save, X, Trash2, Edit2, BrainCircuit, Eye } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 import { logger } from '@/lib/utils/logger'
@@ -220,7 +220,7 @@ export default function UnitsTab() {
               <div className="text-sm text-slate-600 mt-3 line-clamp-2 bg-slate-50 p-2 rounded">{u.ai_system_prompt || 'Tidak ada custom prompt'}</div>
               {u.use_vision_ai && (
                 <div className="mt-3 inline-flex items-center gap-1 bg-indigo-100 text-indigo-800 text-[10px] px-2 py-1 rounded-full font-bold">
-                  👁️ Mata AI Aktif
+                  <Eye size={12} /> Mata AI Aktif
                 </div>
               )}
             </div>

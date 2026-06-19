@@ -73,7 +73,7 @@ export default function SerpSpy({ units }: SerpSpyProps) {
             className="p-3 rounded-xl bg-white text-slate-900 font-bold focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-auto"
           >
             {uniqueUnits.map(u => (
-              <option key={u.id} value={u.id}>{u.brand_name} {u.use_serpapi ? '✅' : '❌'}</option>
+              <option key={u.id} value={u.id}>{u.brand_name} {u.use_serpapi ? '(Aktif)' : '(Nonaktif)'}</option>
             ))}
           </select>
           <select 

@@ -13,6 +13,8 @@ import { Hash } from 'lucide-react';
 
 import { logger } from '@/lib/utils/logger'
 
+import { useSearchParams } from 'next/navigation';
+
 const platformColors: Record<string, string> = {
   meta_ig: '#E1306C',
   facebook: '#1877F2',
@@ -36,6 +38,7 @@ function getEventColor(status: string, platform: string): string {
 }
 
 export default function Planner() {
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState<any[]>([]);
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
@@ -48,6 +51,7 @@ export default function Planner() {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [initialIdea, setInitialIdea] = useState<string>('');
   const [viewMode, setViewMode] = useState<'calendar' | 'kanban'>('calendar');
   
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
@@ -55,7 +59,15 @@ export default function Planner() {
   
   const calendarRef = useRef<FullCalendar>(null);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+    const ideaParam = searchParams.get('idea');
+    if (ideaParam) {
+      setInitialIdea(ideaParam);
+      setShowModal(true);
+      window.history.replaceState(null, '', '/planner'); // remove idea from URL
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     try {
@@ -309,9 +321,11 @@ export default function Planner() {
                 units={units}
                 accounts={accounts}
                 initialDate={selectedDate}
+                initialIdea={initialIdea}
                 onSuccess={() => {
                   fetchData();
                   setShowModal(false);
+                  setInitialIdea('');
                 }}
               />
             </div>

@@ -122,7 +122,7 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
               <option value="newsdata">Berita Global</option>
               <option value="reddit">Reddit (Sentimen Netizen)</option>
               {units.find(u => u.id === selectedBusinessUnitId)?.use_serpapi && (
-                <option value="serpapi">📈 Google Trends (SerpApi)</option>
+                <option value="serpapi">Google Trends (SerpApi)</option>
               )}
             </select>
             <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white px-6 py-4 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-60">
