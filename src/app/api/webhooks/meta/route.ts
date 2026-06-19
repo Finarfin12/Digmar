@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
 
     const body = JSON.parse(rawBody)
 
-    // Cek apakah webhook dari Instagram
-    if (body.object === 'instagram' && body.entry) {
+    // Cek apakah webhook dari Instagram atau Page (karena IG DM di-routing via Page)
+    if ((body.object === 'instagram' || body.object === 'page') && body.entry) {
       for (const entry of body.entry) {
         const igUserId = entry.id
         
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
                 .update({ latest_message: commentText, latest_message_at: new Date().toISOString() })
                 .eq('id', conversationId);
             } else {
-              const { data: newConv } = await supabase.from('social_conversations').insert({
+              const { data: newConv, error: convErr } = await supabase.from('social_conversations').insert({
                 business_unit_id: account.business_unit_id,
                 account_id: account.id,
                 platform: account.platform,
@@ -139,16 +139,18 @@ export async function POST(request: NextRequest) {
                 customer_name: commenterUsername || 'User',
                 latest_message: commentText,
               }).select('id').single();
+              if (convErr) console.error('Supabase insert conv error:', convErr);
               conversationId = newConv?.id;
             }
 
             if (conversationId) {
-              await supabase.from('social_messages').insert({
+              const { error: msgErr } = await supabase.from('social_messages').insert({
                 conversation_id: conversationId,
                 sender_type: 'customer',
                 content: commentText,
                 platform_message_id: commentId
               });
+              if (msgErr) console.error('Supabase insert msg error:', msgErr);
             }
 
             // LANJUT KE AUTO-REPLY JIKA AKTIF
@@ -264,7 +266,7 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
                   .update({ latest_message: messageText, latest_message_at: new Date().toISOString() })
                   .eq('id', conversationId);
               } else {
-                const { data: newConv } = await supabase.from('social_conversations').insert({
+                const { data: newConv, error: convErr } = await supabase.from('social_conversations').insert({
                   business_unit_id: account.business_unit_id,
                   account_id: account.id,
                   platform: account.platform,
@@ -273,16 +275,18 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
                   customer_name: `IG User ${customerId}`,
                   latest_message: messageText,
                 }).select('id').single();
+                if (convErr) console.error('Supabase insert conv DM error:', convErr);
                 conversationId = newConv?.id;
               }
 
               if (conversationId) {
-                await supabase.from('social_messages').insert({
+                const { error: msgErr } = await supabase.from('social_messages').insert({
                   conversation_id: conversationId,
                   sender_type: 'customer',
                   content: messageText,
                   platform_message_id: msgEvent.message.mid || null
                 });
+                if (msgErr) console.error('Supabase insert msg DM error:', msgErr);
               }
 
               // LANJUT KE AUTO-REPLY JIKA AKTIF
