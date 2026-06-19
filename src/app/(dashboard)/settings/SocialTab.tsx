@@ -116,17 +116,31 @@ export default function SocialTab() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengambil data');
       if (data.pages && data.pages.length > 0) {
         setDiscoveredPages(data.pages);
-        const firstWithIG = data.pages.find((p: { ig_business_account_id: string | null }) => p.ig_business_account_id);
-        if (firstWithIG) {
-          setUser(firstWithIG.ig_business_account_id);
+        
+        // Auto-select logic based on platform
+        if (platform === 'facebook') {
+          // For Facebook, just pick the first page
+          setUser(data.pages[0].page_id);
           Swal.fire({
             title: 'Ditemukan!',
-            text: `Auto-select: ${firstWithIG.ig_username || firstWithIG.ig_business_account_id} (${firstWithIG.page_name})`,
+            text: `Auto-select: ${data.pages[0].page_name} (Page ID)`,
             icon: 'success',
             timer: 2000,
           });
         } else {
-          Swal.fire('Peringatan', 'Tidak ada Instagram Business Account terhubung ke Facebook Pages kamu. Pastikan akun Instagram kamu sudah Professional dan terhubung.', 'warning');
+          // For Instagram, pick the first page that has an IG Business Account linked
+          const firstWithIG = data.pages.find((p: { ig_business_account_id: string | null }) => p.ig_business_account_id);
+          if (firstWithIG) {
+            setUser(firstWithIG.ig_business_account_id);
+            Swal.fire({
+              title: 'Ditemukan!',
+              text: `Auto-select: ${firstWithIG.ig_username || firstWithIG.ig_business_account_id} (${firstWithIG.page_name})`,
+              icon: 'success',
+              timer: 2000,
+            });
+          } else {
+            Swal.fire('Peringatan', 'Tidak ada Instagram Business Account terhubung ke Facebook Pages kamu. Pastikan akun Instagram kamu sudah Professional dan terhubung.', 'warning');
+          }
         }
       } else {
         Swal.fire('Error', 'Tidak ada Facebook Pages ditemukan. Pastikan token punya permission pages_show_list.', 'error');
@@ -209,18 +223,24 @@ export default function SocialTab() {
                       key={i}
                       type="button"
                       onClick={() => {
-                        if (p.ig_business_account_id) setUser(p.ig_business_account_id);
+                        if (platform === 'facebook') {
+                          setUser(p.page_id);
+                        } else if (p.ig_business_account_id) {
+                          setUser(p.ig_business_account_id);
+                        }
                       }}
                       className={`w-full text-left p-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
-                        user === p.ig_business_account_id ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-slate-50 text-slate-700'
+                        user === p.ig_business_account_id || user === p.page_id ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     >
                       <span>
                         {p.page_name}
                         {p.ig_username && <span className="text-pink-600 ml-2">@{p.ig_username}</span>}
                       </span>
-                      {p.ig_business_account_id ? (
-                        user === p.ig_business_account_id ? <CheckCircle2 size={16} className="text-indigo-600" /> : <span className="text-xs text-slate-400">ID: {p.ig_business_account_id.substring(0, 12)}...</span>
+                      {platform === 'facebook' ? (
+                        user === p.page_id ? <CheckCircle2 size={16} className="text-indigo-600" /> : <span className="text-xs text-slate-400">Page ID: {p.page_id.substring(0, 12)}...</span>
+                      ) : p.ig_business_account_id ? (
+                        user === p.ig_business_account_id ? <CheckCircle2 size={16} className="text-indigo-600" /> : <span className="text-xs text-slate-400">IG ID: {p.ig_business_account_id.substring(0, 12)}...</span>
                       ) : (
                         <span className="text-xs text-amber-500">⚠️ No IG linked</span>
                       )}
