@@ -18,6 +18,7 @@ type PostQueueInsert = {
   log_messages: unknown[]
   platform_captions?: Record<string, string>
   ab_test_id?: string
+  ab_variant?: string
 }
 
 function isMissingColumnError(error: { message?: string; code?: string } | null, column: string) {
