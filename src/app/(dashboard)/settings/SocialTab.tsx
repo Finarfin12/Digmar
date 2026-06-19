@@ -48,6 +48,13 @@ export default function SocialTab() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!unit) return Swal.fire('Error', 'Pilih Unit', 'error');
+
+    // Mencegah duplikasi: 1 Platform per Unit Bisnis
+    const existingAccount = accounts.find(a => a.business_unit_id === unit && a.platform === platform);
+    if (existingAccount) {
+      return Swal.fire('Batas Akun', `Unit Bisnis ini sudah memiliki akun ${platform === 'meta_ig' ? 'Instagram' : platform === 'facebook' ? 'Facebook' : 'Threads'} terhubung. Maksimal 1 akun per platform untuk setiap unit. Hapus akun lama jika ingin menggantinya.`, 'warning');
+    }
+
     setLoading(true);
     const res = await fetch('/api/accounts', {
       method: 'POST',
