@@ -146,3 +146,81 @@ export function getMockChartData(): ChartDataPoint[] {
   }
   return days;
 }
+
+const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
+
+export async function fetchThreadsProfile(userId: string, accessToken: string): Promise<{ followers: number; posts: number; name: string; profile_pic: string }> {
+  const params = new URLSearchParams({
+    fields: 'id,username,name,threads_profile_picture_url',
+    access_token: accessToken,
+  });
+  const res = await fetch(`${THREADS_API_BASE}/${userId}?${params.toString()}`);
+  const data = await readMetaResponse(res);
+  
+  return {
+    followers: 0, // Memerlukan endpoint khusus profile_lookup yang mungkin belum disupport token
+    posts: 0,
+    name: data.name || data.username || 'Threads Account',
+    profile_pic: data.threads_profile_picture_url || '',
+  };
+}
+
+export async function fetchThreadsInsights(userId: string, accessToken: string): Promise<ChartDataPoint[]> {
+  // Memerlukan permission threads_manage_insights
+  const params = new URLSearchParams({
+    metric: 'views,likes,replies,reposts,quotes',
+    access_token: accessToken,
+  });
+  
+  // Jika gagal (karena permission), kembalikan array kosong agar di-handle sebagai warning
+  try {
+    const res = await fetch(`${THREADS_API_BASE}/${userId}/threads_insights?${params.toString()}`);
+    if (!res.ok) return [];
+    
+    const data = await res.json();
+    if (!data.data) return [];
+    
+    // Parse sederhana jika ada data (asumsi struktur mirip IG)
+    const points: ChartDataPoint[] = [];
+    const viewsData = data.data.find((d: any) => d.name === 'views')?.values || [];
+    
+    for (const [index, entry] of viewsData.slice(-7).entries()) {
+      const date = entry.end_time?.split('T')[0] || new Date().toISOString().split('T')[0];
+      points.push({
+        date,
+        reach: entry.value || 0,
+        impressions: entry.value || 0,
+        engagement: 0,
+      });
+    }
+    return points;
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchThreadsTopPosts(userId: string, accessToken: string, limit = 10): Promise<TopPost[]> {
+  const params = new URLSearchParams({
+    fields: 'id,text,media_url,timestamp,permalink',
+    limit: String(limit),
+    access_token: accessToken,
+  });
+  const res = await fetch(`${THREADS_API_BASE}/${userId}/threads?${params.toString()}`);
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || data?.error || !data.data) {
+     throw new Error(data?.error?.message || 'Gagal mengambil postingan Threads');
+  }
+
+  return (data.data as Array<Record<string, unknown>>).map((m) => ({
+    id: m.id as string,
+    caption: String(m.text || '').substring(0, 150),
+    media_url: String(m.media_url || ''),
+    likes: 0, 
+    comments: 0, 
+    reach: 0,
+    engagement_rate: 0,
+    published_at: String(m.timestamp || ''),
+  }));
+}
+

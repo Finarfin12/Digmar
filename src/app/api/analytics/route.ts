@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { decryptValue } from '@/lib/crypto/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
-import { fetchInstagramProfile, fetchInstagramInsights, fetchInstagramTopPosts, type ChartDataPoint, type TopPost } from '@/lib/social/analytics'
+import { fetchInstagramProfile, fetchInstagramInsights, fetchInstagramTopPosts, fetchThreadsProfile, fetchThreadsInsights, fetchThreadsTopPosts, type ChartDataPoint, type TopPost } from '@/lib/social/analytics'
 
 type AnalyticsChartPoint = {
   date: string
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found or unauthorized' }, { status: 404 })
     }
 
-    if (account.platform !== 'meta_ig') {
-      return NextResponse.json({ error: 'Analytics API saat ini hanya mendukung akun Instagram Graph API' }, { status: 400 })
+    if (account.platform !== 'meta_ig' && account.platform !== 'threads') {
+      return NextResponse.json({ error: 'Analytics API saat ini hanya mendukung akun Instagram Graph API dan Threads' }, { status: 400 })
     }
 
     const decryptedToken = decryptValue(account.access_token_encrypted)
@@ -105,28 +105,43 @@ export async function GET(request: NextRequest) {
 
     let metricsData
     try {
-      metricsData = await fetchInstagramProfile(account.ig_user_id, decryptedToken)
+      if (account.platform === 'threads') {
+        metricsData = await fetchThreadsProfile(account.ig_user_id, decryptedToken)
+      } else {
+        metricsData = await fetchInstagramProfile(account.ig_user_id, decryptedToken)
+      }
     } catch (err: unknown) {
       return NextResponse.json({
-        error: `Meta API gagal mengambil profil akun: ${(err as Error).message}`,
+        error: `API gagal mengambil profil akun: ${(err as Error).message}`,
       }, { status: 502 })
     }
 
     let insights: ChartDataPoint[] = []
     try {
-      insights = await fetchInstagramInsights(account.ig_user_id, decryptedToken)
-      if (insights.length === 0) {
-        warnings.push('Meta tidak mengembalikan data Insights untuk 7 hari terakhir. Pastikan token memiliki izin instagram_manage_insights.')
+      if (account.platform === 'threads') {
+        insights = await fetchThreadsInsights(account.ig_user_id, decryptedToken)
+        if (insights.length === 0) {
+          warnings.push('Data Insights Threads belum tersedia atau token tidak memiliki izin threads_manage_insights.')
+        }
+      } else {
+        insights = await fetchInstagramInsights(account.ig_user_id, decryptedToken)
+        if (insights.length === 0) {
+          warnings.push('Meta tidak mengembalikan data Insights untuk 7 hari terakhir. Pastikan token memiliki izin instagram_manage_insights.')
+        }
       }
     } catch (err: unknown) {
-      warnings.push(`Insights Meta belum tersedia: ${(err as Error).message}`)
+      warnings.push(`Insights belum tersedia: ${(err as Error).message}`)
     }
 
     let posts: TopPost[] = []
     try {
-      posts = await fetchInstagramTopPosts(account.ig_user_id, decryptedToken, 25)
+      if (account.platform === 'threads') {
+        posts = await fetchThreadsTopPosts(account.ig_user_id, decryptedToken, 25)
+      } else {
+        posts = await fetchInstagramTopPosts(account.ig_user_id, decryptedToken, 25)
+      }
     } catch (err: unknown) {
-      warnings.push(`Media Instagram belum bisa dibaca: ${(err as Error).message}`)
+      warnings.push(`Media belum bisa dibaca: ${(err as Error).message}`)
     }
 
     const chartData = buildChartData(insights, posts)
