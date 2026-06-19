@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     const { data: unit, error: unitError } = await supabase
       .from('business_units')
-      .select('id, use_serpapi, serpapi_key')
+      .select('id, use_serpapi, serpapi_key, business_category, brand_name')
       .eq('id', business_unit_id)
       .eq('user_id', user.id)
       .single()
