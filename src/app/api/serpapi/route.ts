@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (search_type === 'trends') {
       serpApiUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&geo=ID&api_key=${apiKey}`
     } else if (search_type === 'hashtag') {
-      serpApiUrl = `https://serpapi.com/search.json?engine=google_autocomplete&q=${encodeURIComponent(query)}&gl=id&hl=id&api_key=${apiKey}`
+      serpApiUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&geo=ID&api_key=${apiKey}`
     } else if (search_type === 'competitor') {
       const site = platform === 'tiktok' ? 'tiktok.com' : 'instagram.com'
       const searchQ = `site:${site} "@${query}"`
@@ -141,9 +141,17 @@ Kembalikan HANYA JSON valid tanpa markdown \`\`\`json.`;
         console.error("AI Trends Summary failed", e)
       }
     } else if (search_type === 'hashtag') {
-      const suggestions = serpData.suggestions?.map((s: any) => s.value).join(', ') || 'Hashtag umum'
+      let suggestionsStr = 'Hashtag umum'
+      if (serpData.related_queries && serpData.related_queries.rising) {
+        suggestionsStr = serpData.related_queries.rising.map((q: any) => q.query).join(', ')
+      } else if (serpData.related_queries && serpData.related_queries.top) {
+        suggestionsStr = serpData.related_queries.top.map((q: any) => q.query).join(', ')
+      } else if (serpData.related_topics && serpData.related_topics.rising) {
+        suggestionsStr = serpData.related_topics.rising.map((t: any) => t.topic.title).join(', ')
+      }
+      
       const { client } = await getAIProvider(user.id)
-      const prompt = `Berdasarkan saran pencarian Google Autocomplete berikut untuk topik "${query}": ${suggestions}.
+      const prompt = `Berdasarkan saran pencarian Google Trends (Kueri Terkait) berikut untuk topik "${query}": ${suggestionsStr}.
 Buat JSON dengan format:
 {
   "hashtags": { "high": ["#tag1"], "medium": ["#tag2"], "niche": ["#tag3"] },
@@ -156,15 +164,29 @@ Kembalikan HANYA JSON valid tanpa markdown \`\`\`json.`;
       try {
         const aiRes = await client.generateText('Anda adalah pakar SEO dan Sosial Media.', prompt, { maxTokens: 1000 })
         const parsed = JSON.parse(aiRes.content.replace(/```json|```/g, '').trim())
-        resultData = {
-          ...parsed,
-          sources: serpData.suggestions?.map((s: any) => ({
-            title: s.value,
+        
+        let sourcesData: any[] = []
+        if (serpData.related_queries && serpData.related_queries.rising) {
+          sourcesData = serpData.related_queries.rising.map((q: any) => ({
+            title: q.query + (q.value ? ` (+${q.value})` : ''),
             platform: 'google_trends',
             icon: 'globe2',
             date: new Date().toISOString(),
-            link: `https://www.google.com/search?q=${encodeURIComponent(s.value)}`
-          })) || []
+            link: q.explore_link || `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`
+          }))
+        } else if (serpData.related_queries && serpData.related_queries.top) {
+          sourcesData = serpData.related_queries.top.map((q: any) => ({
+            title: q.query,
+            platform: 'google_trends',
+            icon: 'globe2',
+            date: new Date().toISOString(),
+            link: q.explore_link || `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`
+          }))
+        }
+        
+        resultData = {
+          ...parsed,
+          sources: sourcesData
         }
       } catch (e) {
         console.error("AI Hashtag Summary failed", e)
