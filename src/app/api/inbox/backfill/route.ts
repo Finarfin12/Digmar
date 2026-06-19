@@ -30,14 +30,15 @@ export async function POST(request: NextRequest) {
     const baseFields = 'id,participants,updated_time,unread_count,messages.limit(10){id,from,to,message,created_time,attachments}'
     let convData: { data?: unknown[]; error?: { message: string; code: number } } | null = null
 
-    // Attempt 1: langsung pakai user token
+    // Attempt 1: langsung pakai user token — Instagram API
     let res = await fetch(
       `https://graph.facebook.com/v25.0/${igUserId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${userToken}`,
       { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) }
     )
     convData = await res.json()
 
-    // Attempt 2: kalau gagal, coba konversi ke Page Token
+    // Attempt 2: kalau gagal, coba lewat Page Messenger API
+    // Pages Messaging API lebih mudah diakses (hanya butuh pages_messaging)
     if (convData?.error) {
       try {
         const pagesRes = await fetch(
@@ -46,7 +47,6 @@ export async function POST(request: NextRequest) {
         )
         const pagesData = await pagesRes.json()
         if (!pagesData.error && pagesData.data?.length > 0) {
-          // Cari page yang terhubung ke IG account ini
           const match = pagesData.data.find((p: { instagram_business_account?: { id: string } }) =>
             p.instagram_business_account?.id === igUserId
           ) || pagesData.data[0]
@@ -55,12 +55,23 @@ export async function POST(request: NextRequest) {
           const pageId = match.id
 
           if (pageToken && pageId) {
+            // Coba Instagram endpoint dengan Page Token
             res = await fetch(
-              `https://graph.facebook.com/v25.0/${pageId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
-              { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(30000) }
+              `https://graph.facebook.com/v25.0/${igUserId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
+              { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) }
             )
-            const newConvData = await res.json()
-            if (!newConvData.error) convData = newConvData
+            let pageConv = await res.json()
+            if (!pageConv.error) {
+              convData = pageConv
+            } else {
+              // Fallback: Messenger API (platform=messenger) — bisa baca IG DM juga
+              res = await fetch(
+                `https://graph.facebook.com/v25.0/${pageId}/conversations?platform=messenger&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
+                { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) }
+              )
+              const msgConv = await res.json()
+              if (!msgConv.error) convData = msgConv
+            }
           }
         }
       } catch { /* tetap pakai convData asli */ }
@@ -70,7 +81,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         error: convData.error.message,
         code: convData.error.code,
-        info: 'Pastikan token punya pages_manage_metadata & pages_messaging',
+        info: 'Coba tambah permission pages_messaging dan pages_show_list di Graph API Explorer, lalu generate ulang token.',
       }, { status: 400 })
     }
 
