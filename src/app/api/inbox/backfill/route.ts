@@ -52,11 +52,11 @@ export async function POST(request: NextRequest) {
           ) || pagesData.data[0]
 
           const pageToken = match.access_token
-          const igId = match.instagram_business_account?.id || igUserId
+          const pageId = match.id
 
-          if (pageToken) {
+          if (pageToken && pageId) {
             res = await fetch(
-              `https://graph.facebook.com/v25.0/${igId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
+              `https://graph.facebook.com/v25.0/${pageId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
               { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(30000) }
             )
             const newConvData = await res.json()
