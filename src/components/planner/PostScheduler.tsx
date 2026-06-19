@@ -49,7 +49,9 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
 
   // Media Array
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  const [mediaUrlsB, setMediaUrlsB] = useState<string[]>([]); // Variant B media
   const [uploading, setUploading] = useState(false);
+  const [uploadingB, setUploadingB] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [showCanvas, setShowCanvas] = useState(false);
   const [showLibModal, setShowLibModal] = useState<'captions' | 'hashtags' | null>(null);
@@ -67,7 +69,9 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
   const [publishMode, setPublishMode] = useState<'cepat' | 'lanjutan'>('cepat');
 
   // Form states
+  const [isAbTest, setIsAbTest] = useState(false);
   const [finalCaption, setFinalCaption] = useState('');
+  const [finalCaptionB, setFinalCaptionB] = useState(''); // Variant B caption
   const [firstComment, setFirstComment] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date | null>(initialDate || new Date());
 
@@ -139,8 +143,43 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
     setUploading(false);
   }, [mediaUrls, postType]);
 
+  const onDropB = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+
+    setUploadingB(true);
+    let newUrls = [...mediaUrlsB];
+
+    for (const file of acceptedFiles) {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        if (postType === 'single_image' || postType === 'reels') {
+          newUrls = [data.url];
+        } else {
+          newUrls.push(data.url);
+        }
+      } catch (err: unknown) {
+        Swal.fire('Error Upload', (err as Error).message, 'error');
+      }
+    }
+
+    setMediaUrlsB(newUrls);
+    setUploadingB(false);
+  }, [mediaUrlsB, postType]);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    accept: { 'image/*': ['.jpeg', '.jpg', '.png'], 'video/*': ['.mp4'] },
+    maxFiles: postType === 'carousel' ? 10 : 1,
+    multiple: postType === 'carousel'
+  });
+
+  const dropzoneB = useDropzone({
+    onDrop: onDropB,
     accept: { 'image/*': ['.jpeg', '.jpg', '.png'], 'video/*': ['.mp4'] },
     maxFiles: postType === 'carousel' ? 10 : 1,
     multiple: postType === 'carousel'
@@ -169,9 +208,12 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
     setMediaUrls(_mediaUrls);
   };
 
-  const handleSaveManual = async () => {
-    if (selectedAccounts.length === 0 || !scheduledDate || !finalCaption) {
-      return Swal.fire('Error', 'Lengkapi formulir (Akun, Tanggal, Caption)', 'error');
+  const handleSaveDraftOrSchedule = async (isDraft = false) => {
+    if (selectedAccounts.length === 0 || mediaUrls.length === 0) {
+      return Swal.fire('Error', 'Pilih minimal 1 akun dan unggah media.', 'error');
+    }
+    if (isAbTest && (mediaUrlsB.length === 0 || !finalCaptionB)) {
+      return Swal.fire('Error', 'Lengkapi Media dan Caption untuk Varian B!', 'error');
     }
     setSaving(true);
     try {
@@ -180,12 +222,15 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target_account_ids: selectedAccounts,
-          scheduled_at: scheduledDate.toISOString(),
+          media_urls: mediaUrls,
           caption: finalCaption,
           first_comment: firstComment,
-          media_urls: mediaUrls,
+          scheduled_at: scheduledDate ? scheduledDate.toISOString() : new Date().toISOString(),
           post_type: postType,
           platform_captions: platformCaptions,
+          is_ab_test: isAbTest,
+          caption_b: isAbTest ? finalCaptionB : undefined,
+          media_urls_b: isAbTest ? mediaUrlsB : undefined
         })
       });
       if (!res.ok) throw new Error(await getErrorMessage(res, 'Gagal menjadwalkan post'));
@@ -316,8 +361,18 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         <div className="grid grid-cols-3 gap-2 bg-slate-100 p-2 rounded-xl">
           <button onClick={() => setMode('manual')} className={`p-2 rounded-lg font-bold text-sm transition-all ${mode === 'manual' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:bg-slate-200'}`}>Manual</button>
           <button onClick={() => setMode('autopilot')} className={`p-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1 ${mode === 'autopilot' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:bg-slate-200'}`}><Wand2 size={14}/> Auto-Pilot</button>
-          <button onClick={() => setMode('abtest')} className={`p-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1 ${mode === 'abtest' ? 'bg-fuchsia-600 shadow-sm text-white' : 'text-slate-500 hover:bg-slate-200'}`}>🔬 A/B Test</button>
+          <button onClick={() => setMode('abtest')} className={`p-2 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-1 ${mode === 'abtest' ? 'bg-fuchsia-600 shadow-sm text-white' : 'text-slate-500 hover:bg-slate-200'}`}>🔬 AI A/B Test</button>
         </div>
+
+        {mode === 'manual' && (
+          <div className="flex items-center gap-2 px-2">
+            <label className="text-sm font-bold text-slate-700 flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={isAbTest} onChange={(e) => setIsAbTest(e.target.checked)} className="rounded text-fuchsia-600 focus:ring-fuchsia-500 w-4 h-4 border-slate-300" />
+              Aktifkan Manual A/B Testing
+            </label>
+            {isAbTest && <span className="bg-fuchsia-100 text-fuchsia-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Variant Testing</span>}
+          </div>
+        )}
 
         {/* Akun & Tipe */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
@@ -368,7 +423,7 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
         {/* Media Uploader */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex justify-between items-center mb-3">
-            <label className="block text-sm font-bold text-slate-800 flex items-center gap-2"><ImageIcon size={16}/> Media ({mediaUrls.length}{postType === 'carousel' ? '/10' : '/1'})</label>
+            <label className="block text-sm font-bold text-slate-800 flex items-center gap-2"><ImageIcon size={16}/> Media {isAbTest ? '(Varian A)' : ''} ({mediaUrls.length}{postType === 'carousel' ? '/10' : '/1'})</label>
             <div className="flex gap-2">
               <button onClick={() => { setRenderMode('satori'); setShowCanvas(true); }} className="text-xs font-bold bg-amber-50 text-amber-700 px-3 py-1 rounded-md hover:bg-amber-100 flex items-center gap-1 border border-amber-200">
                 <Sparkles size={12}/> AI Canvas
@@ -423,6 +478,38 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
           )}
         </div>
 
+        {isAbTest && mode === 'manual' && (
+          <div className="bg-fuchsia-50 p-5 rounded-2xl border border-fuchsia-200 shadow-sm">
+            <div className="flex justify-between items-center mb-3">
+              <label className="block text-sm font-bold text-fuchsia-900 flex items-center gap-2"><ImageIcon size={16}/> Media (Varian B) ({mediaUrlsB.length}{postType === 'carousel' ? '/10' : '/1'})</label>
+            </div>
+            {(mediaUrlsB.length === 0 || postType === 'carousel') && (
+              <div {...dropzoneB.getRootProps()} className={`mb-4 border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dropzoneB.isDragActive ? 'border-fuchsia-500 bg-fuchsia-100' : 'border-fuchsia-300 bg-white hover:bg-fuchsia-50'}`}>
+                <input {...dropzoneB.getInputProps()} />
+                {uploadingB ? (
+                  <div className="flex flex-col items-center text-fuchsia-600"><Loader2 className="animate-spin mb-1" size={24} /><p className="font-bold text-sm">Mengunggah...</p></div>
+                ) : (
+                  <div className="text-fuchsia-600 text-sm font-medium">Klik atau Drag media untuk Varian B ke sini</div>
+                )}
+              </div>
+            )}
+            {mediaUrlsB.length > 0 && (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {mediaUrlsB.map((url, index) => (
+                  <div key={index} className="flex-shrink-0 relative w-24 h-24 border border-fuchsia-200 rounded-xl overflow-hidden group bg-white">
+                    {url.includes('.mp4') ? <video src={url} className="w-full h-full object-cover" /> : <img src={url} className="w-full h-full object-cover" alt={`media-b-${index}`} />}
+                    <button onClick={() => {
+                      const newUrls = [...mediaUrlsB];
+                      newUrls.splice(index, 1);
+                      setMediaUrlsB(newUrls);
+                    }} className="absolute top-1 right-1 bg-white/90 hover:bg-red-100 text-red-500 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-sm"><X size={14}/></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Caption Area */}
         {mode !== 'manual' ? (
           <div className={`p-5 rounded-2xl border shadow-sm ${mode === 'abtest' ? 'bg-fuchsia-50 border-fuchsia-200' : 'bg-indigo-50 border-indigo-200'}`}>
@@ -446,13 +533,26 @@ export default function PostScheduler({ units, accounts, initialDate, onSuccess 
                   <button onClick={() => setShowLibModal('hashtags')} className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-200 font-bold">Hashtag</button>
                 </div>
               </div>
-              <textarea value={finalCaption} onChange={e => setFinalCaption(e.target.value)} rows={4} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 text-sm mb-1" />
+              <textarea value={finalCaption} onChange={e => setFinalCaption(e.target.value)} rows={4} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-medium text-slate-700 text-sm mb-1" placeholder="Caption Utama (Varian A)" />
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs text-slate-400">{finalCaption.length}/2200 karakter</span>
                 {hashtagCount(finalCaption) > 5 && (
                   <span className="text-xs text-amber-600 flex items-center gap-1 font-bold"><AlertTriangle size={12} /> Instagram rekomendasi maks. 5 hashtag</span>
                 )}
               </div>
+
+              {isAbTest && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <label className="block text-sm font-bold text-fuchsia-900 mb-2">Caption Varian B</label>
+                  <textarea value={finalCaptionB} onChange={e => setFinalCaptionB(e.target.value)} rows={4} className="w-full p-3 border border-fuchsia-300 bg-fuchsia-50 rounded-lg focus:ring-2 focus:ring-fuchsia-500 font-medium text-slate-700 text-sm mb-1" placeholder="Caption Varian B" />
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-400">{finalCaptionB.length}/2200 karakter</span>
+                    {hashtagCount(finalCaptionB) > 5 && (
+                      <span className="text-xs text-amber-600 flex items-center gap-1 font-bold"><AlertTriangle size={12} /> Maks. 5 hashtag</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {publishMode === 'lanjutan' && selectedAccounts.length > 1 && (
                 <div className="mt-3 border-t border-slate-100 pt-3">

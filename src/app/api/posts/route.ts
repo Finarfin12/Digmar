@@ -17,6 +17,7 @@ type PostQueueInsert = {
   status: 'waiting'
   log_messages: unknown[]
   platform_captions?: Record<string, string>
+  ab_test_id?: string
 }
 
 function isMissingColumnError(error: { message?: string; code?: string } | null, column: string) {
@@ -155,7 +156,10 @@ export async function POST(request: NextRequest) {
       first_comment,
       post_type, 
       cover_url,
-      platform_captions 
+      platform_captions,
+      is_ab_test,
+      caption_b,
+      media_urls_b
     } = body
 
     if (!Array.isArray(target_account_ids) || target_account_ids.length === 0 || !scheduled_at) {
@@ -171,11 +175,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Media tidak valid' }, { status: 400 })
     }
 
+    if (is_ab_test && media_urls_b && (!Array.isArray(media_urls_b) || media_urls_b.some((url: any) => typeof url !== 'string' || !url.trim()))) {
+      return NextResponse.json({ error: 'Media Varian B tidak valid' }, { status: 400 })
+    }
+
     if ((post_type || 'single_image') !== 'carousel' && media_urls.length > 1) {
       return NextResponse.json({ error: 'Single post hanya boleh memakai 1 media' }, { status: 400 })
     }
 
-    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter(id => typeof id === 'string'))]
+    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter((id: any) => typeof id === 'string'))]
     if (uniqueTargetAccountIds.length !== target_account_ids.length) {
       return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
     }
@@ -228,6 +236,7 @@ export async function POST(request: NextRequest) {
 
         processedCaption = processedCaption.replace(/\{([^}]+)\}/g, replacer);
         processedFirstComment = processedFirstComment.replace(/\{([^}]+)\}/g, replacer);
+        if (caption_b) caption_b = caption_b.replace(/\{([^}]+)\}/g, replacer);
       }
     }
 
@@ -259,6 +268,42 @@ export async function POST(request: NextRequest) {
       insertData.platform_captions = sanitizedPlatformCaptions
     }
 
+    if (is_ab_test && caption_b) {
+      // 1. Create AB Test Record
+      const { data: abTestRecord, error: abTestError } = await supabase
+        .from('ab_tests')
+        .insert({
+          user_id: user.id,
+          business_unit_id: accountInfo?.business_unit_id || null,
+          name: `A/B Test ${parsedSchedule.toISOString().split('T')[0]}`
+        })
+        .select('id')
+        .single()
+        
+      if (abTestError) {
+        return NextResponse.json({ error: 'Gagal membuat A/B test record: ' + abTestError.message }, { status: 500 })
+      }
+      
+      const abTestId = abTestRecord.id;
+      insertData.ab_test_id = abTestId;
+      
+      // 2. Insert Variant A
+      const { data: dataA, error: errorA } = await insertPostQueue(supabase, { ...insertData })
+      if (errorA) return NextResponse.json({ error: errorA.message }, { status: 500 })
+      
+      // 3. Insert Variant B (beda job_code dan caption)
+      const { data: dataB, error: errorB } = await insertPostQueue(supabase, { 
+        ...insertData, 
+        job_code: generateJobCode(), 
+        caption: caption_b,
+        media_urls: media_urls_b && media_urls_b.length > 0 ? media_urls_b : media_urls
+      })
+      if (errorB) return NextResponse.json({ error: errorB.message }, { status: 500 })
+      
+      return NextResponse.json({ variantA: dataA, variantB: dataB, ab_test_id: abTestId }, { status: 201 })
+    }
+
+    // Normal single insert
     const { data, error } = await insertPostQueue(supabase, insertData)
 
     if (error) {

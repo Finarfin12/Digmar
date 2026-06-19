@@ -31,16 +31,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: You do not own this business unit' }, { status: 403 })
     }
 
-    // Currently, post_queue does not have 'business_unit_id' or 'ab_test_id' columns in the schema.
-    // Since this is a placeholder/simulation for A/B testing, we'll return an empty array to prevent 500 errors.
-    const posts: any[] = [];
-    const postsError = null;
+    const { data: abTests, error: abTestsError } = await supabase
+      .from('ab_tests')
+      .select('id, name, status, created_at')
+      .eq('business_unit_id', business_unit_id)
+      .order('created_at', { ascending: false })
+
+    if (abTestsError) throw abTestsError;
+
+    if (!abTests || abTests.length === 0) {
+      return NextResponse.json({ success: true, data: [] })
+    }
+
+    const abTestIds = abTests.map(t => t.id)
+
+    const { data: posts, error: postsError } = await supabase
+      .from('post_queue')
+      .select('*')
+      .in('ab_test_id', abTestIds)
+
+    if (postsError) throw postsError;
 
     // Group by ab_test_id
     const testGroups: Record<string, any[]> = {};
     for (const post of posts) {
-      if (!testGroups[post.ab_test_id]) testGroups[post.ab_test_id] = [];
-      testGroups[post.ab_test_id].push(post);
+      if (post.ab_test_id) {
+        if (!testGroups[post.ab_test_id]) testGroups[post.ab_test_id] = [];
+        testGroups[post.ab_test_id].push(post);
+      }
     }
 
     const results = [];
