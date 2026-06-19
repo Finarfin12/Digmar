@@ -1,0 +1,59 @@
+# Implementasi Facebook Login (OAuth) Otomatis - Arsitektur Hybrid
+
+Rencana ini bertujuan untuk mempermudah pengambilan Meta API Token (Access Token) bagi pengguna akhir melalui tombol "Login with Facebook". 
+
+Berdasarkan diskusi, kita akan mengimplementasikan **Arsitektur Hybrid**. Sistem akan mendukung dua skenario sekaligus:
+1. **SaaS Standar (Default):** Menggunakan 1 Global App ID & Secret dari `.env` untuk semua pengguna.
+2. **White-Label (Custom):** Unit Bisnis tertentu dapat memasukkan App ID & Secret Meta mereka sendiri, menimpa pengaturan global.
+
+## User Review Required
+
+> [!IMPORTANT]
+> Arsitektur Hybrid ini memerlukan perubahan struktur *database* untuk menyimpan kredensial Meta kustom per Unit Bisnis. Kredensial kustom ini (khususnya *App Secret*) akan dienkripsi dengan aman di *database* menggunakan sistem enkripsi bawaan DigiMar kita.
+
+## Open Questions
+
+> [!WARNING]
+> Karena kita menggunakan Next.js, inisialisasi SDK Facebook (`FB.init`) dilakukan di *client-side*. Jika satu akun berganti-ganti antar Unit Bisnis dengan App ID yang berbeda, kita harus memuat ulang (*reload*) SDK Facebook. Apakah *behavior* memuat ulang halaman saat memilih Unit Bisnis kustom ini dapat diterima?
+
+## Proposed Changes
+
+### 1. Database Schema
+#### [NEW] [00000000000023_bu_meta_credentials.sql](file:///c:/antigravity/DigiMar%20automation/supabase/migrations/00000000000023_bu_meta_credentials.sql)
+- Menambahkan kolom `meta_app_id` (text) dan `meta_app_secret` (text, terenkripsi) ke tabel `business_units`.
+- *Update* fungsi API di `/api/units` untuk memungkinkan penyimpanan pengaturan kustom ini melalui *tab* Pengaturan Unit Bisnis.
+
+---
+
+### 2. Environment Variables
+- `NEXT_PUBLIC_META_APP_ID`: App ID *default* (Global)
+- `META_APP_SECRET`: App Secret *default* (Global)
+
+---
+
+### 3. Komponen UI
+#### [MODIFY] [SocialTab.tsx](file:///c:/antigravity/DigiMar%20automation/src/app/(dashboard)/settings/SocialTab.tsx)
+- Menambahkan tombol **"Login with Facebook"**.
+- **Logika Hybrid SDK:** 
+  - Saat *dropdown* Target Unit dipilih, sistem akan mengecek apakah unit tersebut memiliki `meta_app_id` kustom.
+  - Jika ya, `FB.init()` dijalankan dengan ID kustom tersebut.
+  - Jika tidak, `FB.init()` menggunakan `NEXT_PUBLIC_META_APP_ID`.
+- Membuka *popup* OAuth, mendapatkan *Short-Lived Token*, lalu mengirimkannya ke *backend* beserta ID Unit Bisnis-nya.
+
+---
+
+### 4. Backend / API Routes
+#### [NEW] [route.ts](file:///c:/antigravity/DigiMar%20automation/src/app/api/auth/facebook-exchange/route.ts)
+- Membuat *endpoint* penukaran token di `/api/auth/facebook-exchange`.
+- **Logika Hybrid Exchange:**
+  - *Endpoint* menerima *Short-Lived Token* dan `business_unit_id`.
+  - Sistem mencari `business_unit_id` di *database*.
+  - Jika BU tersebut memiliki `meta_app_secret` (didekripsi terlebih dahulu), gunakan itu. Jika kosong, gunakan `process.env.META_APP_SECRET` global.
+  - Menukarkan token menjadi *Long-Lived Token* lalu mengambil *Page Access Token* otomatis.
+  - Mengembalikan daftar *Page* ke UI.
+
+## Verification Plan
+
+### Manual Verification
+1. Mengosongkan kredensial kustom di BU, lalu mencoba login. Pastikan sistem memakai pengaturan `.env` global.
+2. Mengisi kredensial kustom (App ID lain) di BU, lalu mencoba login. Pastikan *popup* Facebook menampilkan nama Aplikasi kustom tersebut dan proses login tetap berjalan lancar.

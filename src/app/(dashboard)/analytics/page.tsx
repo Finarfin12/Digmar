@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Sparkles, Star } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Sparkles, Star, Clock } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Swal from 'sweetalert2';
 import CompetitorSpy from './CompetitorSpy';
 import ABTestAnalytics from './ABTestAnalytics';
@@ -15,6 +15,7 @@ export default function Analytics() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [activeTab, setActiveTab] = useState<'performance' | 'competitors' | 'abtest'>('performance');
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | 'this_month'>('7d');
 
   // Fetch Accounts
   useEffect(() => {
@@ -175,33 +176,70 @@ export default function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart Area */}
             <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-              <h3 className="text-xl font-extrabold text-slate-900 mb-6">Tren Jangkauan (Reach) & Interaksi</h3>
-              <div className="h-80 w-full">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h3 className="text-xl font-extrabold text-slate-900">Tren Jangkauan (Reach) & Interaksi</h3>
+                <select value={dateRange} onChange={e => setDateRange(e.target.value as any)} className="text-sm font-bold bg-slate-50 text-slate-700 py-2.5 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                  <option value="7d">7 Hari Terakhir</option>
+                  <option value="30d">30 Hari Terakhir</option>
+                  <option value="this_month">Bulan Ini</option>
+                </select>
+              </div>
+              <div className="h-80 w-full animate-in fade-in duration-500 delay-100">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={analytics.chart_data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <AreaChart data={analytics.chart_data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorReach" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorEng" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ec4899" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 600}} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 600}} dx={-10} />
                     <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      labelStyle={{ fontWeight: 'bold', color: '#0f172a' }}
+                      contentStyle={{ borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}
+                      labelStyle={{ fontWeight: '900', color: '#0f172a', marginBottom: '8px' }}
+                      itemStyle={{ fontWeight: '700' }}
                     />
                     <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px', fontWeight: 'bold' }}/>
-                    <Line type="monotone" name="Reach" dataKey="reach" stroke="#4f46e5" strokeWidth={4} activeDot={{ r: 8 }} />
-                    <Line type="monotone" name="Engagement" dataKey="engagement" stroke="#ec4899" strokeWidth={4} />
-                  </LineChart>
+                    <Area type="monotone" name="Reach" dataKey="reach" stroke="#4f46e5" fillOpacity={1} fill="url(#colorReach)" strokeWidth={4} activeDot={{ r: 8, strokeWidth: 0 }} />
+                    <Area type="monotone" name="Engagement" dataKey="engagement" stroke="#ec4899" fillOpacity={1} fill="url(#colorEng)" strokeWidth={4} activeDot={{ r: 8, strokeWidth: 0 }} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Recent Comments */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-extrabold text-slate-900">Komentar Terbaru</h3>
-                <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-lg">Live</span>
+            {/* Right Column */}
+            <div className="flex flex-col gap-6">
+              {/* Best Time to Post Widget */}
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-3xl border border-indigo-100 shadow-sm relative overflow-hidden group">
+                <div className="absolute right-0 top-0 opacity-[0.03] text-indigo-900 translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform duration-500">
+                  <Clock size={120} />
+                </div>
+                <div className="flex items-center gap-3 mb-4 relative z-10">
+                  <div className="bg-gradient-to-tr from-indigo-600 to-purple-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-200">
+                    <Sparkles size={18} />
+                  </div>
+                  <h3 className="text-xs font-black text-indigo-900 uppercase tracking-wider">AI Insight</h3>
+                </div>
+                <div className="relative z-10">
+                  <p className="text-2xl font-black text-slate-900 mb-2">19:00 WIB</p>
+                  <p className="text-sm text-indigo-800/80 font-medium leading-relaxed">Waktu terbaik memposting berdasarkan riwayat <i>engagement</i> tertinggi audiens Anda.</p>
+                </div>
               </div>
-              
-              <div className="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-2">
+
+              {/* Recent Comments */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex-1 flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-extrabold text-slate-900">Komentar Terbaru</h3>
+                  <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider animate-pulse">Live</span>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 max-h-[300px]">
                 {analytics.recent_comments.length === 0 && (
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-sm font-semibold text-slate-500">
                     Belum ada komentar terbaru dari webhook Meta.

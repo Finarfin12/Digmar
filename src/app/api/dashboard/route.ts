@@ -2,11 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
 
-function getCount(data: unknown): number {
-  if (Array.isArray(data)) return data.length
-  if (data && typeof data === 'object' && 'count' in data) return (data as { count: number }).count
-  return 0
-}
 
 export async function GET() {
   const supabase = await createClient()
@@ -23,17 +18,17 @@ export async function GET() {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
     const [
-      { data: totalPosts },
-      { data: todayPosts },
-      { data: queueWaiting },
-      { data: queueProcessing },
-      { data: queueSuccess },
-      { data: queueFailed },
-      { data: recentPosts },
-      { data: recentConversations },
-      { data: monthlyPosts },
-      { data: unitsData },
-      { data: accountsData },
+      totalPosts,
+      todayPosts,
+      queueWaiting,
+      queueProcessing,
+      queueSuccess,
+      queueFailed,
+      recentPosts,
+      recentConversations,
+      monthlyPosts,
+      unitsData,
+      accountsData,
     ] = await Promise.all([
       supabase.from('post_queue').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       supabase.from('post_queue').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('scheduled_at', todayStart).lt('scheduled_at', todayEnd),
@@ -42,22 +37,22 @@ export async function GET() {
       supabase.from('post_queue').select('id', { count: 'exact', head: true }).eq('user_id', user.id).in('status', ['success', 'published']),
       supabase.from('post_queue').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'failed'),
       supabase.from('post_queue').select('job_code, status, scheduled_at, updated_at').eq('user_id', user.id).order('updated_at', { ascending: false }).limit(10),
-      supabase.from('social_conversations').select('id, customer_name, latest_message, latest_message_at').eq('business_units.user_id', user.id).order('latest_message_at', { ascending: false }).limit(10),
+      supabase.from('social_conversations').select('id, customer_name, latest_message, latest_message_at, business_units!inner(user_id)').eq('business_units.user_id', user.id).order('latest_message_at', { ascending: false }).limit(10),
       supabase.from('post_queue').select('scheduled_at').eq('user_id', user.id).gte('scheduled_at', monthStart).order('scheduled_at', { ascending: true }),
       supabase.from('business_units').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-      supabase.from('social_accounts').select('id', { count: 'exact', head: true }).eq('business_units.user_id', user.id),
+      supabase.from('social_accounts').select('id, business_units!inner(user_id)', { count: 'exact', head: true }).eq('business_units.user_id', user.id),
     ])
 
     const queue = {
-      waiting: getCount(queueWaiting),
-      processing: getCount(queueProcessing),
-      success: getCount(queueSuccess),
-      failed: getCount(queueFailed),
+      waiting: queueWaiting.count || 0,
+      processing: queueProcessing.count || 0,
+      success: queueSuccess.count || 0,
+      failed: queueFailed.count || 0,
     }
 
     const calendarMap = new Map<string, number>()
-    if (monthlyPosts) {
-      for (const p of monthlyPosts) {
+    if (monthlyPosts.data) {
+      for (const p of monthlyPosts.data) {
         const dateKey = p.scheduled_at.split('T')[0]
         calendarMap.set(dateKey, (calendarMap.get(dateKey) || 0) + 1)
       }
@@ -66,8 +61,8 @@ export async function GET() {
 
     const activity: Array<{ type: string; timestamp: string; message: string }> = []
 
-    if (recentPosts) {
-      for (const p of recentPosts.slice(0, 5)) {
+    if (recentPosts.data) {
+      for (const p of recentPosts.data.slice(0, 5)) {
         const statusLabel = p.status === 'success' ? 'berhasil dipublikasi' : p.status === 'failed' ? 'gagal' : p.status
         activity.push({
           type: `post_${p.status}`,
@@ -77,8 +72,8 @@ export async function GET() {
       }
     }
 
-    if (recentConversations) {
-      for (const c of recentConversations.slice(0, 5)) {
+    if (recentConversations.data) {
+      for (const c of recentConversations.data.slice(0, 5)) {
         activity.push({
           type: 'conversation',
           timestamp: c.latest_message_at,
@@ -90,10 +85,10 @@ export async function GET() {
     activity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
     return NextResponse.json({
-      total_posts: getCount(totalPosts),
-      posts_today: getCount(todayPosts),
-      total_units: getCount(unitsData),
-      total_accounts: getCount(accountsData),
+      total_posts: totalPosts.count || 0,
+      posts_today: todayPosts.count || 0,
+      total_units: unitsData.count || 0,
+      total_accounts: accountsData.count || 0,
       queue,
       monthly_calendar: monthlyCalendar.slice(0, 31),
       recent_activity: activity.slice(0, 10),

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from 'react';
-import { PlusCircle, Calendar as CalendarIcon, X, Sparkles, Filter, Upload } from 'lucide-react';
+import { PlusCircle, Calendar as CalendarIcon, X, Sparkles, Filter, Upload, LayoutList } from 'lucide-react';
 import Swal from 'sweetalert2';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -45,7 +45,10 @@ export default function Planner() {
   const [showHashtagModal, setShowHashtagModal] = useState(false);
   const [showCampaignModal, setShowCampaignModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [viewMode, setViewMode] = useState<'calendar' | 'kanban'>('calendar');
   
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
   const [filterUnit, setFilterUnit] = useState<string>('all');
@@ -118,6 +121,11 @@ export default function Planner() {
     setShowModal(true);
   };
 
+  const handleEventClick = (arg: { event: { extendedProps: any } }) => {
+    setSelectedEvent(arg.event.extendedProps);
+    setShowPreviewModal(true);
+  };
+
   const handleEventDrop = async (arg: { event: { id: string, start: Date | null }, revert: () => void }) => {
     const { event } = arg;
     if (!event.start) return;
@@ -157,6 +165,9 @@ export default function Planner() {
           <button onClick={() => setShowHashtagModal(true)} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-5 py-3 rounded-xl flex items-center gap-2 transition-all font-bold border border-indigo-200">
             <Hash size={18} /> Riset Hashtag
           </button>
+          <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-700 hover:to-indigo-700 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-fuchsia-500/30 transition-all font-extrabold border border-fuchsia-500">
+            <Sparkles size={18} className="text-fuchsia-100" /> Smart Auto-Slot
+          </button>
           <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
             <PlusCircle size={18} /> Buat Jadwal Baru
           </button>
@@ -164,49 +175,123 @@ export default function Planner() {
       </header>
 
       {/* Filter Bar */}
-      <div className="flex gap-3 items-center bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-        <Filter size={16} className="text-slate-400 ml-2" />
-        <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700">
-          <option value="all">Semua Unit</option>
-          {units.map((u: any) => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
-        </select>
-        <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700">
-          <option value="all">Semua Platform</option>
-          <option value="meta_ig">Instagram</option>
-          <option value="facebook">Facebook</option>
-          <option value="tiktok">TikTok</option>
-          <option value="linkedin">LinkedIn</option>
-          <option value="threads">Threads</option>
-        </select>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-3">
+          <Filter size={16} className="text-slate-400 ml-2" />
+          <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700 cursor-pointer">
+            <option value="all">Semua Unit</option>
+            {units.map((u: any) => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
+          </select>
+          <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700 cursor-pointer">
+            <option value="all">Semua Platform</option>
+            <option value="meta_ig">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="tiktok">TikTok</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="threads">Threads</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center bg-slate-100 rounded-lg p-1">
+          <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${viewMode === 'calendar' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+            <CalendarIcon size={16} /> Calendar
+          </button>
+          <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${viewMode === 'kanban' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+            <LayoutList size={16} /> Kanban List
+          </button>
+        </div>
       </div>
       
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 overflow-hidden calendar-container text-slate-900">
-        <style dangerouslySetInnerHTML={{__html: `
-          .fc-col-header-cell { padding: 12px 0; background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.8rem; }
-          .fc-daygrid-day { transition: background 0.2s; cursor: pointer; }
-          .fc-daygrid-day:hover { background: #f1f5f9; }
-          .fc-event { padding: 4px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; }
-          .fc-button-primary { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; color: #1e293b !important; font-weight: 700 !important; text-transform: capitalize !important;}
-          .fc-button-primary:hover { background-color: #e2e8f0 !important; }
-          .fc-button-active { background-color: #cbd5e1 !important; }
-        `}} />
-        <FullCalendar
-          ref={calendarRef}
-          plugins={[dayGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
-          events={events}
-          dateClick={handleDateClick}
-          eventDrop={handleEventDrop}
-          editable={true}
-          droppable={true}
-          height="auto"
-          headerToolbar={{
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,dayGridWeek'
-          }}
-        />
-      </div>
+      {viewMode === 'calendar' ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 overflow-hidden calendar-container text-slate-900 animate-in fade-in zoom-in-95 duration-300">
+          <style dangerouslySetInnerHTML={{__html: `
+            .fc-col-header-cell { padding: 12px 0; background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.8rem; }
+            .fc-daygrid-day { transition: background 0.2s; cursor: pointer; }
+            .fc-daygrid-day:hover { background: #f1f5f9; }
+            .fc-event { padding: 4px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; }
+            .fc-button-primary { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; color: #1e293b !important; font-weight: 700 !important; text-transform: capitalize !important;}
+            .fc-button-primary:hover { background-color: #e2e8f0 !important; }
+            .fc-button-active { background-color: #cbd5e1 !important; }
+          `}} />
+          <FullCalendar
+            ref={calendarRef}
+            plugins={[dayGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            events={events}
+            dateClick={handleDateClick}
+            eventClick={handleEventClick}
+            eventDrop={handleEventDrop}
+            editable={true}
+            droppable={true}
+            height="auto"
+            headerToolbar={{
+              left: 'prev,next today',
+              center: 'title',
+              right: 'dayGridMonth,dayGridWeek'
+            }}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
+          {/* Kanban Columns */}
+          <div className="bg-slate-50 rounded-3xl p-5 border border-slate-200">
+            <h4 className="font-extrabold text-slate-700 mb-5 flex items-center justify-between">
+              <span>Menunggu (Draft)</span>
+              <span className="bg-slate-200 text-slate-600 px-2.5 py-0.5 rounded-full text-xs">{events.filter(e => e.extendedProps.status === 'waiting').length}</span>
+            </h4>
+            <div className="space-y-4">
+              {events.filter(e => e.extendedProps.status === 'waiting').map(e => (
+                <div key={e.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group" onClick={() => handleEventClick({event: e} as any)}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: getEventColor(e.extendedProps.status, e.extendedProps.platform)}}></span>
+                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{e.extendedProps.platform}</span>
+                  </div>
+                  <p className="font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{e.extendedProps.job_code}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-2 flex items-center gap-1"><CalendarIcon size={12}/> {new Date(e.start).toLocaleString('id-ID')}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-blue-50/50 rounded-3xl p-5 border border-blue-100">
+            <h4 className="font-extrabold text-blue-800 mb-5 flex items-center justify-between">
+              <span>Sedang Diproses</span>
+              <span className="bg-blue-200 text-blue-700 px-2.5 py-0.5 rounded-full text-xs">{events.filter(e => e.extendedProps.status === 'processing').length}</span>
+            </h4>
+            <div className="space-y-4">
+              {events.filter(e => e.extendedProps.status === 'processing').map(e => (
+                <div key={e.id} className="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm cursor-pointer hover:shadow-md transition-all" onClick={() => handleEventClick({event: e} as any)}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2.5 h-2.5 rounded-full animate-pulse" style={{backgroundColor: getEventColor(e.extendedProps.status, e.extendedProps.platform)}}></span>
+                    <span className="text-xs font-black text-blue-500 uppercase tracking-widest">{e.extendedProps.platform}</span>
+                  </div>
+                  <p className="font-bold text-slate-900">{e.extendedProps.job_code}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-2 flex items-center gap-1"><CalendarIcon size={12}/> {new Date(e.start).toLocaleString('id-ID')}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-emerald-50/50 rounded-3xl p-5 border border-emerald-100">
+            <h4 className="font-extrabold text-emerald-800 mb-5 flex items-center justify-between">
+              <span>Selesai (Published)</span>
+              <span className="bg-emerald-200 text-emerald-700 px-2.5 py-0.5 rounded-full text-xs">{events.filter(e => ['success', 'published', 'partial'].includes(e.extendedProps.status)).length}</span>
+            </h4>
+            <div className="space-y-4">
+              {events.filter(e => ['success', 'published', 'partial'].includes(e.extendedProps.status)).map(e => (
+                <div key={e.id} className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm cursor-pointer hover:shadow-md transition-all opacity-80" onClick={() => handleEventClick({event: e} as any)}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: getEventColor(e.extendedProps.status, e.extendedProps.platform)}}></span>
+                    <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">{e.extendedProps.platform}</span>
+                  </div>
+                  <p className="font-bold text-slate-900 line-through decoration-emerald-200">{e.extendedProps.job_code}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-2 flex items-center gap-1"><CalendarIcon size={12}/> {new Date(e.start).toLocaleString('id-ID')}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Studio */}
       {showModal && (
@@ -258,6 +343,51 @@ export default function Planner() {
             setShowBulkModal(false);
           }}
         />
+      )}
+
+      {/* Post Preview Modal */}
+      {showPreviewModal && selectedEvent && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-sm overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-300 my-auto">
+            <div className="bg-slate-100 border-b border-slate-200 p-4 flex justify-between items-center">
+              <span className="font-black text-slate-500 text-[10px] uppercase tracking-widest">{selectedEvent.platform === 'meta_ig' ? 'Instagram Preview' : selectedEvent.platform === 'facebook' ? 'Facebook Preview' : selectedEvent.platform + ' Preview'}</span>
+              <button onClick={() => setShowPreviewModal(false)} className="bg-slate-200 hover:bg-slate-300 rounded-full p-1.5 transition-colors text-slate-500 hover:text-slate-900"><X size={16} /></button>
+            </div>
+            {/* Header IG */}
+            <div className="p-4 flex items-center gap-3 border-b border-slate-100">
+              <div className="w-10 h-10 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-0.5 rounded-full shadow-sm">
+                <div className="bg-white w-full h-full rounded-full border-2 border-white overflow-hidden">
+                  <img src={`https://ui-avatars.com/api/?name=${selectedEvent.platform}&background=random`} alt="Avatar" className="w-full h-full object-cover" />
+                </div>
+              </div>
+              <div>
+                <p className="font-bold text-sm text-slate-900 leading-none">@digimar.official</p>
+                <p className="text-[10px] text-slate-500 font-medium mt-1 uppercase tracking-wider">{new Date(selectedEvent.scheduled_at).toLocaleString('id-ID')}</p>
+              </div>
+            </div>
+            {/* Media */}
+            <div className="aspect-square bg-slate-100 flex items-center justify-center relative group overflow-hidden">
+              {selectedEvent.media_urls?.[0] ? (
+                 <img src={selectedEvent.media_urls[0]} alt="Post" className="w-full h-full object-cover" />
+              ) : (
+                 <div className="text-slate-400 font-bold flex flex-col items-center gap-3"><Upload size={40} className="opacity-50" /> No Media Selected</div>
+              )}
+            </div>
+            {/* Action Bar IG */}
+            <div className="p-5 border-t border-slate-100 min-h-[100px]">
+              <p className="text-sm text-slate-800 leading-relaxed">
+                <span className="font-bold mr-2 text-slate-900">digimar.official</span>
+                {selectedEvent.caption || <span className="text-slate-400 italic">Belum ada caption...</span>}
+              </p>
+            </div>
+            <div className="bg-slate-50 p-4 flex justify-between gap-3 border-t border-slate-200">
+               <button onClick={() => setShowPreviewModal(false)} className="flex-1 bg-white border border-slate-200 py-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-all shadow-sm">Tutup</button>
+               {selectedEvent.status !== 'success' && selectedEvent.status !== 'published' && (
+                 <button className="flex-1 bg-indigo-600 py-3 rounded-xl text-sm font-black text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all">Edit Post</button>
+               )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
