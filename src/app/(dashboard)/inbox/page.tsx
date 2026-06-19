@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useRef } from 'react';
-import { Loader2, MessageSquare, Search, Phone, Video, MoreVertical, Send, CheckCheck, Bot, Sparkles, Smile, Image as ImageIcon } from 'lucide-react';
+import { Loader2, MessageSquare, Search, Phone, Video, MoreVertical, Send, CheckCheck, Bot, Sparkles, Smile, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 import { logger } from '@/lib/utils/logger'
@@ -71,6 +71,46 @@ export default function InboxPage() {
         setLoadingMessages(false);
       });
   }, [selectedConvo]);
+
+  const handleSyncConversations = async () => {
+    if (!selectedUnit) return;
+    try {
+      Swal.fire({ title: 'Sync Instagram...', text: 'Mengambil percakapan dari Instagram...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      // Get accounts for this unit
+      const accRes = await fetch(`/api/accounts?unit_id=${selectedUnit}`);
+      const accounts = await accRes.json();
+      if (!Array.isArray(accounts) || accounts.length === 0) {
+        Swal.fire('Info', 'Tidak ada akun Instagram terhubung ke unit ini.', 'info');
+        return;
+      }
+
+      let totalSynced = 0;
+      for (const account of accounts) {
+        const res = await fetch('/api/inbox/backfill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account_id: account.id }),
+        });
+        const data = await res.json();
+        if (data.success) totalSynced += data.messages_synced || 0;
+      }
+
+      // Refresh
+      const convRes = await fetch(`/api/inbox?business_unit_id=${selectedUnit}`);
+      const convData = await convRes.json();
+      if (convData.success) setConversations(convData.data || []);
+
+      Swal.fire({
+        title: 'Selesai!',
+        text: `Berhasil sinkron ${totalSynced} pesan baru dari Instagram.`,
+        icon: 'success',
+        timer: 3000,
+      });
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,6 +215,12 @@ export default function InboxPage() {
           Smart Inbox
         </h2>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncConversations}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <RefreshCw size={14} /> Sync Now
+          </button>
           <span className="text-sm font-bold text-slate-400">Unit Bisnis:</span>
           <select 
             value={selectedUnit} 
