@@ -202,33 +202,33 @@ export default function SocialTab() {
                   <p className="text-xs text-slate-500 mt-1.5">💡 Isi manual dengan Open ID dari TikTok for Developers → My Apps → Auth.</p>
                 )}
               </div>
-                {discoveredPages.length > 0 && (
-                  <div className="mt-2 space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white p-2">
-                    {discoveredPages.map((p, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => {
-                          if (p.ig_business_account_id) setUser(p.ig_business_account_id);
-                        }}
-                        className={`w-full text-left p-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
-                          user === p.ig_business_account_id ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <span>
-                          {p.page_name}
-                          {p.ig_username && <span className="text-pink-600 ml-2">@{p.ig_username}</span>}
-                        </span>
-                        {p.ig_business_account_id ? (
-                          user === p.ig_business_account_id ? <CheckCircle2 size={16} className="text-indigo-600" /> : <span className="text-xs text-slate-400">ID: {p.ig_business_account_id.substring(0, 12)}...</span>
-                        ) : (
-                          <span className="text-xs text-amber-500">⚠️ No IG linked</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {discoveredPages.length > 0 && (
+                <div className="mt-2 space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white p-2">
+                  {discoveredPages.map((p, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        if (p.ig_business_account_id) setUser(p.ig_business_account_id);
+                      }}
+                      className={`w-full text-left p-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-between ${
+                        user === p.ig_business_account_id ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      <span>
+                        {p.page_name}
+                        {p.ig_username && <span className="text-pink-600 ml-2">@{p.ig_username}</span>}
+                      </span>
+                      {p.ig_business_account_id ? (
+                        user === p.ig_business_account_id ? <CheckCircle2 size={16} className="text-indigo-600" /> : <span className="text-xs text-slate-400">ID: {p.ig_business_account_id.substring(0, 12)}...</span>
+                      ) : (
+                        <span className="text-xs text-amber-500">⚠️ No IG linked</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-bold text-slate-800 mb-1">Access Token</label>
                 <div className="relative">
