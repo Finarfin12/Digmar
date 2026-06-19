@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
     // Fase 5: Apply Variables
     let processedCaption = caption || '';
     let processedFirstComment = first_comment || '';
+    let processedCaptionB = caption_b || '';
 
     // Ambil info Unit Bisnis dari akun pertama
     const accountInfo = ownedAccounts.find(account => account.id === uniqueTargetAccountIds[0])
@@ -236,7 +237,7 @@ export async function POST(request: NextRequest) {
 
         processedCaption = processedCaption.replace(/\{([^}]+)\}/g, replacer);
         processedFirstComment = processedFirstComment.replace(/\{([^}]+)\}/g, replacer);
-        if (caption_b) caption_b = caption_b.replace(/\{([^}]+)\}/g, replacer);
+        if (processedCaptionB) processedCaptionB = processedCaptionB.replace(/\{([^}]+)\}/g, replacer);
       }
     }
 
@@ -268,7 +269,7 @@ export async function POST(request: NextRequest) {
       insertData.platform_captions = sanitizedPlatformCaptions
     }
 
-    if (is_ab_test && caption_b) {
+    if (is_ab_test && processedCaptionB) {
       // 1. Create AB Test Record
       const { data: abTestRecord, error: abTestError } = await supabase
         .from('ab_tests')
@@ -279,7 +280,6 @@ export async function POST(request: NextRequest) {
         })
         .select('id')
         .single()
-        
       if (abTestError) {
         return NextResponse.json({ error: 'Gagal membuat A/B test record: ' + abTestError.message }, { status: 500 })
       }
@@ -288,14 +288,15 @@ export async function POST(request: NextRequest) {
       insertData.ab_test_id = abTestId;
       
       // 2. Insert Variant A
-      const { data: dataA, error: errorA } = await insertPostQueue(supabase, { ...insertData })
+      const { data: dataA, error: errorA } = await insertPostQueue(supabase, { ...insertData, ab_variant: 'A' })
       if (errorA) return NextResponse.json({ error: errorA.message }, { status: 500 })
       
       // 3. Insert Variant B (beda job_code dan caption)
       const { data: dataB, error: errorB } = await insertPostQueue(supabase, { 
         ...insertData, 
         job_code: generateJobCode(), 
-        caption: caption_b,
+        ab_variant: 'B',
+        caption: processedCaptionB,
         media_urls: media_urls_b && media_urls_b.length > 0 ? media_urls_b : media_urls
       })
       if (errorB) return NextResponse.json({ error: errorB.message }, { status: 500 })

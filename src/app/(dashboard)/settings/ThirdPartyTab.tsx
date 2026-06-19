@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSupabase } from '@/components/providers/supabase-provider';
+import { createClient } from '@/lib/supabase/client';
 import { Save, AlertCircle, RefreshCw } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 export default function ThirdPartyTab() {
-  const { supabase, session } = useSupabase();
+  const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [businessUnitId, setBusinessUnitId] = useState('');
@@ -16,8 +16,10 @@ export default function ThirdPartyTab() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      if (!session?.user?.id) return;
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        
         const { data: bu, error } = await supabase
           .from('business_units')
           .select('id, use_serpapi, serpapi_key')
@@ -40,7 +42,7 @@ export default function ThirdPartyTab() {
     };
 
     fetchSettings();
-  }, [session, supabase]);
+  }, [supabase]);
 
   const handleSave = async () => {
     if (!businessUnitId) {
