@@ -4,6 +4,7 @@ import { Users, Eye, MousePointerClick, MessageCircle, AlertCircle, Loader2, Spa
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import Swal from 'sweetalert2';
 import CompetitorSpy from './CompetitorSpy';
+import SerpSpy from './SerpSpy';
 import ABTestAnalytics from './ABTestAnalytics';
 
 import { logger } from '@/lib/utils/logger'
@@ -14,7 +15,7 @@ export default function Analytics() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
-  const [activeTab, setActiveTab] = useState<'performance' | 'competitors' | 'abtest'>('performance');
+  const [activeTab, setActiveTab] = useState<'performance' | 'competitors' | 'abtest' | 'serp_spy'>('performance');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | 'this_month'>('7d');
 
   // Fetch Accounts
@@ -67,13 +68,16 @@ export default function Analytics() {
       <div className="flex space-x-2 border-b border-slate-300">
         <button onClick={() => setActiveTab('performance')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'performance' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Performance Dashboard</button>
         <button onClick={() => setActiveTab('competitors')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'competitors' ? 'border-pink-600 text-pink-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Competitor Spy</button>
+        <button onClick={() => setActiveTab('serp_spy')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'serp_spy' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>SERP Spy (SerpApi)</button>
         <button onClick={() => setActiveTab('abtest')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'abtest' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>A/B Testing Lab</button>
       </div>
 
       {activeTab === 'competitors' ? (
         <CompetitorSpy />
+      ) : activeTab === 'serp_spy' ? (
+        <SerpSpy units={accounts.map((a: any) => a.business_units).filter(Boolean)} />
       ) : activeTab === 'abtest' ? (
-        <ABTestAnalytics unitId={accounts.find(a => a.id === selectedAccount)?.business_unit_id} />
+        <ABTestAnalytics unitId={accounts.find((a: any) => a.id === selectedAccount)?.business_unit_id} />
       ) : (
         <>
           {/* Header & Selector */}

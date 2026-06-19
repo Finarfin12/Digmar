@@ -20,7 +20,7 @@ interface HashtagData {
   sources?: SourceItem[];
 }
 
-interface BusinessUnitOption { id: string; brand_name: string; }
+interface BusinessUnitOption { id: string; brand_name: string; use_serpapi?: boolean; }
 
 export default function HashtagModal({ onClose, units = [] }: { onClose: () => void; units?: BusinessUnitOption[] }) {
   const [topic, setTopic] = useState('');
@@ -39,6 +39,7 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
       case 'newsdata': return <Globe2 size={18} className="text-slate-500" />;
       case 'youtube': return <Video size={18} className="text-red-500" />;
       case 'reddit': return <MessageCircle size={18} className="text-orange-500" />;
+      case 'google_trends': return <TrendingUp size={18} className="text-blue-500" />;
       default: return <Globe2 size={18} className="text-slate-400" />;
     }
   };
@@ -47,17 +48,44 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
     e.preventDefault();
     if (!topic.trim()) return Swal.fire('Oops', 'Masukkan topik dulu', 'warning');
     if (!selectedBusinessUnitId) return Swal.fire('Oops', 'Unit Bisnis belum tersedia.', 'warning');
+
+    if (selectedSource === 'serpapi') {
+      const result = await Swal.fire({
+        title: 'Gunakan Token Premium?',
+        text: 'Anda akan menggunakan 1 token SerpApi. Lanjutkan?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Cari',
+        cancelButtonText: 'Batal'
+      });
+      if (!result.isConfirmed) return;
+    }
+
     setLoading(true);
     setData(null);
     try {
-      const res = await fetch('/api/ai/hashtags', {
+      const endpoint = selectedSource === 'serpapi' ? '/api/serpapi' : '/api/ai/hashtags';
+      const payload = selectedSource === 'serpapi'
+        ? { business_unit_id: selectedBusinessUnitId, search_type: 'hashtag', query: topic.trim() }
+        : { business_unit_id: selectedBusinessUnitId, topic: topic.trim(), source: selectedSource };
+
+      const res = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_unit_id: selectedBusinessUnitId, topic: topic.trim(), source: selectedSource })
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Gagal');
-      setData(json);
+      if (!res.ok) throw new Error(json.error || json.message || 'Gagal');
+
+      // SerpApi returns in `.data` while /api/ai/hashtags returns directly
+      if (selectedSource === 'serpapi' && json.data) {
+        setData(json.data);
+      } else {
+        setData(json);
+      }
     } catch (err: unknown) {
+      if ((err as Error).message.includes('Limit')) {
+         setSelectedSource('mixed');
+      }
       Swal.fire('Error', (err as Error).message, 'error');
     } finally { setLoading(false); }
   };
@@ -93,6 +121,9 @@ export default function HashtagModal({ onClose, units = [] }: { onClose: () => v
               <option value="google_news">Berita Google</option>
               <option value="newsdata">Berita Global</option>
               <option value="reddit">Reddit (Sentimen Netizen)</option>
+              {units.find(u => u.id === selectedBusinessUnitId)?.use_serpapi && (
+                <option value="serpapi">📈 Google Trends (SerpApi)</option>
+              )}
             </select>
             <button disabled={loading} type="submit" className="w-full bg-indigo-600 text-white px-6 py-4 font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-indigo-700 transition disabled:opacity-60">
               {loading ? <Loader2 className="animate-spin" /> : <Search />} Cari

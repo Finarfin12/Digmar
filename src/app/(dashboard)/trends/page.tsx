@@ -38,24 +38,54 @@ export default function Trends() {
       case 'newsdata': return <Globe2 size={18} className="text-slate-500" />;
       case 'youtube': return <Video size={18} className="text-red-500" />;
       case 'reddit': return <MessageCircle size={18} className="text-orange-500" />;
+      case 'google_trends': return <TrendingUp size={18} className="text-blue-500" />;
       default: return <Globe2 size={18} className="text-slate-400" />;
     }
   };
 
   const generateTrends = async () => {
     if (!selectedUnit) return Swal.fire('Error', 'Pilih Unit Bisnis terlebih dahulu', 'error');
+
+    if (selectedSource === 'serpapi') {
+      const result = await Swal.fire({
+        title: 'Gunakan Token Premium?',
+        text: 'Anda akan menggunakan 1 token SerpApi. Lanjutkan?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Analisis',
+        cancelButtonText: 'Batal'
+      });
+      if (!result.isConfirmed) return;
+    }
+
     setLoading(true);
     try {
-      const res = await fetch('/api/ai/trends', {
+      const endpoint = selectedSource === 'serpapi' ? '/api/serpapi' : '/api/ai/trends';
+      const bodyPayload = selectedSource === 'serpapi'
+        ? { business_unit_id: selectedUnit, search_type: 'trends', query: 'Top Trends Indonesia' }
+        : { business_unit_id: selectedUnit, source: selectedSource };
+
+      const res = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_unit_id: selectedUnit, source: selectedSource })
+        body: JSON.stringify(bodyPayload)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Gagal');
-      setTrends(data);
+      if (!res.ok) throw new Error(data.error || data.message || 'Gagal');
+
+      // format handling for Serpapi
+      if (selectedSource === 'serpapi' && data.data) {
+         setTrends(data.data);
+      } else {
+         setTrends(data);
+      }
+      
       setViewMode('ideas');
       Swal.fire({ title: 'Berhasil!', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch (err: unknown) {
+      // automatically change back to mixed if serpapi limit reached to prevent blocking
+      if ((err as Error).message.includes('Limit')) {
+         setSelectedSource('mixed');
+      }
       Swal.fire('Error', (err as Error).message, 'error');
     } finally { setLoading(false); }
   };
@@ -79,6 +109,9 @@ export default function Trends() {
             <option value="google_news">Berita Google</option>
             <option value="newsdata">Berita Global</option>
             <option value="reddit">Reddit</option>
+            {units.find(u => u.id === selectedUnit)?.use_serpapi && (
+              <option value="serpapi">📈 Google Trends (SerpApi)</option>
+            )}
           </select>
           <button onClick={generateTrends} disabled={loading || !selectedUnit} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-extrabold px-6 py-3.5 rounded-xl flex items-center gap-2 transition-all shadow-md disabled:opacity-70 whitespace-nowrap">
             {loading ? <Loader2 className="animate-spin" size={20}/> : <Zap size={20} className="fill-white" />}

@@ -9,9 +9,10 @@ import AITab from './AITab';
 import AIVisionTab from './AIVisionTab';
 import AIImageTab from './AIImageTab';
 import ChatbotTab from './ChatbotTab';
+import ThirdPartyTab from './ThirdPartyTab';
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState<'units' | 'social' | 'ai' | 'chatbot' | 'vision' | 'image'>('units');
+  const [activeTab, setActiveTab] = useState<'units' | 'social' | 'ai' | 'chatbot' | 'vision' | 'image' | 'third_party'>('units');
   const [publishMode, setPublishMode] = useState<'cepat' | 'lanjutan'>('cepat');
   const [savingMode, setSavingMode] = useState(false);
 
@@ -58,6 +59,7 @@ export default function Settings() {
         <button onClick={() => setActiveTab('ai')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'ai' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider</button>
         <button onClick={() => setActiveTab('vision')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'vision' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider-Vision</button>
         <button onClick={() => setActiveTab('image')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'image' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>AI Provider-Image</button>
+        <button onClick={() => setActiveTab('third_party')} className={`px-6 py-3 font-bold transition-all duration-200 border-b-2 ${activeTab === 'third_party' ? 'border-rose-600 text-rose-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>Pihak Ketiga (API)</button>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden transition-all">
@@ -124,6 +126,7 @@ export default function Settings() {
         {activeTab === 'ai' && <AITab />}
         {activeTab === 'vision' && <AIVisionTab />}
         {activeTab === 'image' && <AIImageTab />}
+        {activeTab === 'third_party' && <ThirdPartyTab />}
       </div>
     </div>
   );
