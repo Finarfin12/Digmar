@@ -22,67 +22,48 @@ export async function POST(request: NextRequest) {
     }
 
     const userToken = decryptValue(account.access_token_encrypted)
-    const igUserId = account.ig_user_id
     let totalSynced = 0
     const syncErrors: string[] = []
 
-    // Coba langsung fetch conversations dengan user token
-    const baseFields = 'id,participants,updated_time,unread_count,messages.limit(10){id,from,to,message,created_time,attachments}'
-    let convData: { data?: unknown[]; error?: { message: string; code: number } } | null = null
-
-    // Attempt 1: langsung pakai user token — Instagram API
-    let res = await fetch(
-      `https://graph.facebook.com/v25.0/${igUserId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${userToken}`,
-      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) }
+    // Step 1: Dapatkan Page Token dari /me/accounts
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,access_token,instagram_business_account{id}&access_token=${userToken}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) }
     )
-    convData = await res.json()
+    const pagesData = await pagesRes.json()
 
-    // Attempt 2: kalau gagal, coba lewat Page Messenger API
-    // Pages Messaging API lebih mudah diakses (hanya butuh pages_messaging)
-    if (convData?.error) {
-      try {
-        const pagesRes = await fetch(
-          `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,instagram_business_account{id},access_token&access_token=${userToken}`,
-          { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) }
-        )
-        const pagesData = await pagesRes.json()
-        if (!pagesData.error && pagesData.data?.length > 0) {
-          const match = pagesData.data.find((p: { instagram_business_account?: { id: string } }) =>
-            p.instagram_business_account?.id === igUserId
-          ) || pagesData.data[0]
-
-          const pageToken = match.access_token
-          const pageId = match.id
-
-          if (pageToken && pageId) {
-            // Coba Instagram endpoint dengan Page Token
-            res = await fetch(
-              `https://graph.facebook.com/v25.0/${igUserId}/conversations?platform=instagram&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
-              { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) }
-            )
-            let pageConv = await res.json()
-            if (!pageConv.error) {
-              convData = pageConv
-            } else {
-              // Fallback: Messenger API (platform=messenger) — bisa baca IG DM juga
-              res = await fetch(
-                `https://graph.facebook.com/v25.0/${pageId}/conversations?platform=messenger&fields=${encodeURIComponent(baseFields)}&access_token=${pageToken}`,
-                { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15000) }
-              )
-              const msgConv = await res.json()
-              if (!msgConv.error) convData = msgConv
-            }
-          }
-        }
-      } catch { /* tetap pakai convData asli */ }
+    if (pagesData.error || !pagesData.data?.length) {
+      const msg = pagesData.error?.message || 'Tidak ada Facebook Page ditemukan'
+      return NextResponse.json({ error: msg, code: pagesData.error?.code })
     }
 
-    if (convData?.error) {
+    // Cari Page yang terhubung ke IG Business Account ini
+    const match = pagesData.data.find((p: { instagram_business_account?: { id: string } }) =>
+      p.instagram_business_account?.id === account.ig_user_id
+    ) || pagesData.data[0]
+
+    const pageToken = match.access_token
+    const pageId = match.id
+
+    if (!pageToken) {
+      return NextResponse.json({ error: 'Page token tidak tersedia — pastikan token punya pages_show_list & pages_messaging' })
+    }
+
+    // Step 2: Fetch conversations lewat Page Messenger API
+    // platform=messenger — tidak perlu Instagram Messages product, cukup pages_messaging
+    const fields = 'id,participants,updated_time,unread_count,messages.limit(20){id,from,to,message,created_time,attachments}'
+    const convRes = await fetch(
+      `https://graph.facebook.com/v25.0/${pageId}/conversations?platform=messenger&fields=${encodeURIComponent(fields)}&access_token=${pageToken}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(30000) }
+    )
+    const convData = await convRes.json()
+
+    if (convData.error) {
       return NextResponse.json({
         error: convData.error.message,
         code: convData.error.code,
-        info: 'Coba tambah permission pages_messaging dan pages_show_list di Graph API Explorer, lalu generate ulang token.',
-      }, { status: 400 })
+        info: 'Coba generate ulang token dengan permission pages_messaging di Graph API Explorer.',
+      })
     }
 
     const conversations = (convData?.data || []) as Array<{
@@ -90,24 +71,24 @@ export async function POST(request: NextRequest) {
       participants?: { data: Array<{ id: string }> }
       updated_time?: string
       unread_count?: number
-      messages?: { data: Array<{ id: string; from?: { id: string }; message?: string; created_time?: string; attachments?: unknown }> }
+      messages?: { data: Array<{ id: string; from?: { id: string }; message?: string; created_time?: string }> }
     }>
 
     for (const conv of conversations) {
       const participants = conv.participants?.data || []
-      const customer = participants.find((p) => p.id !== igUserId)
+      const customer = participants.find((p) => p.id !== pageId)
       if (!customer) continue
       const customerId = customer.id
 
-      // Fetch nama asli
-      let customerName = `IG User ${customerId}`
+      // Fetch nama asli via Graph API (PSID → name)
+      let customerName = `User ${customerId.substring(0, 8)}`
       try {
         const uRes = await fetch(
-          `https://graph.facebook.com/v25.0/${customerId}?fields=id,username,name&access_token=${userToken}`,
+          `https://graph.facebook.com/v25.0/${customerId}?fields=id,name&access_token=${pageToken}`,
           { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
         )
         const uData = await uRes.json()
-        if (!uData.error) customerName = uData.name || uData.username || customerName
+        if (!uData.error) customerName = uData.name || customerName
       } catch { /* fallback */ }
 
       const latestMsg = conv.messages?.data?.[0]
@@ -158,7 +139,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle()
         if (existingMsg) continue
 
-        const senderType = msg.from?.id === igUserId ? 'brand' : 'customer'
+        const senderType = msg.from?.id === pageId ? 'brand' : 'customer'
         await supabase.from('social_messages').insert({
           conversation_id: convId,
           sender_type: senderType,
