@@ -85,10 +85,28 @@ export default function SocialTab() {
   };
 
   const handleDiscoverPages = async () => {
-    if (!token.trim()) return Swal.fire('Error', 'Masukkan token Facebook Graph API terlebih dahulu', 'error');
+    if (!token.trim()) return Swal.fire('Error', 'Masukkan token terlebih dahulu', 'error');
     setDiscovering(true);
     setDiscoveredPages([]);
     try {
+      if (platform === 'threads') {
+        // Threads: ambil user ID dari graph.threads.net/v1.0/me
+        const res = await fetch(
+          `https://graph.threads.net/v1.0/me?fields=id,username&access_token=${token.trim()}`
+        );
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error?.message || 'Token Threads tidak valid');
+        setUser(data.id);
+        Swal.fire({
+          title: 'Ditemukan!',
+          text: `Threads User ID: ${data.id} (@${data.username})`,
+          icon: 'success',
+          timer: 2500,
+        });
+        return;
+      }
+
+      // Instagram / Facebook: discover via /me/accounts
       const res = await fetch('/api/accounts/instagram-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +116,6 @@ export default function SocialTab() {
       if (!res.ok) throw new Error(data.error || 'Gagal mengambil data');
       if (data.pages && data.pages.length > 0) {
         setDiscoveredPages(data.pages);
-        // Auto-select first page with IG account
         const firstWithIG = data.pages.find((p: { ig_business_account_id: string | null }) => p.ig_business_account_id);
         if (firstWithIG) {
           setUser(firstWithIG.ig_business_account_id);
@@ -162,14 +179,29 @@ export default function SocialTab() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-slate-800 mb-1">ID Pengguna</label>
+                <label className="block text-sm font-bold text-slate-800 mb-1">
+                  {platform === 'threads' ? 'Threads User ID' : platform === 'tiktok' ? 'TikTok Open ID' : 'IG Business User ID'}
+                </label>
                 <div className="flex gap-2">
-                  <input required value={user} onChange={e => setUser(e.target.value)} type="text" autoComplete="off" className="flex-1 p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
-                  <button type="button" onClick={handleDiscoverPages} disabled={discovering} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap">
-                    {discovering ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                    {discovering ? 'Mencari...' : 'Discover'}
-                  </button>
+                  <input required value={user} onChange={e => setUser(e.target.value)} type="text" autoComplete="off" placeholder={platform === 'threads' ? 'Klik Discover untuk isi otomatis' : platform === 'tiktok' ? 'Open ID dari TikTok Developer' : 'Klik Discover untuk isi otomatis'} className="flex-1 p-3 border border-slate-300 bg-white text-slate-900 rounded-lg" />
+                  {(platform === 'meta_ig' || platform === 'facebook' || platform === 'threads') && (
+                    <button type="button" onClick={handleDiscoverPages} disabled={discovering} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg font-bold text-sm flex items-center gap-1.5 transition-colors disabled:opacity-50 whitespace-nowrap">
+                      {discovering ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                      {discovering ? 'Mencari...' : 'Discover'}
+                    </button>
+                  )}
                 </div>
+                {/* Hints per platform */}
+                {platform === 'threads' && (
+                  <p className="text-xs text-slate-500 mt-1.5">💡 Masukkan <strong>Threads Long-Lived Token</strong> di bawah, lalu klik Discover untuk isi ID otomatis. Token Threads dimulai dengan <code className="bg-slate-100 px-1 rounded">THAA</code>.</p>
+                )}
+                {platform === 'meta_ig' && (
+                  <p className="text-xs text-slate-500 mt-1.5">💡 Masukkan <strong>Facebook Page Access Token</strong> di bawah, lalu klik Discover untuk isi IG User ID otomatis.</p>
+                )}
+                {platform === 'tiktok' && (
+                  <p className="text-xs text-slate-500 mt-1.5">💡 Isi manual dengan Open ID dari TikTok for Developers → My Apps → Auth.</p>
+                )}
+              </div>
                 {discoveredPages.length > 0 && (
                   <div className="mt-2 space-y-1 max-h-40 overflow-y-auto border border-slate-200 rounded-lg bg-white p-2">
                     {discoveredPages.map((p, i) => (
