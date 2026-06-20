@@ -36,8 +36,17 @@ function getEventColor(status: string, platform: string): string {
   if (status === 'failed') return '#ef4444';
   return platformColors[platform] || '#3b82f6';
 }
+import { Suspense } from 'react';
 
 export default function Planner() {
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-slate-500 font-medium">Memuat Planner...</div>}>
+      <PlannerContent />
+    </Suspense>
+  );
+}
+
+function PlannerContent() {
   const searchParams = useSearchParams();
   const [events, setEvents] = useState<any[]>([]);
   const [allPosts, setAllPosts] = useState<any[]>([]);
