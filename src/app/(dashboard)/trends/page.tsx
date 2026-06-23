@@ -62,7 +62,7 @@ export default function Trends() {
     try {
       const endpoint = selectedSource === 'serpapi' ? '/api/serpapi' : '/api/ai/trends';
       const bodyPayload = selectedSource === 'serpapi'
-        ? { business_unit_id: selectedUnit, search_type: 'trends', query: 'Top Trends Indonesia' }
+        ? { business_unit_id: selectedUnit, search_type: 'trends', query: 'Top Trends ID' }
         : { business_unit_id: selectedUnit, source: selectedSource };
 
       const res = await fetch(endpoint, {

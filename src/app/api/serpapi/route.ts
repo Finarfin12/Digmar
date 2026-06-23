@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     // Phase 3: Fetch from SerpApi
     let serpApiUrl = ''
     if (search_type === 'trends') {
-      serpApiUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&geo=ID&api_key=${apiKey}`
+      serpApiUrl = `https://serpapi.com/search.json?engine=google_trends_trending_now&geo=ID&api_key=${apiKey}`
     } else if (search_type === 'hashtag') {
       serpApiUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&geo=ID&api_key=${apiKey}`
     } else if (search_type === 'competitor') {
@@ -112,9 +112,33 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (search_type === 'trends') {
-      const trendQueries = serpData.trending_searches?.map((t: any) => t.query).join(', ') || 'Tren umum'
+      let sourcesData: any[] = []
+      let trendQueriesStr = 'Tren umum'
+      
+      if (serpData.daily_searches && serpData.daily_searches.length > 0) {
+        const searches = serpData.daily_searches[0].searches || []
+        sourcesData = searches.map((s: any) => ({
+          title: s.query?.query || s.query || s.title || '',
+          platform: 'google_trends',
+          icon: 'globe2',
+          date: new Date().toISOString(),
+          link: s.share_url || s.link || 'https://trends.google.com'
+        })).filter((s: any) => s.title)
+        
+        trendQueriesStr = searches.slice(0, 10).map((s: any) => s.query?.query || s.query || s.title).join(', ')
+      } else if (serpData.trending_searches) {
+        sourcesData = serpData.trending_searches.map((t: any) => ({
+          title: t.query,
+          platform: 'google_trends',
+          icon: 'globe2',
+          date: new Date().toISOString(),
+          link: t.explore_link || 'https://trends.google.com'
+        }))
+        trendQueriesStr = serpData.trending_searches.map((t: any) => t.query).join(', ')
+      }
+
       const { client } = await getAIProvider(user.id)
-      const prompt = `Berdasarkan tren pencarian Google berikut: ${trendQueries}. 
+      const prompt = `Berdasarkan tren pencarian Google berikut: ${trendQueriesStr}. 
 Buat JSON dengan format:
 {
   "topik_utama_hari_ini": "Ringkasan 1 kalimat topik yang sedang viral",
@@ -129,13 +153,7 @@ Kembalikan HANYA JSON valid tanpa markdown \`\`\`json.`;
         const parsed = JSON.parse(aiRes.content.replace(/```json|```/g, '').trim())
         resultData = {
           ...parsed,
-          sources: serpData.trending_searches?.map((t: any) => ({
-            title: t.query,
-            platform: 'google_trends',
-            icon: 'globe2',
-            date: new Date().toISOString(),
-            link: t.explore_link || 'https://trends.google.com'
-          })) || []
+          sources: sourcesData
         }
       } catch (e) {
         console.error("AI Trends Summary failed", e)
