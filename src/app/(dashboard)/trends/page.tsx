@@ -116,7 +116,39 @@ export default function Trends() {
   }, [trends]); // Re-generate slightly on new trend fetch
 
   const handleCreatePost = (title: string, desc?: string) => {
-    router.push('/planner?idea=' + encodeURIComponent(title + (desc ? `\n${desc}` : '')));
+    Swal.fire({
+      title: 'Buat Postingan',
+      text: 'Pilih mode pembuatan konten untuk ide ini:',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Auto-Pilot',
+      cancelButtonText: 'Manual Draft',
+      confirmButtonColor: '#16a34a',
+      cancelButtonColor: '#64748b'
+    }).then((result) => {
+      const ideaParam = encodeURIComponent(title + (desc ? `\n${desc}` : ''));
+      if (result.isConfirmed) {
+        router.push('/planner?idea=' + ideaParam + '&mode=autopilot');
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        router.push('/planner?idea=' + ideaParam + '&mode=manual');
+      }
+    });
+  };
+
+  const handleViewInsights = (ide: any) => {
+    Swal.fire({
+      title: ide.judul,
+      html: `
+        <div class="text-left mt-4 text-sm text-slate-600 space-y-3">
+          <p><strong>Deskripsi:</strong><br/>${ide.deskripsi}</p>
+          <p><strong>Format yang disarankan:</strong> <span class="bg-slate-100 px-2 py-1 rounded font-bold">${ide.format || 'Standard'}</span></p>
+          <p><strong>Tipe Konten:</strong> <span class="bg-slate-100 px-2 py-1 rounded font-bold">${ide.tipe || 'Edukasi'}</span></p>
+        </div>
+      `,
+      icon: 'info',
+      confirmButtonColor: '#16a34a',
+      confirmButtonText: 'Tutup'
+    });
   };
 
   return (
@@ -326,7 +358,7 @@ export default function Trends() {
                        <button onClick={() => handleCreatePost(ide.judul, ide.deskripsi)} className="bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold px-4 py-2 rounded-lg transition-colors shadow-sm">
                          Create Post
                        </button>
-                       <button className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-bold px-4 py-2 rounded-lg transition-colors shadow-sm">
+                       <button onClick={() => handleViewInsights(ide)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] font-bold px-4 py-2 rounded-lg transition-colors shadow-sm">
                          View Insights
                        </button>
                      </div>

@@ -61,6 +61,7 @@ function PlannerContent() {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [initialIdea, setInitialIdea] = useState<string>('');
+  const [initialMode, setInitialMode] = useState<'autopilot'|'manual'>('autopilot');
   const [viewMode, setViewMode] = useState<'calendar' | 'kanban'>('calendar');
   
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
@@ -71,8 +72,10 @@ function PlannerContent() {
   useEffect(() => { 
     fetchData(); 
     const ideaParam = searchParams.get('idea');
+    const modeParam = searchParams.get('mode');
     if (ideaParam) {
       setInitialIdea(ideaParam);
+      if (modeParam === 'manual') setInitialMode('manual');
       setShowModal(true);
       window.history.replaceState(null, '', '/planner'); // remove idea from URL
     }
@@ -331,6 +334,7 @@ function PlannerContent() {
                 accounts={accounts}
                 initialDate={selectedDate}
                 initialIdea={initialIdea}
+                initialMode={initialMode}
                 onSuccess={() => {
                   fetchData();
                   setShowModal(false);

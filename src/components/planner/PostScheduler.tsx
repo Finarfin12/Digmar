@@ -38,8 +38,8 @@ async function getErrorMessage(res: Response, fallback: string) {
   }
 }
 
-export default function PostScheduler({ units, accounts, initialDate, initialIdea, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, initialIdea?: string, onSuccess: () => void }) {
-  const [mode, setMode] = useState<'manual' | 'autopilot' | 'abtest'>(initialIdea ? 'autopilot' : 'manual');
+export default function PostScheduler({ units, accounts, initialDate, initialIdea, initialMode, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, initialIdea?: string, initialMode?: 'autopilot'|'manual', onSuccess: () => void }) {
+  const [mode, setMode] = useState<'manual' | 'autopilot' | 'abtest'>(initialMode || (initialIdea ? 'autopilot' : 'manual'));
   const [autoPilotIdea, setAutoPilotIdea] = useState(initialIdea || '');
   const [toneA, setToneA] = useState('Formal/Profesional');
   const [toneB, setToneB] = useState('Humor/Santai');
