@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Sparkles, TrendingUp, Hash, Zap, Loader2, Newspaper, ChevronRight, ExternalLink, MessageSquare, Flame, Globe2, Video, MessageCircle, Bookmark, ArrowUpRight, ArrowDownRight, Activity, BarChart2 } from "lucide-react";
 import Swal from 'sweetalert2';
 import { useRouter } from 'next/navigation';
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface SourceItem {
   title: string;
