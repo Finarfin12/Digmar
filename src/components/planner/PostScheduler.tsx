@@ -524,7 +524,7 @@ export default function PostScheduler({ units, accounts, initialDate, initialIde
           </div>
         ) : (
           <div className="space-y-6">
-            <CaptionGenerator units={units} formUnit={formUnit} setFormUnit={setFormUnit} onCaptionSelect={setFinalCaption} />
+            <CaptionGenerator units={units} formUnit={formUnit} setFormUnit={setFormUnit} onCaptionSelect={setFinalCaption} initialContext={autoPilotIdea} />
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex justify-between items-center mb-3">
                 <label className="block text-sm font-bold text-slate-800">Caption Final</label>

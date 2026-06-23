@@ -9,10 +9,11 @@ interface Props {
   formUnit: string;
   setFormUnit: (id: string) => void;
   onCaptionSelect: (caption: string) => void;
+  initialContext?: string;
 }
 
-export default function CaptionGenerator({ units, formUnit, setFormUnit, onCaptionSelect }: Props) {
-  const [formContext, setFormContext] = useState('');
+export default function CaptionGenerator({ units, formUnit, setFormUnit, onCaptionSelect, initialContext = '' }: Props) {
+  const [formContext, setFormContext] = useState(initialContext);
   const [toneVoice, setToneVoice] = useState('profesional');
   const [generating, setGenerating] = useState(false);
   const [aiResults, setAiResults] = useState<AIResult | null>(null);
