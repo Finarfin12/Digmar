@@ -295,29 +295,31 @@ export default function ReportsPage() {
 
       let pdfUrl = null;
 
-      if (fileBlob) {
-        setLoadingProgress(70);
-        setLoadingStatus('Mengunggah ke Storage...');
-        await delay(400);
+      if (!fileBlob) {
+        throw new Error('Gagal merender dokumen. Terjadi kesalahan internal pada proses pembuatan file.');
+      }
 
-        let contentType = 'application/pdf';
-        if (ext === 'csv') contentType = 'text/csv';
-        if (ext === 'xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      setLoadingProgress(70);
+      setLoadingStatus('Mengunggah ke Storage...');
+      await delay(400);
 
-        const supabase = createClient();
-        const fileName = `${selectedUnit}-${Date.now()}.${ext}`;
-        const { data, error } = await supabase.storage.from('reports').upload(fileName, fileBlob, {
-          contentType: contentType
-        });
-        
-        if (error) {
-          throw new Error('Gagal upload ke storage. Pastikan Anda sudah menjalankan SQL migration untuk Storage Bucket "reports" di Supabase: ' + error.message);
-        }
+      let contentType = 'application/pdf';
+      if (ext === 'csv') contentType = 'text/csv';
+      if (ext === 'xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-        if (data) {
-          const { data: { publicUrl } } = supabase.storage.from('reports').getPublicUrl(data.path);
-          pdfUrl = publicUrl;
-        }
+      const supabase = createClient();
+      const fileName = `${selectedUnit}-${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage.from('reports').upload(fileName, fileBlob, {
+        contentType: contentType
+      });
+      
+      if (error) {
+        throw new Error('Gagal upload ke storage. Pastikan Anda sudah menjalankan SQL migration untuk Storage Bucket "reports" di Supabase: ' + error.message);
+      }
+
+      if (data) {
+        const { data: { publicUrl } } = supabase.storage.from('reports').getPublicUrl(data.path);
+        pdfUrl = publicUrl;
       }
 
       setLoadingProgress(90);
@@ -629,7 +631,7 @@ export default function ReportsPage() {
       </div>
 
       {/* HIDDEN PDF TEMPLATE */}
-      <div style={{ display: 'none' }}>
+      <div style={{ position: 'absolute', top: '-10000px', left: '-10000px' }}>
         <div ref={pdfTemplateRef} className="w-[800px] h-fit bg-white p-12 text-slate-900 font-sans" style={{ minHeight: '1131px' }}>
           {/* Header Report */}
           <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6 mb-8">
