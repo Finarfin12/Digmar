@@ -10,6 +10,19 @@ export default function ReportsPage() {
   const [selectedUnit, setSelectedUnit] = useState<string>('');
   const [accounts, setAccounts] = useState<any[]>([]);
   
+  // Moved stats below
+
+  // Report Builder State
+  const [reportType, setReportType] = useState('Performance Summary');
+  const [schedule, setSchedule] = useState('One-time');
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Lists state
+  const [reports, setReports] = useState<any[]>([]);
+  const [schedules, setSchedules] = useState<any[]>([]);
+
   // Dynamic stats
   const generatedCount = reports.length;
   const scheduledCount = schedules.filter(s => s.is_active).length;
@@ -35,17 +48,6 @@ export default function ReportsPage() {
     exports: { count: exportsCount, trend: 'File PDF' },
     top_report: { name: topReportName, count: `${topReportCount} kali dibuat` }
   };
-
-  // Report Builder State
-  const [reportType, setReportType] = useState('Performance Summary');
-  const [schedule, setSchedule] = useState('One-time');
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  // Lists state
-  const [reports, setReports] = useState<any[]>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
 
   // Refs for PDF
   const pdfTemplateRef = useRef<HTMLDivElement>(null);
