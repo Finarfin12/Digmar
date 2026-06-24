@@ -233,12 +233,15 @@ export default function ReportsPage() {
     }
   };
 
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const handleGenerateReport = async () => {
     if (selectedAccounts.length === 0) return Swal.fire('Error', 'Pilih minimal satu akun sosial', 'warning');
     
     setIsGenerating(true);
     setLoadingProgress(10);
     setLoadingStatus('Menyiapkan metrik data...');
+    await delay(400);
 
     try {
       // 1. Fetch AI Insights
@@ -246,6 +249,7 @@ export default function ReportsPage() {
       
       setLoadingProgress(30);
       setLoadingStatus('Menganalisis Insight AI...');
+      await delay(400);
 
       const insightRes = await fetch('/api/reports/ai-insights', {
         method: 'POST',
@@ -265,6 +269,7 @@ export default function ReportsPage() {
 
       setLoadingProgress(50);
       setLoadingStatus('Merender dokumen...');
+      await delay(400);
 
       // Menghitung metrik berdasarkan akun terpilih
       const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
@@ -293,6 +298,7 @@ export default function ReportsPage() {
       if (fileBlob) {
         setLoadingProgress(70);
         setLoadingStatus('Mengunggah ke Storage...');
+        await delay(400);
 
         let contentType = 'application/pdf';
         if (ext === 'csv') contentType = 'text/csv';
@@ -316,6 +322,7 @@ export default function ReportsPage() {
 
       setLoadingProgress(90);
       setLoadingStatus('Menyimpan riwayat...');
+      await delay(400);
 
       // If it's a schedule, save schedule
       if (schedule !== 'One-time') {
@@ -351,6 +358,7 @@ export default function ReportsPage() {
 
       setLoadingProgress(100);
       setLoadingStatus('Selesai!');
+      await delay(400);
 
       Swal.fire('Berhasil', 'Laporan berhasil dibuat', 'success');
       
@@ -600,8 +608,8 @@ export default function ReportsPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <button onClick={() => handleDownload(rep.pdf_url)} title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16}/></button>
-                        <button onClick={() => handleShareReport(rep.pdf_url)} title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Share2 size={16}/></button>
+                        <button disabled={!rep.pdf_url} onClick={() => handleDownload(rep.pdf_url)} title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent"><Download size={16}/></button>
+                        <button disabled={!rep.pdf_url} onClick={() => handleShareReport(rep.pdf_url)} title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent"><Share2 size={16}/></button>
                         <button onClick={() => handleDeleteReport(rep.id)} title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
                       </div>
                     </td>
