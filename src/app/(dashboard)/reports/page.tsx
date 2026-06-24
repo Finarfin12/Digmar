@@ -4,6 +4,7 @@ import { FileText, Download, Share2, Trash2, Calendar, PieChart, Users, Trending
 import Swal from 'sweetalert2';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import ExcelJS from 'exceljs';
 import { createClient } from '@/lib/supabase/client';
 
 export default function ReportsPage() {
@@ -34,6 +35,39 @@ export default function ReportsPage() {
     csv += `Avg Engagement Rate,${mockEngagement}\n`;
     csv += `Estimated Reach,${estimatedReach}\n`;
     return new Blob([csv], { type: 'text/csv' });
+  };
+
+  const generateExcel = async () => {
+    const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
+    const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
+    const mockEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
+    const estimatedReach = (totalFollowers * 1.5);
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Report Data');
+
+    sheet.columns = [
+      { header: 'Metric', key: 'metric', width: 25 },
+      { header: 'Value', key: 'value', width: 25 }
+    ];
+
+    sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+
+    sheet.addRow({ metric: 'Report Type', value: reportType });
+    sheet.addRow({ metric: 'Period', value: `${dateRange.start} to ${dateRange.end || 'Now'}` });
+    sheet.addRow({});
+    sheet.addRow({ metric: 'Total Followers', value: totalFollowers });
+    sheet.addRow({ metric: 'Avg Engagement Rate', value: mockEngagement });
+    sheet.addRow({ metric: 'Estimated Reach', value: estimatedReach });
+
+    sheet.addRow({});
+    const noteRow = sheet.addRow({ metric: '*Note: ExcelJS export mendukung styling tabel, namun rendering visual chart harus dilakukan melalui opsi PDF atau manual di Ms Excel.'});
+    noteRow.font = { italic: true, color: { argb: 'FF64748B' } };
+    sheet.mergeCells(`A${noteRow.number}:B${noteRow.number}`);
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   };
 
   // Lists state
@@ -178,7 +212,8 @@ export default function ReportsPage() {
       const localUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = localUrl;
-      const ext = url.includes('.csv') ? 'csv' : 'pdf';
+      const extMatch = url.match(/\.(pdf|csv|xlsx)$/i);
+      const ext = extMatch ? extMatch[1] : 'pdf';
       a.download = `DigiMar_Report_${Date.now()}.${ext}`;
       document.body.appendChild(a);
       a.click();
@@ -228,6 +263,9 @@ export default function ReportsPage() {
 
       if (downloadFormat === 'PDF Document') {
         fileBlob = await generatePDF();
+      } else if (downloadFormat === 'Excel Data (.xlsx)') {
+        fileBlob = await generateExcel();
+        ext = 'xlsx';
       } else {
         fileBlob = generateCSV();
         ext = 'csv';
@@ -236,10 +274,14 @@ export default function ReportsPage() {
       let pdfUrl = null;
 
       if (fileBlob) {
+        let contentType = 'application/pdf';
+        if (ext === 'csv') contentType = 'text/csv';
+        if (ext === 'xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
         const supabase = createClient();
         const fileName = `${selectedUnit}-${Date.now()}.${ext}`;
         const { data, error } = await supabase.storage.from('reports').upload(fileName, fileBlob, {
-          contentType: ext === 'pdf' ? 'application/pdf' : 'text/csv'
+          contentType: contentType
         });
         
         if (error) {
@@ -436,6 +478,7 @@ export default function ReportsPage() {
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-slate-900"
                 >
                   <option>PDF Document</option>
+                  <option>Excel Data (.xlsx)</option>
                   <option>CSV Data</option>
                 </select>
               </div>
