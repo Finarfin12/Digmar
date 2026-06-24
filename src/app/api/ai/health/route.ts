@@ -47,7 +47,11 @@ export async function POST(request: NextRequest) {
     if (provider_type === 'image') {
       const { data: imgProv } = await supabase.from('image_ai_providers').select('*').eq('user_id', user.id).eq('is_active', true).limit(1)
       if (!imgProv || imgProv.length === 0) {
-        results.push({ step: 'db_provider', status: 'fail', detail: 'Image AI provider tidak ditemukan di database.', duration_ms: done(t0) })
+        if (api_key) {
+          results.push({ step: 'db_provider', status: 'skip', detail: 'Menggunakan API key dari form', duration_ms: done(t0) })
+        } else {
+          results.push({ step: 'db_provider', status: 'fail', detail: 'Image AI provider tidak ditemukan di database.', duration_ms: done(t0) })
+        }
       } else {
         dbKey = imgProv[0].api_key_encrypted
         dbModel = imgProv[0].model || 'dall-e-3'
@@ -56,7 +60,11 @@ export async function POST(request: NextRequest) {
     } else if (provider_type === 'vision') {
       const { data: visProv } = await supabase.from('ai_providers').select('*').eq('user_id', user.id).eq('is_active', true).not('vision_base_url', 'is', null).limit(1)
       if (!visProv || visProv.length === 0) {
-        results.push({ step: 'db_provider', status: 'fail', detail: 'Vision AI provider tidak ditemukan.', duration_ms: done(t0) })
+        if (api_key) {
+          results.push({ step: 'db_provider', status: 'skip', detail: 'Menggunakan API key dari form', duration_ms: done(t0) })
+        } else {
+          results.push({ step: 'db_provider', status: 'fail', detail: 'Vision AI provider tidak ditemukan.', duration_ms: done(t0) })
+        }
       } else {
         dbKey = visProv[0].vision_api_key_encrypted
         dbModel = visProv[0].vision_model
@@ -65,7 +73,11 @@ export async function POST(request: NextRequest) {
     } else {
       const { data: prov } = await supabase.from('ai_providers').select('*').eq('user_id', user.id).eq('is_active', true).order('priority').limit(1)
       if (!prov || prov.length === 0) {
-        results.push({ step: 'db_provider', status: 'fail', detail: 'AI text provider tidak ditemukan.', duration_ms: done(t0) })
+        if (api_key) {
+          results.push({ step: 'db_provider', status: 'skip', detail: 'Menggunakan API key dari form', duration_ms: done(t0) })
+        } else {
+          results.push({ step: 'db_provider', status: 'fail', detail: 'AI text provider tidak ditemukan.', duration_ms: done(t0) })
+        }
       } else {
         dbKey = prov[0].api_key_encrypted
         dbModel = prov[0].model || 'llama-3.3-70b-versatile'
