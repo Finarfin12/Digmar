@@ -16,6 +16,7 @@ export default function ReportsPage() {
   // Report Builder State
   const [reportType, setReportType] = useState('Performance Summary');
   const [schedule, setSchedule] = useState('One-time');
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState('PDF Document');
