@@ -44,6 +44,9 @@ Gunakan bahasa Indonesia yang profesional, positif, dan meyakinkan (karena akan 
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: (err as any).errors[0].message }, { status: 400 });
     }
-    return handleApiError(err);
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
