@@ -4,6 +4,7 @@ import { FileText, Download, Share2, Trash2, Calendar, PieChart, Users, Trending
 import Swal from 'sweetalert2';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ReportsPage() {
   const [units, setUnits] = useState<any[]>([]);
@@ -124,11 +125,31 @@ export default function ReportsPage() {
       });
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
       const pdfBlob = pdf.output('blob');
-      return URL.createObjectURL(pdfBlob);
+      return pdfBlob;
     } catch (error) {
       console.error('Error generating PDF:', error);
       return null;
     }
+  };
+
+  const handleDeleteReport = async (id: string) => {
+    const result = await Swal.fire({ title: 'Hapus laporan?', text: 'Laporan ini akan dihapus permanen.', icon: 'warning', showCancelButton: true });
+    if (result.isConfirmed) {
+      try {
+        const res = await fetch(`/api/reports?id=${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error("Gagal menghapus laporan");
+        Swal.fire('Terhapus', '', 'success');
+        loadData();
+      } catch (err: any) {
+        Swal.fire('Error', err.message, 'error');
+      }
+    }
+  };
+
+  const handleShareReport = (url: string) => {
+    if (!url) return Swal.fire('Error', 'Tautan tidak tersedia', 'error');
+    navigator.clipboard.writeText(url);
+    Swal.fire({ title: 'Tersalin!', text: 'Tautan laporan berhasil disalin ke clipboard.', icon: 'success', timer: 1500, showConfirmButton: false });
   };
 
   const handleGenerateReport = async () => {
@@ -167,7 +188,21 @@ export default function ReportsPage() {
       if (pdfEngagementRef.current) pdfEngagementRef.current.innerText = randomEngagement;
       if (pdfReachRef.current) pdfReachRef.current.innerText = estimatedReach;
 
-      const pdfUrl = await generatePDF();
+      const pdfBlob = await generatePDF();
+      let pdfUrl = null;
+
+      if (pdfBlob) {
+        const supabase = createClient();
+        const fileName = `${selectedUnit}-${Date.now()}.pdf`;
+        const { data, error } = await supabase.storage.from('reports').upload(fileName, pdfBlob, {
+          contentType: 'application/pdf'
+        });
+        
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage.from('reports').getPublicUrl(data.path);
+          pdfUrl = publicUrl;
+        }
+      }
 
       // If it's a schedule, save schedule
       if (schedule !== 'One-time') {
@@ -195,7 +230,7 @@ export default function ReportsPage() {
             date_range_start: dateRange.start || new Date().toISOString(),
             date_range_end: dateRange.end || new Date().toISOString(),
             included_accounts: selectedAccounts,
-            pdf_url: pdfUrl // Just storing blob url temporarily. Real app would upload to Storage bucket.
+            pdf_url: pdfUrl 
           })
         });
         if (!res.ok) throw new Error("Gagal menyimpan riwayat laporan");
@@ -204,11 +239,14 @@ export default function ReportsPage() {
       Swal.fire('Berhasil', 'Laporan berhasil dibuat', 'success');
       
       if (pdfUrl && schedule === 'One-time') {
-        // Trigger download
+        // Trigger download via anchor
         const a = document.createElement('a');
         a.href = pdfUrl;
+        a.target = '_blank';
         a.download = `Report_${reportType.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
       }
 
       loadData();
@@ -435,9 +473,9 @@ export default function ReportsPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <a href={rep.pdf_url} target="_blank" download title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16}/></a>
-                        <button title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Share2 size={16}/></button>
-                        <button title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                        <a href={rep.pdf_url || '#'} target="_blank" download title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16}/></a>
+                        <button onClick={() => handleShareReport(rep.pdf_url)} title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Share2 size={16}/></button>
+                        <button onClick={() => handleDeleteReport(rep.id)} title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
                       </div>
                     </td>
                   </tr>
