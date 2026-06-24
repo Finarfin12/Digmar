@@ -150,7 +150,10 @@ export default function ReportsPage() {
         })
       });
 
-      if (!insightRes.ok) throw new Error("Gagal mengambil AI Insights");
+      if (!insightRes.ok) {
+        const errData = await insightRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Gagal mengambil AI Insights");
+      }
       const { insights } = await insightRes.json();
 
       // Menghitung metrik berdasarkan akun terpilih
