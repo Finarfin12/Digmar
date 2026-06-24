@@ -36,7 +36,8 @@ Gunakan bahasa Indonesia yang profesional, positif, dan meyakinkan (karena akan 
 
     const response = await client.generateText(systemPrompt, userPrompt, {
       temperature: config.config?.temperature || 0.5,
-      maxTokens: config.config?.max_tokens || 800
+      maxTokens: config.config?.max_tokens || 800,
+      jsonMode: false
     });
 
     return NextResponse.json({ insights: response.content });
@@ -44,9 +45,6 @@ Gunakan bahasa Indonesia yang profesional, positif, dan meyakinkan (karena akan 
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: (err as any).errors[0].message }, { status: 400 });
     }
-    if (err instanceof Error) {
-      return NextResponse.json({ error: err.message }, { status: 500 });
-    }
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return handleApiError(err);
   }
 }
