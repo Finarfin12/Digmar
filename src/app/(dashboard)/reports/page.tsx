@@ -632,49 +632,49 @@ export default function ReportsPage() {
 
       {/* HIDDEN PDF TEMPLATE */}
       <div style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000 }}>
-        <div ref={pdfTemplateRef} className="w-[800px] h-fit bg-white p-12 text-slate-900 font-sans" style={{ minHeight: '1131px' }}>
+        <div ref={pdfTemplateRef} className="w-[800px] h-fit bg-[#ffffff] p-12 text-[#0f172a] font-sans" style={{ minHeight: '1131px' }}>
           {/* Header Report */}
-          <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6 mb-8">
+          <div className="flex justify-between items-end border-b-2 border-[#0f172a] pb-6 mb-8">
             <div>
-              <h1 className="text-4xl font-black text-slate-900">{reportType}</h1>
-              <p className="text-slate-500 mt-2 text-lg">Periode: {dateRange.start} s/d {dateRange.end || 'Sekarang'}</p>
+              <h1 className="text-4xl font-black text-[#0f172a]">{reportType}</h1>
+              <p className="text-[#64748b] mt-2 text-lg">Periode: {dateRange.start} s/d {dateRange.end || 'Sekarang'}</p>
             </div>
             <div className="text-right">
-              <p className="font-bold text-xl text-emerald-600">DigiMar Report</p>
-              <p className="text-slate-500 mt-1">Generated: {new Date().toLocaleDateString()}</p>
+              <p className="font-bold text-xl text-[#059669]">DigiMar Report</p>
+              <p className="text-[#64748b] mt-1">Generated: {new Date().toLocaleDateString()}</p>
             </div>
           </div>
           
           {/* Body */}
           <div className="space-y-8">
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
+            <div className="bg-[#f8fafc] p-6 rounded-2xl border border-[#e2e8f0]">
               <h2 className="text-2xl font-bold mb-4">Executive Summary</h2>
-              <p ref={pdfSummaryRef} className="text-slate-700 leading-relaxed text-lg whitespace-pre-wrap">
+              <p ref={pdfSummaryRef} className="text-[#334155] leading-relaxed text-lg whitespace-pre-wrap">
                 Menganalisis data...
               </p>
             </div>
 
             <div className="grid grid-cols-3 gap-6">
-              <div className="p-6 border border-slate-200 rounded-2xl text-center">
-                <p className="text-slate-500 font-bold uppercase tracking-wider text-sm">Total Followers</p>
-                <p ref={pdfFollowersRef} className="text-4xl font-black text-slate-900 mt-2">0</p>
-                <p className="text-emerald-500 font-bold mt-2">Akun terpilih</p>
+              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
+                <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Total Followers</p>
+                <p ref={pdfFollowersRef} className="text-4xl font-black text-[#0f172a] mt-2">0</p>
+                <p className="text-[#10b981] font-bold mt-2">Akun terpilih</p>
               </div>
-              <div className="p-6 border border-slate-200 rounded-2xl text-center">
-                <p className="text-slate-500 font-bold uppercase tracking-wider text-sm">Avg Engagement Rate</p>
-                <p ref={pdfEngagementRef} className="text-4xl font-black text-slate-900 mt-2">0%</p>
-                <p className="text-emerald-500 font-bold mt-2">Bulan ini</p>
+              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
+                <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Avg Engagement Rate</p>
+                <p ref={pdfEngagementRef} className="text-4xl font-black text-[#0f172a] mt-2">0%</p>
+                <p className="text-[#10b981] font-bold mt-2">Bulan ini</p>
               </div>
-              <div className="p-6 border border-slate-200 rounded-2xl text-center">
-                <p className="text-slate-500 font-bold uppercase tracking-wider text-sm">Estimated Reach</p>
-                <p ref={pdfReachRef} className="text-4xl font-black text-slate-900 mt-2">0</p>
-                <p className="text-emerald-500 font-bold mt-2">Est. organik</p>
+              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
+                <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Estimated Reach</p>
+                <p ref={pdfReachRef} className="text-4xl font-black text-[#0f172a] mt-2">0</p>
+                <p className="text-[#10b981] font-bold mt-2">Est. organik</p>
               </div>
             </div>
 
-            <div className="mt-12 p-6 border-l-4 border-indigo-500 bg-indigo-50/50 rounded-r-2xl">
-              <h2 className="text-xl font-bold text-indigo-900 mb-3">Rekomendasi AI Strategis</h2>
-              <ul className="list-disc pl-5 space-y-2 text-indigo-800 text-lg">
+            <div className="mt-12 p-6 border-l-4 border-[#6366f1] bg-[#eef2ff] rounded-r-2xl">
+              <h2 className="text-xl font-bold text-[#312e81] mb-3">Rekomendasi AI Strategis</h2>
+              <ul className="list-disc pl-5 space-y-2 text-[#3730a3] text-lg">
                 <li>Tingkatkan volume video pendek (Reels/TikTok) karena menyumbang 70% dari jangkauan baru.</li>
                 <li>Eksperimen dengan konten bergaya 'Behind the Scene' untuk meningkatkan *trust* audiens.</li>
                 <li>Pertahankan *tone of voice* edukatif yang terbukti menaikkan metrik *save* dan *share*.</li>
@@ -682,7 +682,7 @@ export default function ReportsPage() {
             </div>
           </div>
           
-          <div className="mt-20 pt-6 border-t border-slate-200 text-center text-slate-400">
+          <div className="mt-20 pt-6 border-t border-[#e2e8f0] text-center text-[#94a3b8]">
             <p>Report automatically generated by DigiMar Automation Engine</p>
           </div>
         </div>
