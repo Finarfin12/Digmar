@@ -118,13 +118,27 @@ export default function QueuePage() {
   };
 
   const deleteSchedule = async (id: string) => {
-    if (!confirm('Hapus jadwal rutin ini?')) return;
+    const result = await Swal.fire({
+      title: 'Hapus jadwal rutin ini?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, hapus',
+      confirmButtonColor: '#ef4444'
+    });
+    if (!result.isConfirmed) return;
     await fetch(`/api/queue/schedules?id=${id}`, { method: 'DELETE' });
     setSchedules(schedules.filter(s => s.id !== id));
   };
 
   const deleteContent = async (id: string) => {
-    if (!confirm('Hapus konten dari antrean?')) return;
+    const result = await Swal.fire({
+      title: 'Hapus konten dari antrean?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, hapus',
+      confirmButtonColor: '#ef4444'
+    });
+    if (!result.isConfirmed) return;
     await fetch(`/api/queue?id=${id}`, { method: 'DELETE' });
     setContents(contents.filter(c => c.id !== id));
   };
