@@ -46,15 +46,32 @@ ${JSON.stringify(metrics_data, null, 2)}
 Tugas Anda:
 1. Berikan 1-2 paragraf kesimpulan (Executive Summary) yang secara ketat berfokus pada topik "${report_type}" dan menjawab tujuan utama unit bisnis.
 2. Berikan 3 poin "Rekomendasi Strategis" yang sangat spesifik dan dapat ditindaklanjuti, berdasarkan metrik akun-akun di atas.
-Gunakan bahasa Indonesia yang profesional, positif, dan meyakinkan (akan dicetak di PDF untuk klien). Jangan beri awalan/akhiran obrolan, langsung tuliskan hasilnya.`;
+
+KEMBALIKAN OUTPUT SEBAGAI JSON MURNI DENGAN STRUKTUR BERIKUT:
+{
+  "summary": "Teks paragraf kesimpulan (Executive Summary) di sini...",
+  "recommendations": [
+    "Rekomendasi 1",
+    "Rekomendasi 2",
+    "Rekomendasi 3"
+  ]
+}
+Jangan tambahkan teks apapun di luar JSON.`;
 
     const response = await client.generateText(systemPrompt, userPrompt, {
       temperature: config.config?.temperature || 0.5,
       maxTokens: config.config?.max_tokens || 800,
-      jsonMode: false
+      jsonMode: true
     });
 
-    return NextResponse.json({ insights: response.content });
+    let insightsData = { summary: 'Tidak ada analisis', recommendations: [] };
+    try {
+      insightsData = JSON.parse(response.content);
+    } catch(e) {
+      console.error("AI JSON parse error", e);
+    }
+
+    return NextResponse.json({ insights: insightsData });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: (err as any).errors[0].message }, { status: 400 });

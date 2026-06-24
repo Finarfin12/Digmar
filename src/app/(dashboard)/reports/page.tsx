@@ -104,7 +104,10 @@ export default function ReportsPage() {
 
   // Refs for PDF
   const pdfTemplateRef = useRef<HTMLDivElement>(null);
+  const pdfPage1Ref = useRef<HTMLDivElement>(null);
+  const pdfPage2Ref = useRef<HTMLDivElement>(null);
   const pdfSummaryRef = useRef<HTMLParagraphElement>(null);
+  const pdfRecommendationsRef = useRef<HTMLUListElement>(null);
   const pdfFollowersRef = useRef<HTMLParagraphElement>(null);
   const pdfEngagementRef = useRef<HTMLParagraphElement>(null);
   const pdfReachRef = useRef<HTMLParagraphElement>(null);
@@ -164,36 +167,33 @@ export default function ReportsPage() {
     }
   };
 
-  const generatePDF = async () => {
-    if (!pdfTemplateRef.current) return null;
+  const generatePDF = async (): Promise<Blob> => {
+    if (!pdfPage1Ref.current || !pdfPage2Ref.current) throw new Error("Template PDF belum siap");
     try {
-      // Unhide template momentarily for html2canvas
-      pdfTemplateRef.current.style.display = 'block';
-      const canvas = await html2canvas(pdfTemplateRef.current, { scale: 2 });
-      pdfTemplateRef.current.style.display = 'none';
+      pdfPage1Ref.current.style.display = 'block';
+      pdfPage2Ref.current.style.display = 'block';
 
-      const imgData = canvas.toDataURL('image/png');
+      const canvas1 = await html2canvas(pdfPage1Ref.current, { scale: 2 });
+      const canvas2 = await html2canvas(pdfPage2Ref.current, { scale: 2 });
+      
+      pdfPage1Ref.current.style.display = 'none';
+      pdfPage2Ref.current.style.display = 'none';
+
+      const imgData1 = canvas1.toDataURL('image/png');
+      const imgData2 = canvas2.toDataURL('image/png');
+      
       const pdf = new jsPDF('p', 'mm', 'a4');
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = pdfWidth / imgWidth;
-      const finalImgHeight = imgHeight * ratio;
       
-      let heightLeft = finalImgHeight;
-      let position = 0;
+      // Calculate height maintaining aspect ratio
+      const ratio = pdfWidth / canvas1.width;
+      const finalImgHeight = canvas1.height * ratio;
       
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
-      heightLeft -= pdfHeight;
-      
-      while (heightLeft > 0) {
-        position = heightLeft - finalImgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
-        heightLeft -= pdfHeight;
-      }
+      pdf.addImage(imgData1, 'PNG', 0, 0, pdfWidth, finalImgHeight);
+      pdf.addPage();
+      pdf.addImage(imgData2, 'PNG', 0, 0, pdfWidth, finalImgHeight);
       
       const pdfBlob = pdf.output('blob');
       return pdfBlob;
@@ -362,7 +362,14 @@ export default function ReportsPage() {
 
       if (pdfBrandRef.current) pdfBrandRef.current.innerText = currentUnitName;
       if (pdfAccountsRef.current) pdfAccountsRef.current.innerText = `Akun Terpilih: ${selectedAccountsNames}`;
-      if (pdfSummaryRef.current) pdfSummaryRef.current.innerText = insights || 'Data tidak tersedia.';
+      if (pdfSummaryRef.current) pdfSummaryRef.current.innerText = insights?.summary || 'Data tidak tersedia.';
+      if (pdfRecommendationsRef.current) {
+        if (insights?.recommendations && insights.recommendations.length > 0) {
+          pdfRecommendationsRef.current.innerHTML = insights.recommendations.map((r: string) => `<li>${r}</li>`).join('');
+        } else {
+          pdfRecommendationsRef.current.innerHTML = '<li>Tidak ada rekomendasi spesifik.</li>';
+        }
+      }
       if (pdfFollowersRef.current) pdfFollowersRef.current.innerText = totalFollowers > 0 ? totalFollowers.toLocaleString('id-ID') : '0';
       if (pdfEngagementRef.current) pdfEngagementRef.current.innerText = avgEngagementStr;
       if (pdfReachRef.current) pdfReachRef.current.innerText = estimatedReach;
@@ -745,11 +752,12 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* HIDDEN PDF TEMPLATE */}
+      {/* HIDDEN PDF TEMPLATES (Strict 2-Page Layout) */}
       <div style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000 }}>
-        <div ref={pdfTemplateRef} className="w-[800px] h-fit bg-[#ffffff] p-12 text-[#0f172a] font-sans" style={{ minHeight: '1131px' }}>
-          {/* Header Report */}
-          <div className="flex justify-between items-end border-b-2 border-[#0f172a] pb-6 mb-8">
+        
+        {/* PAGE 1: Header & Executive Summary */}
+        <div ref={pdfPage1Ref} className="w-[800px] bg-[#ffffff] p-12 text-[#0f172a] font-sans flex flex-col" style={{ height: '1131px', overflow: 'hidden' }}>
+          <div className="flex justify-between items-end border-b-2 border-[#0f172a] pb-6 mb-8 flex-none">
             <div>
               <h1 className="text-4xl font-black text-[#0f172a]">{reportType}</h1>
               <p ref={pdfBrandRef} className="text-[#334155] mt-4 text-xl font-bold">Business Unit</p>
@@ -762,50 +770,56 @@ export default function ReportsPage() {
             </div>
           </div>
           
-          {/* Body */}
-          <div className="space-y-8">
-            <div className="bg-[#f8fafc] p-6 rounded-2xl border border-[#e2e8f0]">
-              <h2 className="text-2xl font-bold mb-4">Executive Summary</h2>
-              <p ref={pdfSummaryRef} className="text-[#334155] leading-relaxed text-lg whitespace-pre-wrap">
-                Menganalisis data...
-              </p>
-            </div>
+          <div className="bg-[#f8fafc] p-8 rounded-2xl border border-[#e2e8f0] flex-1">
+            <h2 className="text-2xl font-bold mb-6 text-[#0f172a]">Executive Summary</h2>
+            <p ref={pdfSummaryRef} className="text-[#334155] leading-relaxed text-lg whitespace-pre-wrap">
+              Menganalisis data...
+            </p>
+          </div>
+          <div className="mt-8 text-center text-[#94a3b8] flex-none font-medium text-sm">
+            Report automatically generated by DigiMar Engine • Page 1 of 2
+          </div>
+        </div>
 
-            <div className="grid grid-cols-3 gap-6">
-              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
+        {/* PAGE 2: Metrics & Breakdown & Recommendations */}
+        <div ref={pdfPage2Ref} className="w-[800px] bg-[#ffffff] p-12 text-[#0f172a] font-sans flex flex-col" style={{ height: '1131px', overflow: 'hidden' }}>
+          <div className="flex justify-between items-center border-b-2 border-[#e2e8f0] pb-4 mb-8 flex-none">
+            <p className="font-bold text-[#0f172a] text-xl">{reportType} - Analytics Breakdown</p>
+            <p className="text-[#64748b] font-medium">DigiMar Report</p>
+          </div>
+
+          <div className="flex-1 space-y-8 flex flex-col">
+            <div className="grid grid-cols-3 gap-6 flex-none">
+              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center bg-[#f8fafc]">
                 <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Total Followers</p>
                 <p ref={pdfFollowersRef} className="text-4xl font-black text-[#0f172a] mt-2">0</p>
-                <p className="text-[#10b981] font-bold mt-2">Data Asli</p>
+                <p className="text-[#10b981] font-bold mt-2">Data Asli API</p>
               </div>
-              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
+              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center bg-[#f8fafc]">
                 <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Avg Engagement Rate</p>
                 <p ref={pdfEngagementRef} className="text-4xl font-black text-[#0f172a] mt-2">0%</p>
-                <p className="text-[#10b981] font-bold mt-2">Data Asli</p>
+                <p className="text-[#10b981] font-bold mt-2">Data Asli API</p>
               </div>
-              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
+              <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center bg-[#f8fafc]">
                 <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Total Reach</p>
                 <p ref={pdfReachRef} className="text-4xl font-black text-[#0f172a] mt-2">0</p>
-                <p className="text-[#10b981] font-bold mt-2">Data Asli</p>
+                <p className="text-[#10b981] font-bold mt-2">Data Asli API</p>
               </div>
             </div>
 
-            {/* Detailed Analytics Table */}
-            <div ref={pdfTableRef} className="mt-8 border border-[#e2e8f0] rounded-2xl p-6 bg-white">
+            <div ref={pdfTableRef} className="border border-[#e2e8f0] rounded-2xl p-6 bg-white flex-none">
               {/* Diisi dinamis via innerHTML */}
             </div>
 
-            <div className="mt-12 p-6 border-l-4 border-[#6366f1] bg-[#eef2ff] rounded-r-2xl" style={{ pageBreakInside: 'avoid' }}>
-              <h2 className="text-xl font-bold text-[#312e81] mb-3">Rekomendasi AI Strategis</h2>
-              <ul className="list-disc pl-5 space-y-2 text-[#3730a3] text-lg">
-                <li>Tingkatkan volume video pendek (Reels/TikTok) karena menyumbang 70% dari jangkauan baru.</li>
-                <li>Eksperimen dengan konten bergaya 'Behind the Scene' untuk meningkatkan *trust* audiens.</li>
-                <li>Pertahankan *tone of voice* edukatif yang terbukti menaikkan metrik *save* dan *share*.</li>
+            <div className="p-8 border-l-4 border-[#6366f1] bg-[#eef2ff] rounded-r-2xl flex-1 flex flex-col justify-center">
+              <h2 className="text-2xl font-bold text-[#312e81] mb-6">Rekomendasi Strategis (AI Insights)</h2>
+              <ul ref={pdfRecommendationsRef} className="list-disc pl-6 space-y-4 text-[#3730a3] text-lg leading-relaxed">
+                <li>Memuat rekomendasi berbasis metrik terkini...</li>
               </ul>
             </div>
           </div>
-          
-          <div className="mt-20 pt-6 border-t border-[#e2e8f0] text-center text-[#94a3b8]">
-            <p>Report automatically generated by DigiMar Automation Engine</p>
+          <div className="mt-8 text-center text-[#94a3b8] flex-none font-medium text-sm">
+            Report automatically generated by DigiMar Engine • Page 2 of 2
           </div>
         </div>
       </div>
