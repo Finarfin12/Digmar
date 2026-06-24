@@ -10,6 +10,7 @@ import HashtagModal from '@/components/planner/HashtagModal';
 import CampaignArchitectModal from '@/components/planner/CampaignArchitectModal';
 import BulkImportModal from '@/components/planner/BulkImportModal';
 import { Hash } from 'lucide-react';
+import QueuePage from '../queue/page';
 
 import { logger } from '@/lib/utils/logger'
 
@@ -62,7 +63,7 @@ function PlannerContent() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [initialIdea, setInitialIdea] = useState<string>('');
   const [initialMode, setInitialMode] = useState<'autopilot'|'manual'>('autopilot');
-  const [viewMode, setViewMode] = useState<'calendar' | 'kanban'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'queue' | 'drafts'>('calendar');
   
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
   const [filterUnit, setFilterUnit] = useState<string>('all');
@@ -168,92 +169,116 @@ function PlannerContent() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500 pb-20">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center">
-            <CalendarIcon size={24} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-900">Content Planner</h2>
-            <p className="text-slate-600 text-sm font-medium">Klik tanggal untuk menjadwalkan, atau geser (drag) post yang sudah ada.</p>
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setShowBulkModal(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold text-sm">
-            <Upload size={16} /> Import CSV
-          </button>
-          <button onClick={() => setShowCampaignModal(true)} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-amber-500/30 transition-all font-extrabold border border-amber-400">
-            <Sparkles size={18} className="text-yellow-100" /> Campaign Architect
-          </button>
-          <button onClick={() => setShowHashtagModal(true)} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-5 py-3 rounded-xl flex items-center gap-2 transition-all font-bold border border-indigo-200">
-            <Hash size={18} /> Riset Hashtag
-          </button>
-          <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-gradient-to-r from-fuchsia-600 to-indigo-600 hover:from-fuchsia-700 hover:to-indigo-700 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-fuchsia-500/30 transition-all font-extrabold border border-fuchsia-500">
-            <Sparkles size={18} className="text-fuchsia-100" /> Smart Auto-Slot
-          </button>
-          <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-md transition-all font-bold">
-            <PlusCircle size={18} /> Buat Jadwal Baru
+  return (
+    <div className="space-y-0 animate-in fade-in duration-500 pb-20">
+      <header className="bg-white p-6 pb-0 rounded-t-2xl border border-slate-200 border-b-0">
+        <div className="flex justify-between items-center w-full pb-6 border-b border-slate-100">
+          <h2 className="text-2xl font-bold text-slate-900">Scheduler</h2>
+          <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-green-600/30 transition-all font-bold">
+            <PlusCircle size={18} /> New Post
           </button>
         </div>
       </header>
 
-      {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <Filter size={16} className="text-slate-400 ml-2" />
-          <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700 cursor-pointer">
+      {/* Secondary Toolbar */}
+      <div className="bg-white px-6 py-4 flex gap-3 flex-wrap border-x border-slate-200">
+          <button onClick={() => setShowBulkModal(true)} className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg text-sm font-semibold text-slate-600 flex items-center gap-2 transition-all">
+            <Upload size={16} className="text-slate-400"/> Import CSV
+          </button>
+          <button onClick={() => setShowCampaignModal(true)} className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg text-sm font-semibold text-slate-600 flex items-center gap-2 transition-all">
+            <Sparkles size={16} className="text-amber-500" /> Campaign Architect
+          </button>
+          <button onClick={() => setShowHashtagModal(true)} className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg text-sm font-semibold text-slate-600 flex items-center gap-2 transition-all">
+            <Hash size={16} className="text-slate-400"/> Riset Hashtag
+          </button>
+          <button onClick={() => { setSelectedDate(new Date()); setShowModal(true); }} className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-lg text-sm font-semibold text-slate-600 flex items-center gap-2 transition-all">
+            <Sparkles size={16} className="text-fuchsia-500" /> Smart Auto-Slot
+          </button>
+      </div>
+
+      {/* Filter and Tabs */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white px-6 border border-slate-200 rounded-b-2xl shadow-sm mb-6">
+        <div className="flex gap-6 -mb-px">
+          {['calendar', 'queue', 'drafts'].map((tab) => (
+             <button key={tab} onClick={() => setActiveTab(tab as any)} className={`py-4 text-sm font-bold border-b-2 transition-colors ${activeTab === tab ? 'border-green-600 text-green-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+               {tab === 'calendar' ? 'Calendar' : tab === 'queue' ? 'Content Queue' : 'Drafts'}
+             </button>
+          ))}
+        </div>
+        
+        <div className="flex items-center gap-3 py-3">
+          <Filter size={16} className="text-slate-400" />
+          <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)} className="text-sm font-bold bg-transparent text-slate-600 cursor-pointer outline-none">
             <option value="all">Semua Unit</option>
             {units.map((u: any) => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
           </select>
-          <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} className="p-2 border border-slate-200 rounded-lg text-sm font-bold bg-slate-50 text-slate-700 cursor-pointer">
+          <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)} className="text-sm font-bold bg-transparent text-slate-600 cursor-pointer outline-none ml-2">
             <option value="all">Semua Platform</option>
             <option value="meta_ig">Instagram</option>
             <option value="facebook">Facebook</option>
             <option value="tiktok">TikTok</option>
-            <option value="linkedin">LinkedIn</option>
             <option value="threads">Threads</option>
           </select>
         </div>
-        
-        <div className="flex items-center bg-slate-100 rounded-lg p-1">
-          <button onClick={() => setViewMode('calendar')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${viewMode === 'calendar' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <CalendarIcon size={16} /> Calendar
-          </button>
-          <button onClick={() => setViewMode('kanban')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${viewMode === 'kanban' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            <LayoutList size={16} /> Kanban List
-          </button>
-        </div>
       </div>
       
-      {viewMode === 'calendar' ? (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 overflow-hidden calendar-container text-slate-900 animate-in fade-in zoom-in-95 duration-300">
-          <style dangerouslySetInnerHTML={{__html: `
-            .fc-col-header-cell { padding: 12px 0; background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.8rem; }
-            .fc-daygrid-day { transition: background 0.2s; cursor: pointer; }
-            .fc-daygrid-day:hover { background: #f1f5f9; }
-            .fc-event { padding: 4px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; }
-            .fc-button-primary { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; color: #1e293b !important; font-weight: 700 !important; text-transform: capitalize !important;}
-            .fc-button-primary:hover { background-color: #e2e8f0 !important; }
-            .fc-button-active { background-color: #cbd5e1 !important; }
-          `}} />
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            events={events}
-            dateClick={handleDateClick}
-            eventClick={handleEventClick}
-            eventDrop={handleEventDrop}
-            editable={true}
-            droppable={true}
-            height="auto"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,dayGridWeek'
-            }}
-          />
+      {activeTab === 'calendar' ? (
+        <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 overflow-hidden calendar-container text-slate-900">
+            <style dangerouslySetInnerHTML={{__html: `
+              .fc-col-header-cell { padding: 12px 0; background: #f8fafc; font-weight: 700; color: #475569; text-transform: uppercase; font-size: 0.8rem; }
+              .fc-daygrid-day { transition: background 0.2s; cursor: pointer; }
+              .fc-daygrid-day:hover { background: #f1f5f9; }
+              .fc-event { padding: 4px; border-radius: 6px; font-weight: bold; font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: grab; }
+              .fc-button-primary { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; color: #1e293b !important; font-weight: 700 !important; text-transform: capitalize !important;}
+              .fc-button-primary:hover { background-color: #e2e8f0 !important; }
+              .fc-button-active { background-color: #cbd5e1 !important; }
+            `}} />
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              events={events}
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+              eventDrop={handleEventDrop}
+              editable={true}
+              droppable={true}
+              height="auto"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek'
+              }}
+            />
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Upcoming Posts</h3>
+            <div className="space-y-3">
+              {events.filter(e => new Date(e.start) >= new Date() && e.extendedProps.status === 'waiting').sort((a,b) => new Date(a.start).getTime() - new Date(b.start).getTime()).slice(0,5).map(e => (
+                <div key={e.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => handleEventClick({event: e} as any)}>
+                   <div className="flex items-center gap-4">
+                     <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-xs" style={{backgroundColor: getEventColor(e.extendedProps.status, e.extendedProps.platform)}}>
+                        {e.extendedProps.platform === 'meta_ig' ? 'IG' : e.extendedProps.platform === 'facebook' ? 'FB' : e.extendedProps.platform === 'tiktok' ? 'TT' : e.extendedProps.platform === 'threads' ? 'TH' : 'LI'}
+                     </div>
+                     <div>
+                       <p className="font-bold text-slate-900">{e.extendedProps.job_code}</p>
+                       <p className="text-xs text-slate-500">{new Date(e.start).toLocaleString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
+                     </div>
+                   </div>
+                   <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold">Scheduled</span>
+                </div>
+              ))}
+              {events.filter(e => new Date(e.start) >= new Date() && e.extendedProps.status === 'waiting').length === 0 && (
+                <div className="text-center py-6 text-slate-500 text-sm">No upcoming posts scheduled.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'queue' ? (
+        <div className="animate-in fade-in zoom-in-95 duration-300">
+          <QueuePage />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in zoom-in-95 duration-300">
