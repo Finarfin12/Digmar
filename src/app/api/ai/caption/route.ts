@@ -79,6 +79,9 @@ KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
 
     return NextResponse.json(parsedData)
   } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: err.errors[0].message }, { status: 400 })
+    }
     return handleApiError(err)
   }
 }
