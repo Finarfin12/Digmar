@@ -21,6 +21,8 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [isGenerating, setIsGenerating] = useState(false);
   const [downloadFormat, setDownloadFormat] = useState('PDF Document');
+  const [loadingStatus, setLoadingStatus] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const generateCSV = () => {
     const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
@@ -207,6 +209,12 @@ export default function ReportsPage() {
       return Swal.fire('Error', 'File tidak tersedia (bucket storage belum disiapkan)', 'error');
     }
     try {
+      Swal.fire({
+        title: 'Mengunduh...',
+        text: 'Sedang mengambil file dari Storage',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
       const response = await fetch(url);
       const blob = await response.blob();
       const localUrl = URL.createObjectURL(blob);
@@ -219,6 +227,7 @@ export default function ReportsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(localUrl);
+      Swal.close();
     } catch (error) {
       Swal.fire('Error', 'Gagal mengunduh file dari Storage', 'error');
     }
@@ -228,11 +237,16 @@ export default function ReportsPage() {
     if (selectedAccounts.length === 0) return Swal.fire('Error', 'Pilih minimal satu akun sosial', 'warning');
     
     setIsGenerating(true);
+    setLoadingProgress(10);
+    setLoadingStatus('Menyiapkan metrik data...');
+
     try {
       // 1. Fetch AI Insights
-      // (Mocking metrics data for demonstration. In real app, fetch actual analytics for the selected accounts)
       const mockMetrics = { followers: 15200, engagementRate: "4.5%", topPost: "Giveaway Akhir Tahun" };
       
+      setLoadingProgress(30);
+      setLoadingStatus('Menganalisis Insight AI...');
+
       const insightRes = await fetch('/api/reports/ai-insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,6 +262,9 @@ export default function ReportsPage() {
         throw new Error(errData.error || "Gagal mengambil AI Insights");
       }
       const { insights } = await insightRes.json();
+
+      setLoadingProgress(50);
+      setLoadingStatus('Merender dokumen...');
 
       // Menghitung metrik berdasarkan akun terpilih
       const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
@@ -274,6 +291,9 @@ export default function ReportsPage() {
       let pdfUrl = null;
 
       if (fileBlob) {
+        setLoadingProgress(70);
+        setLoadingStatus('Mengunggah ke Storage...');
+
         let contentType = 'application/pdf';
         if (ext === 'csv') contentType = 'text/csv';
         if (ext === 'xlsx') contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -293,6 +313,9 @@ export default function ReportsPage() {
           pdfUrl = publicUrl;
         }
       }
+
+      setLoadingProgress(90);
+      setLoadingStatus('Menyimpan riwayat...');
 
       // If it's a schedule, save schedule
       if (schedule !== 'One-time') {
@@ -325,6 +348,9 @@ export default function ReportsPage() {
         });
         if (!res.ok) throw new Error("Gagal menyimpan riwayat laporan");
       }
+
+      setLoadingProgress(100);
+      setLoadingStatus('Selesai!');
 
       Swal.fire('Berhasil', 'Laporan berhasil dibuat', 'success');
       
@@ -458,8 +484,20 @@ export default function ReportsPage() {
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md disabled:opacity-50"
                 >
                   {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <FileText size={20}/>}
-                  {isGenerating ? 'Menyusun Laporan & AI Insights...' : (schedule === 'One-time' ? 'Generate PDF Report' : 'Save Schedule')}
+                  {isGenerating ? 'Memproses...' : (schedule === 'One-time' ? `Generate ${downloadFormat.split(' ')[0]}` : 'Save Schedule')}
                 </button>
+
+                {isGenerating && (
+                  <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="flex justify-between text-xs font-bold text-slate-500 mb-1.5">
+                      <span>{loadingStatus}</span>
+                      <span>{loadingProgress}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                      <div className="bg-emerald-500 h-2 rounded-full transition-all duration-300" style={{ width: `${loadingProgress}%` }}></div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
