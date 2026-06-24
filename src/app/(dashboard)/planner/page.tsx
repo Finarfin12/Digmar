@@ -169,7 +169,6 @@ function PlannerContent() {
   };
 
   return (
-  return (
     <div className="space-y-0 animate-in fade-in duration-500 pb-20">
       <header className="bg-white p-6 pb-0 rounded-t-2xl border border-slate-200 border-b-0">
         <div className="flex justify-between items-center w-full pb-6 border-b border-slate-100">
