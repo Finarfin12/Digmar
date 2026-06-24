@@ -11,6 +11,7 @@ export default function Sidebar() {
     { name: 'Smart Inbox', path: '/inbox', icon: MessageSquare },
     { name: 'Accounts', path: '/accounts', icon: Users },
     { name: 'Planner', path: '/planner', icon: Calendar },
+    { name: 'Content Generator', path: '/studio', icon: Sparkles },
     { name: 'Content Library', path: '/library', icon: ImageIcon },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
     { name: 'Trend Insight', path: '/trends', icon: TrendingUp },
