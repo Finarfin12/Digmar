@@ -178,9 +178,9 @@ export default function ReportsPage() {
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
       const pdfBlob = pdf.output('blob');
       return pdfBlob;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating PDF:', error);
-      return null;
+      throw new Error(`Gagal memproses kanvas: ${error.message || 'Unknown render error'}`);
     }
   };
 
@@ -631,7 +631,7 @@ export default function ReportsPage() {
       </div>
 
       {/* HIDDEN PDF TEMPLATE */}
-      <div style={{ position: 'absolute', top: '-10000px', left: '-10000px' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1000 }}>
         <div ref={pdfTemplateRef} className="w-[800px] h-fit bg-white p-12 text-slate-900 font-sans" style={{ minHeight: '1131px' }}>
           {/* Header Report */}
           <div className="flex justify-between items-end border-b-2 border-slate-900 pb-6 mb-8">
