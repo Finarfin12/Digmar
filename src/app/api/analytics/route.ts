@@ -96,24 +96,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found or unauthorized' }, { status: 404 })
     }
 
-    if (account.platform !== 'meta_ig' && account.platform !== 'threads') {
-      return NextResponse.json({ error: 'Analytics API saat ini hanya mendukung akun Instagram Graph API dan Threads' }, { status: 400 })
-    }
-
     const decryptedToken = decryptValue(account.access_token_encrypted)
     const warnings: string[] = []
 
-    let metricsData
+    let metricsData = {
+      followers_count: account.followers_count || 0,
+      media_count: 0
+    };
+
     try {
       if (account.platform === 'threads') {
-        metricsData = await fetchThreadsProfile(account.ig_user_id, decryptedToken)
+        const profile = await fetchThreadsProfile(account.ig_user_id, decryptedToken)
+        metricsData = { ...metricsData, ...profile }
+      } else if (account.platform === 'meta_ig') {
+        const profile = await fetchInstagramProfile(account.ig_user_id, decryptedToken)
+        metricsData = { ...metricsData, ...profile }
       } else {
-        metricsData = await fetchInstagramProfile(account.ig_user_id, decryptedToken)
+        warnings.push(`Platform ${account.platform} belum mendukung sinkronisasi Analytics penuh. Menampilkan data profil dasar.`)
       }
     } catch (err: unknown) {
-      return NextResponse.json({
-        error: `API gagal mengambil profil akun: ${(err as Error).message}`,
-      }, { status: 502 })
+      warnings.push(`API gagal mengambil profil terbaru, menggunakan data tersimpan: ${(err as Error).message}`)
     }
 
     let insights: ChartDataPoint[] = []

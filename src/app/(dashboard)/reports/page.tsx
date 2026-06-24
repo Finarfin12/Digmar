@@ -110,6 +110,7 @@ export default function ReportsPage() {
   const pdfReachRef = useRef<HTMLParagraphElement>(null);
   const pdfBrandRef = useRef<HTMLParagraphElement>(null);
   const pdfAccountsRef = useRef<HTMLParagraphElement>(null);
+  const pdfTableRef = useRef<HTMLDivElement>(null);
 
   const reportTypes = ['Performance Summary', 'Engagement Deep-Dive', 'Platform Comparison', 'Content Analysis', 'Audience Growth'];
 
@@ -172,12 +173,28 @@ export default function ReportsPage() {
       pdfTemplateRef.current.style.display = 'none';
 
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = pdfWidth / imgWidth;
+      const finalImgHeight = imgHeight * ratio;
+      
+      let heightLeft = finalImgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+      heightLeft -= pdfHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - finalImgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, finalImgHeight);
+        heightLeft -= pdfHeight;
+      }
+      
       const pdfBlob = pdf.output('blob');
       return pdfBlob;
     } catch (error: any) {
@@ -246,26 +263,75 @@ export default function ReportsPage() {
     await delay(400);
 
     try {
-      // Menghitung metrik berdasarkan akun terpilih
       const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
-      const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
-      const randomEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
-      const estimatedReachNum = totalFollowers * 1.5;
-      const estimatedReach = estimatedReachNum.toLocaleString('id-ID');
-      
       const currentUnitName = units.find(u => u.id === selectedUnit)?.brand_name || 'DigiMar Unit';
       const selectedAccountsNames = selectedAccountsData.map(a => a.account_name || a.platform).join(', ') || 'Semua Akun';
 
-      // 1. Fetch AI Insights
+      setLoadingStatus('Menarik Analytics Data Asli...');
+      let totalRealFollowers = 0;
+      let totalRealEngagementSum = 0;
+      let totalRealReach = 0;
+      let accountsWithEngagement = 0;
+      const realAccountsData = [];
+
+      for (const a of selectedAccountsData) {
+        try {
+          const res = await fetch(`/api/analytics?account_id=${a.id}`);
+          if (res.ok) {
+            const data = await res.json();
+            const followers = parseInt(data.metrics?.followers_count) || a.followers_count || 0;
+            const reach = parseInt(data.metrics?.total_reach) || 0;
+            const engagementRateStr = String(data.metrics?.engagement_rate || '0%').replace('%','');
+            const engagement = parseFloat(engagementRateStr) || 0;
+            
+            totalRealFollowers += followers;
+            totalRealReach += reach;
+            if (engagement > 0) {
+              totalRealEngagementSum += engagement;
+              accountsWithEngagement++;
+            }
+            
+            realAccountsData.push({
+              platform: a.platform,
+              name: a.account_name || a.platform_username || 'Unknown',
+              followers: followers,
+              engagement: engagement.toFixed(2) + '%',
+              reach: reach
+            });
+          } else {
+            const fallbackFollowers = a.followers_count || 0;
+            realAccountsData.push({
+              platform: a.platform,
+              name: a.account_name || a.platform_username || 'Unknown',
+              followers: fallbackFollowers,
+              engagement: '0.00%',
+              reach: 0
+            });
+            totalRealFollowers += fallbackFollowers;
+          }
+        } catch(e) {
+            const fallbackFollowers = a.followers_count || 0;
+            realAccountsData.push({
+              platform: a.platform,
+              name: a.account_name || a.platform_username || 'Unknown',
+              followers: fallbackFollowers,
+              engagement: '0.00%',
+              reach: 0
+            });
+            totalRealFollowers += fallbackFollowers;
+        }
+      }
+
+      const avgEngagementNum = accountsWithEngagement > 0 ? (totalRealEngagementSum / accountsWithEngagement) : 0;
+      const avgEngagementStr = avgEngagementNum.toFixed(2) + "%";
+      const totalFollowers = totalRealFollowers;
+      const estimatedReach = totalRealReach.toLocaleString('id-ID');
+
       const realMetrics = { 
         total_followers: totalFollowers, 
-        avg_engagement_rate: randomEngagement, 
-        estimated_reach: estimatedReachNum,
-        included_accounts: selectedAccountsData.map(a => ({
-          platform: a.platform,
-          name: a.account_name || a.platform_username || 'Unknown',
-          followers: a.followers_count || 0
-        }))
+        avg_engagement_rate: avgEngagementStr, 
+        estimated_reach: totalRealReach,
+        included_accounts: realAccountsData
       };
       
       setLoadingProgress(30);
@@ -296,8 +362,37 @@ export default function ReportsPage() {
       if (pdfAccountsRef.current) pdfAccountsRef.current.innerText = `Akun Terpilih: ${selectedAccountsNames}`;
       if (pdfSummaryRef.current) pdfSummaryRef.current.innerText = insights || 'Data tidak tersedia.';
       if (pdfFollowersRef.current) pdfFollowersRef.current.innerText = totalFollowers > 0 ? totalFollowers.toLocaleString('id-ID') : '0';
-      if (pdfEngagementRef.current) pdfEngagementRef.current.innerText = randomEngagement;
+      if (pdfEngagementRef.current) pdfEngagementRef.current.innerText = avgEngagementStr;
       if (pdfReachRef.current) pdfReachRef.current.innerText = estimatedReach;
+
+      if (pdfTableRef.current) {
+        pdfTableRef.current.innerHTML = `
+          <h2 class="text-xl font-bold text-[#0f172a] mb-4">Account Analytics Breakdown</h2>
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
+                <th class="p-3 font-bold text-[#64748b]">Platform</th>
+                <th class="p-3 font-bold text-[#64748b]">Nama Akun</th>
+                <th class="p-3 font-bold text-[#64748b] text-right">Followers</th>
+                <th class="p-3 font-bold text-[#64748b] text-right">Engagement</th>
+                <th class="p-3 font-bold text-[#64748b] text-right">Reach</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${realAccountsData.map(acc => `
+                <tr class="border-b border-[#e2e8f0]">
+                  <td class="p-3 text-[#334155] font-medium uppercase">${acc.platform}</td>
+                  <td class="p-3 text-[#334155] font-bold">${acc.name}</td>
+                  <td class="p-3 text-[#0f172a] text-right font-medium">${acc.followers.toLocaleString('id-ID')}</td>
+                  <td class="p-3 text-[#10b981] text-right font-medium">${acc.engagement}</td>
+                  <td class="p-3 text-[#0f172a] text-right font-medium">${acc.reach.toLocaleString('id-ID')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+
       let fileBlob: Blob | null = null;
       let ext = 'pdf';
 
@@ -678,21 +773,26 @@ export default function ReportsPage() {
               <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
                 <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Total Followers</p>
                 <p ref={pdfFollowersRef} className="text-4xl font-black text-[#0f172a] mt-2">0</p>
-                <p className="text-[#10b981] font-bold mt-2">Akun terpilih</p>
+                <p className="text-[#10b981] font-bold mt-2">Data Asli</p>
               </div>
               <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
                 <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Avg Engagement Rate</p>
                 <p ref={pdfEngagementRef} className="text-4xl font-black text-[#0f172a] mt-2">0%</p>
-                <p className="text-[#10b981] font-bold mt-2">Bulan ini</p>
+                <p className="text-[#10b981] font-bold mt-2">Data Asli</p>
               </div>
               <div className="p-6 border border-[#e2e8f0] rounded-2xl text-center">
-                <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Estimated Reach</p>
+                <p className="text-[#64748b] font-bold uppercase tracking-wider text-sm">Total Reach</p>
                 <p ref={pdfReachRef} className="text-4xl font-black text-[#0f172a] mt-2">0</p>
-                <p className="text-[#10b981] font-bold mt-2">Est. organik</p>
+                <p className="text-[#10b981] font-bold mt-2">Data Asli</p>
               </div>
             </div>
 
-            <div className="mt-12 p-6 border-l-4 border-[#6366f1] bg-[#eef2ff] rounded-r-2xl">
+            {/* Detailed Analytics Table */}
+            <div ref={pdfTableRef} className="mt-8 border border-[#e2e8f0] rounded-2xl p-6 bg-white">
+              {/* Diisi dinamis via innerHTML */}
+            </div>
+
+            <div className="mt-12 p-6 border-l-4 border-[#6366f1] bg-[#eef2ff] rounded-r-2xl" style={{ pageBreakInside: 'avoid' }}>
               <h2 className="text-xl font-bold text-[#312e81] mb-3">Rekomendasi AI Strategis</h2>
               <ul className="list-disc pl-5 space-y-2 text-[#3730a3] text-lg">
                 <li>Tingkatkan volume video pendek (Reels/TikTok) karena menyumbang 70% dari jangkauan baru.</li>
