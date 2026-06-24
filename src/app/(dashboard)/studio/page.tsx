@@ -13,6 +13,7 @@ export default function ContentGenerator() {
   const [prompt, setPrompt] = useState('');
   const [platforms, setPlatforms] = useState<string[]>(['Instagram']);
   const [tone, setTone] = useState('Profesional & Informatif');
+  const [showPlatforms, setShowPlatforms] = useState(false);
   
   // Brand Voice State
   const [showBrandVoice, setShowBrandVoice] = useState(false);
@@ -224,7 +225,7 @@ export default function ContentGenerator() {
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
             <h3 className="font-bold text-slate-900 mb-4">1. Content Brief</h3>
             <textarea
-              className="w-full h-40 p-4 bg-slate-50 border border-slate-200 rounded-2xl resize-none focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 placeholder:text-slate-400 font-medium"
+              className="w-full h-40 p-4 bg-slate-50 border border-slate-200 rounded-2xl resize-none focus:ring-2 focus:ring-indigo-500 outline-none text-slate-900 placeholder:text-slate-400 font-medium"
               placeholder="Jelaskan apa yang ingin Anda buat. Contoh: Buatkan postingan Instagram tentang fitur baru DigiMar yaitu Auto-Queue. Target audiens adalah Social Media Manager..."
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
@@ -233,28 +234,30 @@ export default function ContentGenerator() {
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Tone & Voice</label>
-                <select value={tone} onChange={e=>setTone(e.target.value)} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none">
+                <select value={tone} onChange={e=>setTone(e.target.value)} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-slate-900">
                   {tones.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Platform</label>
                 <div className="relative">
-                  <button className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-left flex justify-between items-center group">
+                  <button type="button" onClick={() => setShowPlatforms(!showPlatforms)} className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-left flex justify-between items-center group text-slate-900">
                     <span className="truncate">{platforms.join(', ') || 'Pilih...'}</span>
-                    <ChevronDown size={16} className="text-slate-400 group-hover:text-slate-600"/>
+                    <ChevronDown size={16} className="text-slate-400"/>
                   </button>
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 shadow-lg rounded-xl p-2 hidden group-focus-within:block z-10">
+                  {showPlatforms && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 shadow-lg rounded-xl p-2 z-10">
                     {availablePlatforms.map(p => (
                       <label key={p} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
                         <input type="checkbox" checked={platforms.includes(p)} onChange={(e) => {
                           if (e.target.checked) setPlatforms([...platforms, p]);
                           else setPlatforms(platforms.filter(x => x !== p));
                         }} className="rounded text-indigo-600 focus:ring-indigo-500"/>
-                        <span className="text-sm font-medium">{p}</span>
+                        <span className="text-sm font-medium text-slate-900">{p}</span>
                       </label>
                     ))}
                   </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -277,7 +280,7 @@ export default function ContentGenerator() {
                     <label className="text-xs font-bold text-amber-800 mb-1 block">Tone Guidelines (Opsional)</label>
                     <textarea 
                       value={brandVoice.tone_guidelines} onChange={e=>setBrandVoice({...brandVoice, tone_guidelines: e.target.value})}
-                      className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-sm outline-none focus:border-amber-400"
+                      className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-sm outline-none focus:border-amber-400 text-slate-900"
                       placeholder="Kami berbicara seperti seorang pakar namun tetap ramah dan suportif..."
                       rows={2}
                     />
@@ -290,7 +293,7 @@ export default function ContentGenerator() {
                           const newDos = [...brandVoice.dos];
                           newDos[i] = e.target.value;
                           setBrandVoice({...brandVoice, dos: newDos});
-                        }} placeholder="Gunakan kata 'Kita'" className="w-full p-2 mb-2 bg-white border border-emerald-200 rounded-lg text-sm outline-none"/>
+                        }} placeholder="Gunakan kata 'Kita'" className="w-full p-2 mb-2 bg-white border border-emerald-200 rounded-lg text-sm outline-none text-slate-900"/>
                       ))}
                       <button onClick={() => setBrandVoice({...brandVoice, dos: [...brandVoice.dos, '']})} className="text-xs font-bold text-emerald-600 hover:text-emerald-700">+ Tambah DO</button>
                     </div>
@@ -301,7 +304,7 @@ export default function ContentGenerator() {
                           const newDonts = [...brandVoice.donts];
                           newDonts[i] = e.target.value;
                           setBrandVoice({...brandVoice, donts: newDonts});
-                        }} placeholder="Hindari sapaan kaku" className="w-full p-2 mb-2 bg-white border border-rose-200 rounded-lg text-sm outline-none"/>
+                        }} placeholder="Hindari sapaan kaku" className="w-full p-2 mb-2 bg-white border border-rose-200 rounded-lg text-sm outline-none text-slate-900"/>
                       ))}
                       <button onClick={() => setBrandVoice({...brandVoice, donts: [...brandVoice.donts, '']})} className="text-xs font-bold text-rose-600 hover:text-rose-700">+ Tambah DONT</button>
                     </div>
