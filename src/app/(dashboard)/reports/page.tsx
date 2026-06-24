@@ -607,11 +607,18 @@ export default function ReportsPage() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <button disabled={!rep.pdf_url} onClick={() => handleDownload(rep.pdf_url)} title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent"><Download size={16}/></button>
-                        <button disabled={!rep.pdf_url} onClick={() => handleShareReport(rep.pdf_url)} title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent"><Share2 size={16}/></button>
-                        <button onClick={() => handleDeleteReport(rep.id)} title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
-                      </div>
+                      {rep.pdf_url && !rep.pdf_url.startsWith('blob:') && rep.pdf_url !== '#' ? (
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleDownload(rep.pdf_url)} title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16}/></button>
+                          <button onClick={() => handleShareReport(rep.pdf_url)} title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Share2 size={16}/></button>
+                          <button onClick={() => handleDeleteReport(rep.id)} title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-1.5 rounded-md uppercase tracking-wider">File Rusak</span>
+                          <button onClick={() => handleDeleteReport(rep.id)} title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
