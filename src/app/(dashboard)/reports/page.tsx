@@ -16,9 +16,24 @@ export default function ReportsPage() {
   // Report Builder State
   const [reportType, setReportType] = useState('Performance Summary');
   const [schedule, setSchedule] = useState('One-time');
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [downloadFormat, setDownloadFormat] = useState('PDF Document');
+
+  const generateCSV = () => {
+    const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
+    const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
+    const mockEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
+    const estimatedReach = (totalFollowers * 1.5);
+    
+    let csv = `Report Type,${reportType}\n`;
+    csv += `Period,${dateRange.start} to ${dateRange.end || 'Now'}\n\n`;
+    csv += `Metrics,Value\n`;
+    csv += `Total Followers,${totalFollowers}\n`;
+    csv += `Avg Engagement Rate,${mockEngagement}\n`;
+    csv += `Estimated Reach,${estimatedReach}\n`;
+    return new Blob([csv], { type: 'text/csv' });
+  };
 
   // Lists state
   const [reports, setReports] = useState<any[]>([]);
@@ -147,9 +162,30 @@ export default function ReportsPage() {
   };
 
   const handleShareReport = (url: string) => {
-    if (!url) return Swal.fire('Error', 'Tautan tidak tersedia', 'error');
+    if (!url || url === '#') return Swal.fire('Error', 'Tautan tidak tersedia', 'error');
     navigator.clipboard.writeText(url);
     Swal.fire({ title: 'Tersalin!', text: 'Tautan laporan berhasil disalin ke clipboard.', icon: 'success', timer: 1500, showConfirmButton: false });
+  };
+
+  const handleDownload = async (url: string) => {
+    if (!url || url === '#') {
+      return Swal.fire('Error', 'File tidak tersedia (bucket storage belum disiapkan)', 'error');
+    }
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const localUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = localUrl;
+      const ext = url.includes('.csv') ? 'csv' : 'pdf';
+      a.download = `DigiMar_Report_${Date.now()}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(localUrl);
+    } catch (error) {
+      Swal.fire('Error', 'Gagal mengunduh file dari Storage', 'error');
+    }
   };
 
   const handleGenerateReport = async () => {
@@ -186,19 +222,30 @@ export default function ReportsPage() {
       if (pdfSummaryRef.current) pdfSummaryRef.current.innerText = insights || 'Data tidak tersedia.';
       if (pdfFollowersRef.current) pdfFollowersRef.current.innerText = totalFollowers > 0 ? totalFollowers.toLocaleString('id-ID') : '0';
       if (pdfEngagementRef.current) pdfEngagementRef.current.innerText = randomEngagement;
-      if (pdfReachRef.current) pdfReachRef.current.innerText = estimatedReach;
+      let fileBlob: Blob | null = null;
+      let ext = 'pdf';
 
-      const pdfBlob = await generatePDF();
+      if (downloadFormat === 'PDF Document') {
+        fileBlob = await generatePDF();
+      } else {
+        fileBlob = generateCSV();
+        ext = 'csv';
+      }
+
       let pdfUrl = null;
 
-      if (pdfBlob) {
+      if (fileBlob) {
         const supabase = createClient();
-        const fileName = `${selectedUnit}-${Date.now()}.pdf`;
-        const { data, error } = await supabase.storage.from('reports').upload(fileName, pdfBlob, {
-          contentType: 'application/pdf'
+        const fileName = `${selectedUnit}-${Date.now()}.${ext}`;
+        const { data, error } = await supabase.storage.from('reports').upload(fileName, fileBlob, {
+          contentType: ext === 'pdf' ? 'application/pdf' : 'text/csv'
         });
         
-        if (!error && data) {
+        if (error) {
+          throw new Error('Gagal upload ke storage. Pastikan Anda sudah menjalankan SQL migration untuk Storage Bucket "reports" di Supabase: ' + error.message);
+        }
+
+        if (data) {
           const { data: { publicUrl } } = supabase.storage.from('reports').getPublicUrl(data.path);
           pdfUrl = publicUrl;
         }
@@ -239,14 +286,8 @@ export default function ReportsPage() {
       Swal.fire('Berhasil', 'Laporan berhasil dibuat', 'success');
       
       if (pdfUrl && schedule === 'One-time') {
-        // Trigger download via anchor
-        const a = document.createElement('a');
-        a.href = pdfUrl;
-        a.target = '_blank';
-        a.download = `Report_${reportType.replace(/\s+/g, '_')}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // Trigger local download specifically to avoid cross-origin anchor tag bug that downloads HTM
+        handleDownload(pdfUrl);
       }
 
       loadData();
@@ -388,7 +429,11 @@ export default function ReportsPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">Download Format</label>
-                <select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-slate-900">
+                <select 
+                  value={downloadFormat} 
+                  onChange={e => setDownloadFormat(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-slate-900"
+                >
                   <option>PDF Document</option>
                   <option>CSV Data</option>
                 </select>
@@ -473,7 +518,7 @@ export default function ReportsPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <a href={rep.pdf_url || '#'} target="_blank" download title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16}/></a>
+                        <button onClick={() => handleDownload(rep.pdf_url)} title="Download" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"><Download size={16}/></button>
                         <button onClick={() => handleShareReport(rep.pdf_url)} title="Share" className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"><Share2 size={16}/></button>
                         <button onClick={() => handleDeleteReport(rep.id)} title="Delete" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"><Trash2 size={16}/></button>
                       </div>
