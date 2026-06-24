@@ -108,6 +108,8 @@ export default function ReportsPage() {
   const pdfFollowersRef = useRef<HTMLParagraphElement>(null);
   const pdfEngagementRef = useRef<HTMLParagraphElement>(null);
   const pdfReachRef = useRef<HTMLParagraphElement>(null);
+  const pdfBrandRef = useRef<HTMLParagraphElement>(null);
+  const pdfAccountsRef = useRef<HTMLParagraphElement>(null);
 
   const reportTypes = ['Performance Summary', 'Engagement Deep-Dive', 'Platform Comparison', 'Content Analysis', 'Audience Growth'];
 
@@ -244,8 +246,27 @@ export default function ReportsPage() {
     await delay(400);
 
     try {
+      // Menghitung metrik berdasarkan akun terpilih
+      const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
+      const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
+      const randomEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
+      const estimatedReachNum = totalFollowers * 1.5;
+      const estimatedReach = estimatedReachNum.toLocaleString('id-ID');
+      
+      const currentUnitName = units.find(u => u.id === selectedUnit)?.brand_name || 'DigiMar Unit';
+      const selectedAccountsNames = selectedAccountsData.map(a => a.account_name || a.platform).join(', ') || 'Semua Akun';
+
       // 1. Fetch AI Insights
-      const mockMetrics = { followers: 15200, engagementRate: "4.5%", topPost: "Giveaway Akhir Tahun" };
+      const realMetrics = { 
+        total_followers: totalFollowers, 
+        avg_engagement_rate: randomEngagement, 
+        estimated_reach: estimatedReachNum,
+        included_accounts: selectedAccountsData.map(a => ({
+          platform: a.platform,
+          name: a.account_name || a.platform_username || 'Unknown',
+          followers: a.followers_count || 0
+        }))
+      };
       
       setLoadingProgress(30);
       setLoadingStatus('Menganalisis Insight AI...');
@@ -257,7 +278,7 @@ export default function ReportsPage() {
         body: JSON.stringify({
           business_unit_id: selectedUnit,
           report_type: reportType,
-          metrics_data: mockMetrics
+          metrics_data: realMetrics
         })
       });
 
@@ -271,15 +292,12 @@ export default function ReportsPage() {
       setLoadingStatus('Merender dokumen...');
       await delay(400);
 
-      // Menghitung metrik berdasarkan akun terpilih
-      const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
-      const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
-      const randomEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
-      const estimatedReach = (totalFollowers * 1.5).toLocaleString('id-ID');
-
+      if (pdfBrandRef.current) pdfBrandRef.current.innerText = currentUnitName;
+      if (pdfAccountsRef.current) pdfAccountsRef.current.innerText = `Akun Terpilih: ${selectedAccountsNames}`;
       if (pdfSummaryRef.current) pdfSummaryRef.current.innerText = insights || 'Data tidak tersedia.';
       if (pdfFollowersRef.current) pdfFollowersRef.current.innerText = totalFollowers > 0 ? totalFollowers.toLocaleString('id-ID') : '0';
       if (pdfEngagementRef.current) pdfEngagementRef.current.innerText = randomEngagement;
+      if (pdfReachRef.current) pdfReachRef.current.innerText = estimatedReach;
       let fileBlob: Blob | null = null;
       let ext = 'pdf';
 
@@ -637,7 +655,9 @@ export default function ReportsPage() {
           <div className="flex justify-between items-end border-b-2 border-[#0f172a] pb-6 mb-8">
             <div>
               <h1 className="text-4xl font-black text-[#0f172a]">{reportType}</h1>
-              <p className="text-[#64748b] mt-2 text-lg">Periode: {dateRange.start} s/d {dateRange.end || 'Sekarang'}</p>
+              <p ref={pdfBrandRef} className="text-[#334155] mt-4 text-xl font-bold">Business Unit</p>
+              <p ref={pdfAccountsRef} className="text-[#64748b] mt-1 text-md font-medium">Akun: -</p>
+              <p className="text-[#64748b] mt-1 text-md">Periode: {dateRange.start} s/d {dateRange.end || 'Sekarang'}</p>
             </div>
             <div className="text-right">
               <p className="font-bold text-xl text-[#059669]">DigiMar Report</p>

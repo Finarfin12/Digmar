@@ -22,17 +22,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { business_unit_id, report_type, metrics_data } = AiInsightsSchema.parse(body);
 
+    const { data: buData, error: buError } = await supabase
+      .from('business_units')
+      .select('brand_name, business_category, ai_system_prompt')
+      .eq('id', business_unit_id)
+      .single();
+      
+    if (buError || !buData) {
+      throw new Error('Business unit not found');
+    }
+
     const { client, config } = await getAIProvider(user.id);
 
-    const systemPrompt = `Anda adalah Data Analyst Spesialis Media Sosial yang ahli membuat kesimpulan laporan untuk klien eksekutif.`;
-    const userPrompt = `Saya sedang membuat laporan tipe: "${report_type}".
-Berikut adalah data ringkas mengenai performa akun-akun di unit bisnis ini:
+    const systemPrompt = `Anda adalah Data Analyst Spesialis Media Sosial yang ahli membuat kesimpulan laporan untuk klien eksekutif. Anda menganalisis data untuk brand/unit bisnis: "${buData.brand_name}" (Kategori: ${buData.business_category || 'General'}).
+Tujuan dan Pedoman Analisis Utama Anda (Business Goals):
+"${buData.ai_system_prompt}"
+Selalu kaitkan hasil analisis dan rekomendasi Anda secara mendalam dengan tujuan utama brand di atas.`;
+
+    const userPrompt = `Saya sedang membuat laporan dengan fokus tipe: "${report_type}".
+Berikut adalah data performa metrik dari akun-akun sosial yang dipilih untuk laporan ini:
 ${JSON.stringify(metrics_data, null, 2)}
 
 Tugas Anda:
-1. Berikan 1-2 paragraf kesimpulan (Executive Summary) yang menyoroti hal-hal paling positif atau perbaikan signifikan.
-2. Berikan 3 poin "Rekomendasi Strategis" yang konkrit untuk bulan depan.
-Gunakan bahasa Indonesia yang profesional, positif, dan meyakinkan (karena akan dicetak di PDF untuk klien). Jangan beri awalan/akhiran obrolan, langsung tuliskan laporannya.`;
+1. Berikan 1-2 paragraf kesimpulan (Executive Summary) yang secara ketat berfokus pada topik "${report_type}" dan menjawab tujuan utama unit bisnis.
+2. Berikan 3 poin "Rekomendasi Strategis" yang sangat spesifik dan dapat ditindaklanjuti, berdasarkan metrik akun-akun di atas.
+Gunakan bahasa Indonesia yang profesional, positif, dan meyakinkan (akan dicetak di PDF untuk klien). Jangan beri awalan/akhiran obrolan, langsung tuliskan hasilnya.`;
 
     const response = await client.generateText(systemPrompt, userPrompt, {
       temperature: config.config?.temperature || 0.5,
