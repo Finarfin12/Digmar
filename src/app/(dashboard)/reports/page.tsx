@@ -277,12 +277,14 @@ export default function ReportsPage() {
       for (const a of selectedAccountsData) {
         try {
           const res = await fetch(`/api/analytics?account_id=${a.id}`);
-          if (res.ok) {
+            if (res.ok) {
             const data = await res.json();
-            const followers = parseInt(data.metrics?.followers_count) || a.followers_count || 0;
+            const apiFollowers = data.metrics?.followers ?? data.metrics?.followers_count;
+            const followers = parseInt(apiFollowers) || a.followers_count || 0;
             const reach = parseInt(data.metrics?.total_reach) || 0;
             const engagementRateStr = String(data.metrics?.engagement_rate || '0%').replace('%','');
             const engagement = parseFloat(engagementRateStr) || 0;
+            const accountName = data.metrics?.name || a.account_name || a.platform_username || 'Unknown';
             
             totalRealFollowers += followers;
             totalRealReach += reach;
@@ -293,7 +295,7 @@ export default function ReportsPage() {
             
             realAccountsData.push({
               platform: a.platform,
-              name: a.account_name || a.platform_username || 'Unknown',
+              name: accountName,
               followers: followers,
               engagement: engagement.toFixed(2) + '%',
               reach: reach
