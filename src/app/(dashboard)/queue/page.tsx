@@ -206,14 +206,14 @@ export default function QueuePage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-slate-900 rounded-3xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black flex items-center gap-3"><ListOrdered className="text-indigo-400" size={32}/> Enterprise Auto-Queue</h2>
-          <p className="text-slate-400 mt-2 font-medium">Atur jadwal rutin, lempar konten ke antrean, dan biarkan sistem memposting otomatis.</p>
+          <h2 className="text-3xl font-black flex items-center gap-3 text-slate-900"><ListOrdered className="text-green-600" size={32}/> Auto-Queue</h2>
+          <p className="text-slate-500 mt-2 font-medium">Atur jadwal rutin, lempar konten ke antrean, dan biarkan sistem memposting otomatis.</p>
         </div>
         <div className="w-full md:w-64">
-          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Unit Bisnis</label>
-          <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="w-full p-3 border-2 border-slate-700 bg-slate-800 rounded-xl font-bold text-white outline-none focus:border-indigo-500">
+          <label className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Unit Bisnis</label>
+          <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)} className="w-full p-3 border border-slate-200 bg-slate-50 text-slate-700 rounded-xl font-bold outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500">
             {units.map(u => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
           </select>
         </div>

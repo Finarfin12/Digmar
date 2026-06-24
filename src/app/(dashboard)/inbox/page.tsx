@@ -223,23 +223,23 @@ export default function InboxPage() {
   return (
     <div className="h-[calc(100vh-4rem)] bg-slate-100 -m-8 flex flex-col">
       {/* Header Select Unit */}
-      <div className="bg-slate-900 text-white p-3 px-6 shrink-0 flex items-center justify-between shadow-md z-10">
-        <h2 className="font-black text-xl flex items-center gap-2">
-          <MessageSquare size={20} className="text-indigo-400" />
+      <div className="bg-white text-slate-900 p-4 px-6 shrink-0 flex items-center justify-between border-b border-slate-200 z-10">
+        <h2 className="font-bold text-xl flex items-center gap-2">
+          <MessageSquare size={20} className="text-green-600" />
           Smart Inbox
         </h2>
         <div className="flex items-center gap-3">
           <button
             onClick={handleSyncConversations}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1.5 transition-colors"
+            className="bg-green-50 hover:bg-green-100 text-green-700 text-xs px-3 py-2 rounded-lg font-bold flex items-center gap-1.5 transition-colors border border-green-200"
           >
             <RefreshCw size={14} /> Sync Now
           </button>
-          <span className="text-sm font-bold text-slate-400">Unit Bisnis:</span>
+          <span className="text-sm font-bold text-slate-500">Unit Bisnis:</span>
           <select 
             value={selectedUnit} 
             onChange={e => setSelectedUnit(e.target.value)}
-            className="bg-slate-800 text-white border-none rounded-lg p-2 font-bold focus:ring-2 focus:ring-indigo-500"
+            className="bg-slate-50 text-slate-700 border border-slate-200 rounded-lg p-2 font-bold focus:ring-2 focus:ring-green-500 outline-none"
           >
             {units.map(u => <option key={u.id} value={u.id}>{u.brand_name}</option>)}
           </select>
