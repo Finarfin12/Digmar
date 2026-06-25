@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         const { client } = await getAIProvider(user.id)
         const prompt = `Berdasarkan hasil pencarian Google berikut untuk kompetitor @${query}:\n\n${snippets}\n\nAnalisis pola konten apa yang sering dibuat oleh kompetitor ini, apa yang menarik perhatian audiens, dan berikan ringkasan strategi konten mereka.`
         try {
-          const aiRes = await client.generateText('Anda adalah analis media sosial.', prompt, { maxTokens: 800 })
+          const aiRes = await client.generateText('Anda adalah analis media sosial.', prompt, { maxTokens: 800, jsonMode: false })
           resultData = {
             organic_results: serpData.organic_results,
             ai_summary: aiRes.content
