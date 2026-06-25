@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { encryptValue } from '@/lib/crypto/server'
+import { encryptValue, decryptValue } from '@/lib/crypto/server'
 import { NextResponse, type NextRequest } from 'next/server'
-
+import { fetchInstagramProfile, fetchThreadsProfile } from '@/lib/social/analytics'
 import { handleApiError } from '@/lib/utils/error-handler'
+
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -29,7 +30,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const safeData = data.map(account => {
+  // Auto-sync profile data with API to ensure Accounts Dashboard is up-to-date
+  const syncedData = await Promise.all(data.map(async (account) => {
+    let currentAccount = { ...account }
+    if (account.access_token_encrypted && (account.platform === 'meta_ig' || account.platform === 'threads')) {
+      try {
+        const decryptedToken = decryptValue(account.access_token_encrypted)
+        const profile = account.platform === 'meta_ig' 
+          ? await fetchInstagramProfile(account.ig_user_id, decryptedToken)
+          : await fetchThreadsProfile(account.ig_user_id, decryptedToken)
+        
+        // Update DB only if there's a difference to avoid unnecessary writes
+        if (profile.name !== account.account_name || profile.followers !== account.followers_count || profile.profile_pic !== account.avatar_url) {
+          const { data: updatedDbAccount, error: updateError } = await supabase.from('social_accounts').update({
+            account_name: profile.name,
+            followers_count: profile.followers,
+            avatar_url: profile.profile_pic
+          }).eq('id', account.id).select().single()
+          
+          if (updatedDbAccount && !updateError) {
+            currentAccount = { ...currentAccount, ...updatedDbAccount }
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to sync account ${account.id}:`, err)
+      }
+    }
+    return currentAccount
+  }))
+
+  const safeData = syncedData.map(account => {
     const { access_token_encrypted, ...safeAccount } = account
     return {
       ...safeAccount,
