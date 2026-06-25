@@ -96,6 +96,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found or unauthorized' }, { status: 404 })
     }
 
+    if (!account.access_token_encrypted) {
+      return NextResponse.json({ error: 'Access token not found for this account' }, { status: 400 })
+    }
+
     const decryptedToken = decryptValue(account.access_token_encrypted)
     const warnings: string[] = []
 

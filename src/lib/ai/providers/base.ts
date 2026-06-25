@@ -42,7 +42,7 @@ export class OpenAICompatibleClient implements AIProviderClient {
             : userPrompt 
         }
       ],
-      response_format: options?.jsonMode === false ? undefined : { type: "json_object" }
+      response_format: options?.jsonMode === true ? { type: "json_object" } : undefined
     });
 
     return {

@@ -195,7 +195,7 @@ KEMBALIKAN HANYA JSON:
 }
 `
 
-    const response = await client.generateText('Anda adalah analis tren sosial media.', aiPrompt, { temperature: 0.8, maxTokens: 1500 })
+    const response = await client.generateText('Anda adalah analis tren sosial media.', aiPrompt, { temperature: 0.8, maxTokens: 1500, jsonMode: true })
       .catch(err => { logger.error('Trend AI provider failed:', err); throw new Error('AI provider gagal merespons.') })
 
     let parsedData

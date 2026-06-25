@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       .eq('key', key)
       .single()
 
-    return NextResponse.json(data ? { key, value: data.value_encrypted } : null)
+    return NextResponse.json(data ? { key, is_configured: true } : null)
   } catch {
     return NextResponse.json(null)
   }

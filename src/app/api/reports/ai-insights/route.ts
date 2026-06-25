@@ -4,10 +4,25 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { handleApiError } from '@/lib/utils/error-handler';
 import { z } from 'zod';
 
+const MetricsDataSchema = z.object({
+  accounts: z.array(z.object({
+    id: z.string().uuid().optional(),
+    name: z.string().optional(),
+    followers: z.number().optional(),
+    engagement_rate: z.number().optional(),
+    total_posts: z.number().optional(),
+  })).optional(),
+  date_range: z.object({
+    start: z.string().optional(),
+    end: z.string().optional()
+  }).optional(),
+  competitors: z.array(z.any()).optional()
+}).passthrough();
+
 const AiInsightsSchema = z.object({
   business_unit_id: z.string().uuid(),
   report_type: z.string(),
-  metrics_data: z.any()
+  metrics_data: MetricsDataSchema
 });
 
 export async function POST(request: NextRequest) {

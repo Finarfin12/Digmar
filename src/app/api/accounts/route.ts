@@ -36,24 +36,34 @@ export async function GET(request: NextRequest) {
     if (account.access_token_encrypted && (account.platform === 'meta_ig' || account.platform === 'threads')) {
       try {
         const decryptedToken = decryptValue(account.access_token_encrypted)
-        const profile = account.platform === 'meta_ig' 
-          ? await fetchInstagramProfile(account.ig_user_id, decryptedToken)
-          : await fetchThreadsProfile(account.ig_user_id, decryptedToken)
         
-        // Update DB only if there's a difference to avoid unnecessary writes
-        if (profile.name !== account.account_name || profile.followers !== account.followers_count || profile.profile_pic !== account.avatar_url) {
-          const { data: updatedDbAccount, error: updateError } = await supabase.from('social_accounts').update({
-            account_name: profile.name,
-            followers_count: profile.followers,
-            avatar_url: profile.profile_pic
-          }).eq('id', account.id).select().single()
+        const syncPromise = async () => {
+          const profile = account.platform === 'meta_ig' 
+            ? await fetchInstagramProfile(account.ig_user_id, decryptedToken)
+            : await fetchThreadsProfile(account.ig_user_id, decryptedToken)
           
-          if (updatedDbAccount && !updateError) {
-            currentAccount = { ...currentAccount, ...updatedDbAccount }
+          // Update DB only if there's a difference to avoid unnecessary writes
+          if (profile.name !== account.account_name || profile.followers !== account.followers_count || profile.profile_pic !== account.avatar_url) {
+            const { data: updatedDbAccount, error: updateError } = await supabase.from('social_accounts').update({
+              account_name: profile.name,
+              followers_count: profile.followers,
+              avatar_url: profile.profile_pic
+            }).eq('id', account.id).select().single()
+            
+            if (updatedDbAccount && !updateError) {
+              currentAccount = { ...currentAccount, ...updatedDbAccount }
+            }
           }
         }
+
+        // Apply a 5-second timeout to prevent blocking the GET request
+        await Promise.race([
+          syncPromise(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Sync Timeout')), 5000))
+        ])
+
       } catch (err) {
-        console.error(`Failed to sync account ${account.id}:`, err)
+        console.warn(`Failed to sync account ${account.id}:`, err)
       }
     }
     return currentAccount

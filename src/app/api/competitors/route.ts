@@ -39,11 +39,24 @@ export async function POST(request: NextRequest) {
           next: { revalidate: 3600 }
         });
         const html = await igRes.text();
-        const match = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
-        if (match && match[1]) {
-          const followersStr = match[1].split(' Followers')[0];
-          if (followersStr && followersStr.length < 20) {
-            realFollowers = followersStr;
+        // Try JSON first
+        const jsonMatch = html.match(/window\._sharedData\s*=\s*(\{.+?\});/);
+        if (jsonMatch) {
+          try {
+            const data = JSON.parse(jsonMatch[1]);
+            const count = data.entry_data?.ProfilePage?.[0]?.graphql?.user?.edge_followed_by?.count;
+            if (count) realFollowers = count.toString();
+          } catch(e) {}
+        }
+        
+        // Fallback to meta tag
+        if (!realFollowers) {
+          const match = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
+          if (match && match[1]) {
+            const followersStr = match[1].split(' Followers')[0];
+            if (followersStr && followersStr.length < 20) {
+              realFollowers = followersStr;
+            }
           }
         }
       } catch(e) {

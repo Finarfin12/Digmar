@@ -101,7 +101,8 @@ Kembalikan HANYA dalam format JSON (tanpa awalan markdown apapun):
 
     const capResponse = await client.generateText(unit.ai_system_prompt || '', captionPrompt, {
       temperature: config.config?.temperature || 0.85,
-      maxTokens: 800
+      maxTokens: 800,
+      jsonMode: true
     })
 
     let generatedCaption = '';
@@ -134,7 +135,8 @@ KEMBALIKAN HANYA DALAM FORMAT JSON:
 
     const btResponse = await client.generateText(btSystemPrompt, btUserPrompt, {
       temperature: 0.7,
-      maxTokens: 200
+      maxTokens: 200,
+      jsonMode: true
     })
 
     let scheduledAt = format(addDays(now, 1), "yyyy-MM-dd'T'12:00");

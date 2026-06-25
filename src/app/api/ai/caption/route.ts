@@ -67,7 +67,8 @@ KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
 
     const response = await client.generateText(unit.ai_system_prompt, userPrompt, {
       temperature: config.config?.temperature || 0.85,
-      maxTokens: config.config?.max_tokens || 1600
+      maxTokens: config.config?.max_tokens || 1600,
+      jsonMode: true
     })
 
     let parsedData;
