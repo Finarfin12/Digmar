@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   
   let query = supabase
     .from('social_accounts')
-    .select('*, business_units!inner(user_id, brand_name)')
+    .select('*, business_units!inner(id, user_id, brand_name, use_serpapi)')
     .eq('business_units.user_id', user.id)
     .order('created_at', { ascending: false })
 

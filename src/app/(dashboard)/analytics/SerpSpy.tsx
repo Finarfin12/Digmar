@@ -83,6 +83,8 @@ export default function SerpSpy({ units }: SerpSpyProps) {
           >
             <option value="instagram">Instagram</option>
             <option value="tiktok">TikTok</option>
+            <option value="threads">Threads</option>
+            <option value="facebook">Facebook</option>
           </select>
           <div className="relative w-full sm:w-auto flex-1">
             <span className="absolute left-4 top-3.5 text-slate-400 font-bold">@</span>

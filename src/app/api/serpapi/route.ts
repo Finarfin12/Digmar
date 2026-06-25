@@ -79,7 +79,11 @@ export async function POST(request: NextRequest) {
     } else if (search_type === 'hashtag') {
       serpApiUrl = `https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&geo=ID&api_key=${apiKey}`
     } else if (search_type === 'competitor') {
-      const site = platform === 'tiktok' ? 'tiktok.com' : 'instagram.com'
+      let site = 'instagram.com';
+      if (platform === 'tiktok') site = 'tiktok.com';
+      if (platform === 'threads') site = 'threads.net';
+      if (platform === 'facebook') site = 'facebook.com';
+      
       const searchQ = `site:${site} "@${query}"`
       serpApiUrl = `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(searchQ)}&api_key=${apiKey}`
     } else {
