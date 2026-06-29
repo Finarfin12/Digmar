@@ -27,23 +27,18 @@ export default function ReportsPage() {
   const generateCSV = () => {
     const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
     const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
-    const mockEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
-    const estimatedReach = (totalFollowers * 1.5);
     
     let csv = `Report Type,${reportType}\n`;
     csv += `Period,${dateRange.start} to ${dateRange.end || 'Now'}\n\n`;
     csv += `Metrics,Value\n`;
     csv += `Total Followers,${totalFollowers}\n`;
-    csv += `Avg Engagement Rate,${mockEngagement}\n`;
-    csv += `Estimated Reach,${estimatedReach}\n`;
+    csv += `Accounts Included,${selectedAccountsData.length}\n`;
     return new Blob([csv], { type: 'text/csv' });
   };
 
   const generateExcel = async () => {
     const selectedAccountsData = accounts.filter(a => selectedAccounts.includes(a.id));
     const totalFollowers = selectedAccountsData.reduce((sum, a) => sum + (a.followers_count || 0), 0);
-    const mockEngagement = (Math.random() * 5 + 1).toFixed(1) + "%";
-    const estimatedReach = (totalFollowers * 1.5);
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Report Data');
@@ -60,8 +55,7 @@ export default function ReportsPage() {
     sheet.addRow({ metric: 'Period', value: `${dateRange.start} to ${dateRange.end || 'Now'}` });
     sheet.addRow({});
     sheet.addRow({ metric: 'Total Followers', value: totalFollowers });
-    sheet.addRow({ metric: 'Avg Engagement Rate', value: mockEngagement });
-    sheet.addRow({ metric: 'Estimated Reach', value: estimatedReach });
+    sheet.addRow({ metric: 'Accounts Included', value: selectedAccountsData.length });
 
     sheet.addRow({});
     const noteRow = sheet.addRow({ metric: '*Note: ExcelJS export mendukung styling tabel, namun rendering visual chart harus dilakukan melalui opsi PDF atau manual di Ms Excel.'});
@@ -364,10 +358,17 @@ export default function ReportsPage() {
       if (pdfAccountsRef.current) pdfAccountsRef.current.innerText = `Akun Terpilih: ${selectedAccountsNames}`;
       if (pdfSummaryRef.current) pdfSummaryRef.current.innerText = insights?.summary || 'Data tidak tersedia.';
       if (pdfRecommendationsRef.current) {
+        pdfRecommendationsRef.current.textContent = '';
         if (insights?.recommendations && insights.recommendations.length > 0) {
-          pdfRecommendationsRef.current.innerHTML = insights.recommendations.map((r: string) => `<li>${r}</li>`).join('');
+          insights.recommendations.slice(0, 10).forEach((r: string) => {
+            const li = document.createElement('li');
+            li.textContent = r;
+            pdfRecommendationsRef.current?.appendChild(li);
+          });
         } else {
-          pdfRecommendationsRef.current.innerHTML = '<li>Tidak ada rekomendasi spesifik.</li>';
+          const li = document.createElement('li');
+          li.textContent = 'No specific recommendations available.';
+          pdfRecommendationsRef.current.appendChild(li);
         }
       }
       if (pdfFollowersRef.current) pdfFollowersRef.current.innerText = totalFollowers > 0 ? totalFollowers.toLocaleString('id-ID') : '0';
@@ -375,13 +376,18 @@ export default function ReportsPage() {
       if (pdfReachRef.current) pdfReachRef.current.innerText = estimatedReach;
 
       if (pdfTableRef.current) {
+        const sanitized = (s: string) => {
+          const div = document.createElement('div');
+          div.textContent = s;
+          return div.innerHTML;
+        };
         pdfTableRef.current.innerHTML = `
           <h2 class="text-xl font-bold text-[#0f172a] mb-4">Account Analytics Breakdown</h2>
           <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-[#f8fafc] border-b-2 border-[#e2e8f0]">
                 <th class="p-3 font-bold text-[#64748b]">Platform</th>
-                <th class="p-3 font-bold text-[#64748b]">Nama Akun</th>
+                <th class="p-3 font-bold text-[#64748b]">Account Name</th>
                 <th class="p-3 font-bold text-[#64748b] text-right">Followers</th>
                 <th class="p-3 font-bold text-[#64748b] text-right">Engagement</th>
                 <th class="p-3 font-bold text-[#64748b] text-right">Reach</th>
@@ -390,11 +396,11 @@ export default function ReportsPage() {
             <tbody>
               ${realAccountsData.map(acc => `
                 <tr class="border-b border-[#e2e8f0]">
-                  <td class="p-3 text-[#334155] font-medium uppercase">${acc.platform}</td>
-                  <td class="p-3 text-[#334155] font-bold">${acc.name}</td>
-                  <td class="p-3 text-[#0f172a] text-right font-medium">${acc.followers.toLocaleString('id-ID')}</td>
-                  <td class="p-3 text-[#10b981] text-right font-medium">${acc.engagement}</td>
-                  <td class="p-3 text-[#0f172a] text-right font-medium">${acc.reach.toLocaleString('id-ID')}</td>
+                  <td class="p-3 text-[#334155] font-medium uppercase">${sanitized(acc.platform)}</td>
+                  <td class="p-3 text-[#334155] font-bold">${sanitized(acc.name)}</td>
+                  <td class="p-3 text-[#0f172a] text-right font-medium">${Number(acc.followers).toLocaleString('id-ID')}</td>
+                  <td class="p-3 text-[#10b981] text-right font-medium">${sanitized(acc.engagement)}</td>
+                  <td class="p-3 text-[#0f172a] text-right font-medium">${Number(acc.reach).toLocaleString('id-ID')}</td>
                 </tr>
               `).join('')}
             </tbody>

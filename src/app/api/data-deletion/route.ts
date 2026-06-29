@@ -19,8 +19,9 @@ export async function POST(request: NextRequest) {
     // Generate a mock confirmation code
     const confirmationCode = crypto.randomBytes(8).toString('hex')
     
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${process.env.VERCEL_URL || 'localhost:3000'}`
     return NextResponse.json({
-      url: `https://digimar-one.vercel.app/privacy`, // URL to track deletion status (can just be privacy page for now)
+      url: `${baseUrl}/privacy`,
       confirmation_code: confirmationCode
     })
   } catch (error) {

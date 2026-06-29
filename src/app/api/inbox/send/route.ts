@@ -16,7 +16,7 @@ interface MetaAccount {
 
 async function sendMetaMessage(conversation: MetaConversation, account: MetaAccount, message: string): Promise<{ platform_message_id?: string }> {
   const token = decryptValue(account.access_token_encrypted)
-  const version = process.env.META_API_VERSION || 'v18.0'
+  const version = process.env.META_API_VERSION || 'v25.0'
 
   if (conversation.type === 'dm') {
     const res = await fetch(`https://graph.facebook.com/${version}/me/messages`, {

@@ -4,6 +4,7 @@ import { publishToInstagram, validateInstagramToken } from './instagram';
 import { publishToFacebook } from './facebook';
 import { publishToTikTok } from './tiktok';
 import { publishToThreads } from './threads';
+import { logger } from '@/lib/utils/logger';
 import type { PostJob, SocialAccount } from './types';
 
 export async function processQueue() {
@@ -184,7 +185,9 @@ export async function processQueue() {
                 const pages = pagesData?.data || [];
                 const firstIG = pages.find((p: { instagram_business_account?: { id: string } }) => p.instagram_business_account?.id);
                 if (firstIG) discoveredId = firstIG.instagram_business_account!.id;
-              } catch { /* ignore */ }
+              } catch {
+                logger.warn('Failed to auto-discover Instagram ID from token');
+              }
 
               let suggestion = validation.suggestion || validation.error;
               if (discoveredId && discoveredId !== accountDb.ig_user_id) {

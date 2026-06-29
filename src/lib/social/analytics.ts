@@ -39,7 +39,7 @@ async function readMetaResponse(res: Response) {
 }
 
 export async function fetchInstagramProfile(igUserId: string, accessToken: string): Promise<{ followers: number; posts: number; name: string; profile_pic: string }> {
-  const version = process.env.META_API_VERSION || 'v18.0';
+  const version = process.env.META_API_VERSION || 'v25.0';
   const params = new URLSearchParams({
     fields: 'followers_count,media_count,name,username,profile_picture_url',
     access_token: accessToken,
@@ -55,7 +55,7 @@ export async function fetchInstagramProfile(igUserId: string, accessToken: strin
 }
 
 export async function fetchInstagramInsights(igUserId: string, accessToken: string): Promise<ChartDataPoint[]> {
-  const version = process.env.META_API_VERSION || 'v18.0';
+  const version = process.env.META_API_VERSION || 'v25.0';
   const params = new URLSearchParams({
     metric: 'reach,views',
     period: 'day',
@@ -87,7 +87,7 @@ export async function fetchInstagramInsights(igUserId: string, accessToken: stri
 }
 
 export async function fetchInstagramTopPosts(igUserId: string, accessToken: string, limit = 10): Promise<TopPost[]> {
-  const version = process.env.META_API_VERSION || 'v18.0';
+  const version = process.env.META_API_VERSION || 'v25.0';
   const params = new URLSearchParams({
     fields: 'id,caption,media_url,like_count,comments_count,timestamp,permalink',
     limit: String(limit),
@@ -111,7 +111,7 @@ export async function fetchInstagramTopPosts(igUserId: string, accessToken: stri
 }
 
 export async function fetchFacebookPageInsights(pageId: string, accessToken: string): Promise<{ followers: number; impressions_7d: number }> {
-  const version = process.env.META_API_VERSION || 'v18.0';
+  const version = process.env.META_API_VERSION || 'v25.0';
   const url = `${META_API_BASE}/${version}/${pageId}/insights?metric=page_follows,page_impressions&period=day&access_token=${accessToken}`;
   const res = await fetch(url);
   if (!res.ok) return { followers: 0, impressions_7d: 0 };

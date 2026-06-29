@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   if (mode && token) {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('WEBHOOK_VERIFIED')
+      logger.info('Webhook verified successfully')
       return new NextResponse(challenge, { status: 200 })
     } else {
       return new NextResponse('Forbidden', { status: 403 })
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
               .single()
 
             if (!account || !account.business_units) {
-              console.log(`Account not found for IG: ${igUserId}`);
+              logger.warn(`Account not found for IG: ${igUserId}`);
               continue;
             }
 
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
             const ruleEval = await evaluateChatbotRules(supabase, businessUnitId, commentText);
 
             if (ruleEval.action === 'handoff') {
-              console.log(`[Handoff] Komentar diabaikan karena Rule Handoff. ID: ${commentId}`);
+              logger.info(`Comment handoff rule triggered, comment ID: ${commentId}`);
               continue;
             }
 
@@ -210,7 +210,8 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
 
             // 3. Kirim Balasan ke Meta Graph API
             const token = decryptValue(account.access_token_encrypted);
-            const graphUrl = `https://graph.facebook.com/v18.0/${commentId}/replies`;
+            const metaVersion = process.env.META_API_VERSION || 'v25.0'
+            const graphUrl = `https://graph.facebook.com/${metaVersion}/${commentId}/replies`;
             
             const replyParams = new URLSearchParams();
             replyParams.append('message', replyText);
@@ -225,7 +226,7 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
               const errData = await postReply.text();
               logger.error('Gagal mengirim balasan ke Meta:', errData);
             } else {
-              console.log(`Berhasil membalas komentar @${commenterUsername} -> ${replyText}`);
+              logger.info(`Reply sent to @${commenterUsername}`);
               
               const replyData = await postReply.json().catch(() => ({}));
               await supabase.from('social_messages').insert({
@@ -277,7 +278,9 @@ Buatlah balasan komentar yang super singkat, ramah, dan profesional. Jangan guna
               if (!userData.error) {
                 displayName = userData.name || userData.username || displayName;
               }
-            } catch { /* fallback ke placeholder */ }
+            } catch {
+              logger.warn('Failed to fetch Instagram user name, using fallback');
+            }
 
             // Cari atau buat conversation
             let conversationId;
@@ -455,7 +458,7 @@ Balas dengan natural dan ramah. Maksimal 3 kalimat.`;
               const ruleEval = await evaluateChatbotRules(supabase, businessUnitId, messageText);
 
               if (ruleEval.action === 'handoff') {
-                console.log(`[Handoff] DM diabaikan karena Rule Handoff. ID: ${senderId}`);
+                logger.info(`DM handoff rule triggered, sender ID: ${senderId}`);
                 continue;
               }
 
@@ -487,7 +490,8 @@ Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. J
               }
 
               const token = decryptValue(account.access_token_encrypted);
-              const graphUrl = `https://graph.facebook.com/v18.0/me/messages`;
+              const metaVersion = process.env.META_API_VERSION || 'v25.0'
+              const graphUrl = `https://graph.facebook.com/${metaVersion}/me/messages`;
               
               const postReply = await fetch(graphUrl, {
                 method: 'POST',
@@ -505,7 +509,7 @@ Buatlah balasan DM yang natural, membantu, dan persuasif. Hindari format kaku. J
                 const errData = await postReply.text();
                 logger.error('Gagal mengirim DM ke Meta:', errData);
               } else {
-                console.log(`Berhasil membalas DM ke ${senderId} -> ${replyText}`);
+                logger.info(`DM reply sent to ${senderId}`);
                 
                 const dmReplyData = await postReply.json().catch(() => ({}));
                 await supabase.from('social_messages').insert({

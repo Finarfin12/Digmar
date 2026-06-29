@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
             { imageUrl: firstMedia, maxTokens: 400, jsonMode: false }
           );
           imageContext = visionResponse.content;
-          console.log("Vision Context Success:", imageContext);
+          logger.info("Vision AI context retrieved successfully");
         } catch (visionError) {
           logger.error("Vision AI failed, continuing without it:", visionError);
         }
