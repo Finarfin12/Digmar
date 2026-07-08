@@ -28,7 +28,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const body = await request.json()
-    const allowedFields = ['title', 'description', 'status', 'priority', 'platform', 'business_unit_id', 'media_urls', 'scheduled_at', 'position']
+    const allowedFields = ['title', 'description', 'status', 'priority', 'platform', 'business_unit_id', 'media_url', 'tags', 'scheduled_at', 'position']
     const updates: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) updates[field] = body[field]

@@ -36,17 +36,19 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { title, description, business_unit_id, priority, platform } = body
+    const { title, description, business_unit_id, priority, platform, tags, status } = body
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
+    const targetStatus = status || 'unassigned'
+
     const { data: maxPos } = await supabase
       .from('idea_board')
       .select('position')
       .eq('user_id', user.id)
-      .eq('status', 'idea')
+      .eq('status', targetStatus)
       .order('position', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -62,8 +64,9 @@ export async function POST(request: NextRequest) {
         description: description || '',
         priority: priority || 'medium',
         platform: platform || '',
+        tags: tags || [],
         position: nextPosition,
-        status: 'idea',
+        status: targetStatus,
       })
       .select()
       .single()
