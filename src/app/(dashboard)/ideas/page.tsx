@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import IdeaKanban from '@/components/planner/IdeaKanban';
-import { LayoutGrid, Loader2, Lightbulb, ArrowRight } from 'lucide-react';
+import { LayoutGrid, Loader2, Lightbulb } from 'lucide-react';
 
 interface BusinessUnit {
   id: string;
@@ -46,13 +46,9 @@ export default function IdeasPage() {
             <h1 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">
               This is a place to plan <span className="inline-block">&#x270D;&#xFE0F;</span> your content
             </h1>
-            <p className="text-sm text-stone-500 leading-relaxed max-w-xl">
-              Save your Ideas before converting them into posts. Brainstorm, plan ahead, and keep everything organized in one place.
+            <p className="text-sm text-stone-600 leading-relaxed max-w-xl">
+              Save your Ideas before converting them into posts. Brainstorm, plan ahead, and keep everything organized in one place. Click + on any column to get started.
             </p>
-            <div className="flex items-center gap-2 text-xs font-medium text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg w-fit">
-              <span>Drag & drop or select a file</span>
-              <ArrowRight size={12} />
-            </div>
           </div>
           {units.length > 0 && (
             <select

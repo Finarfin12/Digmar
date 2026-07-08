@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, X, Trash2, GripVertical, Image as ImageIcon, Upload, Loader2, AlertCircle, Hash, ExternalLink } from 'lucide-react';
+import { Plus, X, Trash2, Upload, Loader2, AlertCircle, Hash } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface Idea {
@@ -323,9 +323,15 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
 
               <div className="flex-1 space-y-2.5 overflow-y-auto min-h-[80px]">
                 {colIdeas.length === 0 && !addingToCol && (
-                  <div className="flex flex-col items-center justify-center py-12 text-stone-500">
-                    <AlertCircle size={22} className="mb-1.5 opacity-50" />
-                    <p className="text-xs font-semibold">No ideas yet</p>
+                  <div className="flex flex-col items-center justify-center py-10 text-stone-500">
+                    <AlertCircle size={22} className="mb-2 opacity-50" />
+                    <p className="text-xs font-semibold text-stone-500 mb-2">No ideas yet</p>
+                    <button
+                      onClick={() => setAddingToCol(col.key)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
+                    >
+                      <Plus size={13} /> Add your first idea
+                    </button>
                   </div>
                 )}
                 {colIdeas.map(idea => (
