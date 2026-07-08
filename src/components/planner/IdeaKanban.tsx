@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, X, Trash2, Upload, Loader2, AlertCircle, Hash } from 'lucide-react';
+import { Plus, X, Trash2, Upload, Loader2, AlertCircle, Hash, Send, Save } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface Idea {
@@ -31,6 +31,13 @@ const PRIORITY_STYLES: Record<string, string> = {
   high: 'bg-rose-100 text-rose-700',
 };
 
+const COL_LABEL_STYLES: Record<string, string> = {
+  unassigned: 'bg-stone-100 text-stone-700',
+  todo: 'bg-sky-100 text-sky-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+  done: 'bg-emerald-100 text-emerald-700',
+};
+
 interface IdeaKanbanProps {
   businessUnitId?: string;
 }
@@ -40,18 +47,21 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
   const [loading, setLoading] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
-  const [newIdeaText, setNewIdeaText] = useState('');
-  const [addingToCol, setAddingToCol] = useState<string | null>(null);
-  const [editingIdea, setEditingIdea] = useState<Idea | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDesc, setEditDesc] = useState('');
-  const [editTags, setEditTags] = useState('');
-  const [editPriority, setEditPriority] = useState('medium');
-  const [editPlatform, setEditPlatform] = useState('');
-  const [editMediaUrl, setEditMediaUrl] = useState('');
+  const [createCol, setCreateCol] = useState<string | null>(null);
+  const [editIdea, setEditIdea] = useState<Idea | null>(null);
+
+  const [formTitle, setFormTitle] = useState('');
+  const [formDesc, setFormDesc] = useState('');
+  const [formTags, setFormTags] = useState('');
+  const [formPriority, setFormPriority] = useState('medium');
+  const [formPlatform, setFormPlatform] = useState('');
+  const [formMediaUrl, setFormMediaUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const isEditMode = editIdea !== null;
+  const activeCol = isEditMode ? editIdea!.status : createCol;
 
   const fetchIdeas = useCallback(async () => {
     try {
@@ -69,35 +79,102 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
   useEffect(() => { fetchIdeas() }, [fetchIdeas]);
 
   useEffect(() => {
-    if (addingToCol && inputRef.current) inputRef.current.focus();
-  }, [addingToCol]);
+    if (createCol && titleInputRef.current) titleInputRef.current.focus();
+  }, [createCol]);
 
   const getColumnIdeas = (status: string) =>
     ideas.filter(i => i.status === status);
 
-  const handleAddIdea = async (status: string) => {
-    if (!newIdeaText.trim()) return;
+  const openCreateModal = (colKey: string) => {
+    setCreateCol(colKey);
+    setEditIdea(null);
+    resetForm();
+  };
+
+  const openEditModal = (idea: Idea) => {
+    setEditIdea(idea);
+    setCreateCol(null);
+    setFormTitle(idea.title);
+    setFormDesc(idea.description || '');
+    setFormTags((idea.tags || []).join(', '));
+    setFormPriority(idea.priority);
+    setFormPlatform(idea.platform || '');
+    setFormMediaUrl(idea.media_url || '');
+  };
+
+  const closeModal = () => {
+    setCreateCol(null);
+    setEditIdea(null);
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFormTitle('');
+    setFormDesc('');
+    setFormTags('');
+    setFormPriority('medium');
+    setFormPlatform('');
+    setFormMediaUrl('');
+    setUploading(false);
+  };
+
+  const handleCreate = async () => {
+    if (!formTitle.trim() || !createCol) return;
+    const tagsArray = formTags.split(',').map(t => t.trim()).filter(Boolean);
     try {
       const res = await fetch('/api/ideas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newIdeaText.trim(),
+          title: formTitle.trim(),
+          description: formDesc,
           business_unit_id: businessUnitId,
-          status,
+          status: createCol,
+          priority: formPriority,
+          platform: formPlatform,
+          tags: tagsArray,
+          media_url: formMediaUrl,
         }),
       });
       if (res.ok) {
         const created = await res.json();
         setIdeas(prev => [...prev, created]);
-        setNewIdeaText('');
-        setAddingToCol(null);
+        closeModal();
       } else {
         const err = await res.json();
         Swal.fire('Error', err.error || 'Failed to create idea', 'error');
       }
     } catch {
       Swal.fire('Error', 'Failed to create idea', 'error');
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editIdea || !formTitle.trim()) return;
+    const tagsArray = formTags.split(',').map(t => t.trim()).filter(Boolean);
+    try {
+      const res = await fetch(`/api/ideas/${editIdea.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formTitle.trim(),
+          description: formDesc,
+          priority: formPriority,
+          platform: formPlatform,
+          tags: tagsArray,
+          media_url: formMediaUrl,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setIdeas(prev => prev.map(i => i.id === editIdea.id ? { ...i, ...updated } : i));
+        closeModal();
+      } else {
+        const err = await res.json();
+        Swal.fire('Error', err.error || 'Failed to update', 'error');
+      }
+    } catch {
+      Swal.fire('Error', 'Failed to update', 'error');
     }
   };
 
@@ -110,9 +187,7 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) {
-        setIdeas(prev);
-      }
+      if (!res.ok) setIdeas(prev);
     } catch {
       setIdeas(prev);
     }
@@ -137,6 +212,36 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
     } catch {
       Swal.fire('Error', 'Failed to delete', 'error');
     }
+  };
+
+  const handleMediaUpload = async (file: File) => {
+    if (!businessUnitId) {
+      Swal.fire('Error', 'Select a brand first to upload media', 'error');
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('business_unit_id', businessUnitId);
+      const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
+      if (res.ok) {
+        const data = await res.json();
+        setFormMediaUrl(data.url || data.publicUrl);
+      } else {
+        Swal.fire('Error', 'Failed to upload image', 'error');
+      }
+    } catch {
+      Swal.fire('Error', 'Failed to upload image', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) handleMediaUpload(file);
   };
 
   const handleDragStart = (e: React.DragEvent, idea: Idea) => {
@@ -166,85 +271,6 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
     updateIdeaStatus(dragId, colKey);
   };
 
-  const openEditModal = (idea: Idea) => {
-    setEditingIdea(idea);
-    setEditTitle(idea.title);
-    setEditDesc(idea.description || '');
-    setEditTags((idea.tags || []).join(', '));
-    setEditPriority(idea.priority);
-    setEditPlatform(idea.platform || '');
-    setEditMediaUrl(idea.media_url || '');
-  };
-
-  const closeEditModal = () => {
-    setEditingIdea(null);
-    setEditTitle('');
-    setEditDesc('');
-    setEditTags('');
-    setEditPriority('medium');
-    setEditPlatform('');
-    setEditMediaUrl('');
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingIdea || !editTitle.trim()) return;
-    const tagsArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
-    try {
-      const res = await fetch(`/api/ideas/${editingIdea.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: editTitle.trim(),
-          description: editDesc,
-          priority: editPriority,
-          platform: editPlatform,
-          tags: tagsArray,
-          media_url: editMediaUrl,
-        }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setIdeas(prev => prev.map(i => i.id === editingIdea.id ? { ...i, ...updated } : i));
-        closeEditModal();
-      } else {
-        const err = await res.json();
-        Swal.fire('Error', err.error || 'Failed to update', 'error');
-      }
-    } catch {
-      Swal.fire('Error', 'Failed to update', 'error');
-    }
-  };
-
-  const handleMediaUpload = async (file: File) => {
-    if (!businessUnitId) {
-      Swal.fire('Error', 'Select a brand first to upload media', 'error');
-      return;
-    }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('business_unit_id', businessUnitId);
-      const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
-      if (res.ok) {
-        const data = await res.json();
-        setEditMediaUrl(data.url || data.publicUrl);
-      } else {
-        Swal.fire('Error', 'Failed to upload image', 'error');
-      }
-    } catch {
-      Swal.fire('Error', 'Failed to upload image', 'error');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) handleMediaUpload(file);
-  };
-
   const handleCardClick = (idea: Idea, e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('button')) return;
@@ -258,6 +284,9 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
       </div>
     );
   }
+
+  const modalTitle = isEditMode ? 'Edit Idea' : 'Create Idea';
+  const colLabel = activeCol ? COLUMNS.find(c => c.key === activeCol)?.label || '' : '';
 
   return (
     <>
@@ -282,7 +311,7 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
                   </span>
                 </div>
                 <button
-                  onClick={() => setAddingToCol(col.key)}
+                  onClick={() => openCreateModal(col.key)}
                   className="p-1 rounded-md hover:bg-black/10 transition-colors"
                   title="Add idea"
                 >
@@ -290,44 +319,13 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
                 </button>
               </div>
 
-              {addingToCol === col.key && (
-                <div className="mb-3 p-3 bg-white rounded-xl border border-stone-200 shadow-sm">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={newIdeaText}
-                    onChange={e => setNewIdeaText(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleAddIdea(col.key);
-                      if (e.key === 'Escape') { setAddingToCol(null); setNewIdeaText(''); }
-                    }}
-                    placeholder="Idea title..."
-                    className="w-full p-2 text-sm border border-stone-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none mb-2"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAddIdea(col.key)}
-                      className="flex-1 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                      Add
-                    </button>
-                    <button
-                      onClick={() => { setAddingToCol(null); setNewIdeaText(''); }}
-                      className="px-3 py-1.5 bg-stone-200 text-stone-700 text-xs font-semibold rounded-lg hover:bg-stone-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
               <div className="flex-1 space-y-2.5 overflow-y-auto min-h-[80px]">
-                {colIdeas.length === 0 && !addingToCol && (
+                {colIdeas.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-10 text-stone-500">
                     <AlertCircle size={22} className="mb-2 opacity-50" />
                     <p className="text-xs font-semibold text-stone-500 mb-2">No ideas yet</p>
                     <button
-                      onClick={() => setAddingToCol(col.key)}
+                      onClick={() => openCreateModal(col.key)}
                       className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors"
                     >
                       <Plus size={13} /> Add your first idea
@@ -397,36 +395,54 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
         })}
       </div>
 
-      {editingIdea && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={closeEditModal}>
+      {(createCol || editIdea) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={closeModal}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
-              <h3 className="text-lg font-bold text-stone-900">Edit Idea</h3>
-              <button onClick={closeEditModal} className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors">
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-bold text-stone-900">{modalTitle}</h3>
+                {colLabel && (
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${COL_LABEL_STYLES[activeCol || ''] || ''}`}>
+                    {colLabel}
+                  </span>
+                )}
+              </div>
+              <button onClick={closeModal} className="p-1.5 rounded-lg hover:bg-stone-100 transition-colors">
                 <X size={18} className="text-stone-600" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-5">
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">Title</label>
                 <input
+                  ref={titleInputRef}
                   type="text"
-                  value={editTitle}
-                  onChange={e => setEditTitle(e.target.value)}
-                  className="w-full p-2.5 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="Idea title"
+                  value={formTitle}
+                  onChange={e => setFormTitle(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && formTitle.trim()) isEditMode ? handleSaveEdit() : handleCreate(); }}
+                  className="w-full text-xl font-bold text-stone-900 outline-none placeholder:text-stone-300"
+                  placeholder="Give your idea a title"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">Description</label>
                 <textarea
-                  value={editDesc}
-                  onChange={e => setEditDesc(e.target.value)}
+                  value={formDesc}
+                  onChange={e => setFormDesc(e.target.value)}
                   rows={3}
-                  className="w-full p-2.5 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
-                  placeholder="Add details..."
+                  className="w-full text-sm text-stone-600 outline-none resize-none placeholder:text-stone-300 border-b border-stone-200 pb-3 focus:border-indigo-400 transition-colors"
+                  placeholder="Let it flow... or"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 p-2.5 border border-stone-200 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
+                <Hash size={14} className="text-stone-400 shrink-0" />
+                <input
+                  type="text"
+                  value={formTags}
+                  onChange={e => setFormTags(e.target.value)}
+                  className="w-full text-sm outline-none text-stone-600 placeholder:text-stone-300"
+                  placeholder="Add tags (comma separated)"
                 />
               </div>
 
@@ -434,9 +450,9 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1.5">Priority</label>
                   <select
-                    value={editPriority}
-                    onChange={e => setEditPriority(e.target.value)}
-                    className="w-full p-2.5 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={formPriority}
+                    onChange={e => setFormPriority(e.target.value)}
+                    className="w-full p-2.5 text-sm border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -447,24 +463,10 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
                   <label className="block text-xs font-bold text-stone-700 mb-1.5">Platform</label>
                   <input
                     type="text"
-                    value={editPlatform}
-                    onChange={e => setEditPlatform(e.target.value)}
-                    className="w-full p-2.5 text-sm border border-stone-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={formPlatform}
+                    onChange={e => setFormPlatform(e.target.value)}
+                    className="w-full p-2.5 text-sm border border-stone-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-stone-300"
                     placeholder="e.g. Instagram"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1.5">Tags</label>
-                <div className="flex items-center gap-2 p-2.5 border border-stone-300 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500">
-                  <Hash size={14} className="text-stone-500 shrink-0" />
-                  <input
-                    type="text"
-                    value={editTags}
-                    onChange={e => setEditTags(e.target.value)}
-                    className="w-full text-sm outline-none"
-                    placeholder="campaign, seasonal, urgent (comma separated)"
                   />
                 </div>
               </div>
@@ -472,29 +474,28 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1.5">Media</label>
                 <div
-                  className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${editMediaUrl ? 'border-emerald-300 bg-emerald-50' : 'border-stone-300 hover:border-indigo-400 bg-stone-50'}`}
+                  className={`border-2 border-dashed rounded-xl py-5 text-center transition-colors ${formMediaUrl ? 'border-emerald-300 bg-emerald-50' : 'border-stone-200 hover:border-indigo-400 bg-stone-50'}`}
                   onDragOver={e => e.preventDefault()}
                   onDrop={handleFileDrop}
                 >
-                  {editMediaUrl ? (
-                    <div className="relative">
-                      <img src={editMediaUrl} alt="Preview" className="w-full h-36 object-cover rounded-lg" />
+                  {formMediaUrl ? (
+                    <div className="relative max-w-xs mx-auto">
+                      <img src={formMediaUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
                       <button
-                        onClick={() => setEditMediaUrl('')}
-                        className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                        onClick={() => setFormMediaUrl('')}
+                        className="absolute top-1.5 right-1.5 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
                       >
-                        <X size={14} />
+                        <X size={13} />
                       </button>
                     </div>
                   ) : (
                     <>
-                      <Upload size={24} className="mx-auto text-stone-500 mb-2" />
-                      <p className="text-xs text-stone-700 font-medium mb-1">Drag & drop or click to upload</p>
-                      <p className="text-[10px] text-stone-500">PNG, JPG, GIF up to 10MB</p>
+                      <Upload size={22} className="mx-auto text-stone-400 mb-2" />
+                      <p className="text-sm text-stone-600 font-medium mb-1">Drag & drop or select a file</p>
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={uploading}
-                        className="mt-3 px-4 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                        className="mt-2 px-4 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
                       >
                         {uploading ? 'Uploading...' : 'Select File'}
                       </button>
@@ -517,17 +518,37 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
 
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-stone-200">
               <button
-                onClick={closeEditModal}
-                className="px-4 py-2 text-sm font-bold text-stone-700 hover:text-stone-900 transition-colors"
+                onClick={closeModal}
+                className="px-5 py-2 text-sm font-bold text-stone-600 hover:text-stone-800 transition-colors"
               >
                 Cancel
               </button>
-              <button
-                onClick={handleSaveEdit}
-                className="px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
-              >
-                Save Changes
-              </button>
+              {isEditMode ? (
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={!formTitle.trim()}
+                  className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-40"
+                >
+                  <Save size={15} /> Save Idea
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCreate}
+                    disabled={!formTitle.trim()}
+                    className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-40"
+                  >
+                    <Save size={15} /> Save Idea
+                  </button>
+                  <button
+                    onClick={handleCreate}
+                    disabled={!formTitle.trim()}
+                    className="flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition-colors disabled:opacity-40"
+                  >
+                    <Send size={15} /> Create Post
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
