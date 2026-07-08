@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles, Image as ImageIcon, ListOrdered, MessageSquare, Users, FileText } from 'lucide-react';
+import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles, Image as ImageIcon, ListOrdered, MessageSquare, Users, FileText, LayoutGrid } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -11,6 +11,7 @@ export default function Sidebar() {
     { name: 'Smart Inbox', path: '/inbox', icon: MessageSquare },
     { name: 'Accounts', path: '/accounts', icon: Users },
     { name: 'Planner', path: '/planner', icon: Calendar },
+    { name: 'Idea Board', path: '/ideas', icon: LayoutGrid },
     { name: 'Content Generator', path: '/studio', icon: Sparkles },
     { name: 'Content Library', path: '/library', icon: ImageIcon },
     { name: 'Analytics', path: '/analytics', icon: BarChart2 },
