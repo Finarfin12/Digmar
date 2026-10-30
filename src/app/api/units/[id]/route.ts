@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 
+import { isValidTimeZone } from '@/lib/utils/timezone'
 import { handleApiError } from '@/lib/utils/error-handler'
 export async function GET(
   request: NextRequest,
@@ -42,14 +43,19 @@ export async function PUT(
 
   try {
     const body = await request.json()
-    
-    // Ensure we don't update user_id or id
-    delete body.id
-    delete body.user_id
+
+    const allowedFields = ['brand_name', 'business_category', 'ai_system_prompt', 'custom_variables', 'use_vision_ai', 'brand_color', 'brand_logo_url', 'timezone']
+    const updates: Record<string, unknown> = {}
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) updates[field] = body[field]
+    }
+    if (updates.timezone !== undefined && !isValidTimeZone(updates.timezone)) {
+      return NextResponse.json({ error: 'Invalid timezone' }, { status: 400 })
+    }
 
     const { data, error } = await supabase
       .from('business_units')
-      .update({ ...body, updated_at: new Date().toISOString() })
+      .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', user.id) // C8 Fix: Verifikasi kepemilikan
       .select()

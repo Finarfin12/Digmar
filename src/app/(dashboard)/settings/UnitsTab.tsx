@@ -3,6 +3,7 @@ import { Briefcase, PlusCircle, Save, X, Trash2, Edit2, BrainCircuit, Eye } from
 import Swal from 'sweetalert2';
 
 import { logger } from '@/lib/utils/logger'
+import { COMMON_TIMEZONES } from '@/lib/utils/timezone'
 export interface BusinessUnit {
   id: string;
   brand_name: string;
@@ -12,6 +13,7 @@ export interface BusinessUnit {
   use_vision_ai?: boolean;
   brand_color?: string;
   brand_logo_url?: string;
+  timezone?: string;
 }
 
 export default function UnitsTab() {
@@ -27,6 +29,7 @@ export default function UnitsTab() {
   const [useVisionAi, setUseVisionAi] = useState(false);
   const [brandColor, setBrandColor] = useState('#4f46e5');
   const [brandLogoUrl, setBrandLogoUrl] = useState('');
+  const [timezone, setTimezone] = useState('Asia/Jakarta');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const fetchUnits = async () => {
@@ -56,8 +59,8 @@ export default function UnitsTab() {
     }
 
     const bodyPayload = editingId 
-      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars, use_vision_ai: useVisionAi, brand_color: brandColor, brand_logo_url: brandLogoUrl }
-      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars, use_vision_ai: useVisionAi, brand_color: brandColor, brand_logo_url: brandLogoUrl };
+      ? { id: editingId, brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars, use_vision_ai: useVisionAi, brand_color: brandColor, brand_logo_url: brandLogoUrl, timezone }
+      : { brand_name: name, business_category: category, ai_system_prompt: combinedPrompt, custom_variables: parsedVars, use_vision_ai: useVisionAi, brand_color: brandColor, brand_logo_url: brandLogoUrl, timezone };
 
     const res = await fetch('/api/units', {
       method,
@@ -68,7 +71,7 @@ export default function UnitsTab() {
     if (res.ok) {
       Swal.fire({ title: 'Berhasil!', text: 'Unit Bisnis disimpan.', icon: 'success', timer: 1500, showConfirmButton: false });
       setShowForm(false);
-      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setUseVisionAi(false); setBrandColor('#4f46e5'); setBrandLogoUrl(''); setEditingId(null);
+      setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setUseVisionAi(false); setBrandColor('#4f46e5'); setBrandLogoUrl(''); setTimezone('Asia/Jakarta'); setEditingId(null);
       fetchUnits();
     } else {
       const err = await res.json().catch(()=>({}));
@@ -108,7 +111,7 @@ export default function UnitsTab() {
         <form onSubmit={handleSave} className="bg-slate-100 p-6 rounded-xl border border-slate-300 mb-8 animate-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-4">
             <h4 className="font-extrabold text-slate-900 text-lg">{editingId ? 'Edit Unit Bisnis' : 'Tambah Unit Bisnis'}</h4>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setUseVisionAi(false); setBrandColor('#4f46e5'); setBrandLogoUrl(''); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); setName(''); setCategory(''); setPromptAudiens(''); setPromptKepribadian(''); setPromptProduk(''); setCustomVariables(''); setUseVisionAi(false); setBrandColor('#4f46e5'); setBrandLogoUrl(''); setTimezone('Asia/Jakarta'); }} className="text-slate-500 hover:text-red-600"><X size={24}/></button>
           </div>
           <div className="grid gap-4 text-slate-900">
             <div>
@@ -118,6 +121,15 @@ export default function UnitsTab() {
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-1">Kategori/Industri</label>
               <input value={category} onChange={e => setCategory(e.target.value)} type="text" className="w-full p-3 border border-slate-300 rounded-lg bg-white" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-1">Zona Waktu</label>
+              <select value={timezone} onChange={e => setTimezone(e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
+                {(COMMON_TIMEZONES.includes(timezone) ? COMMON_TIMEZONES : [timezone, ...COMMON_TIMEZONES]).map(tz => (
+                  <option key={tz} value={tz}>{tz}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">Dipakai untuk jadwal posting rutin dan variabel {'{tanggal}'} di caption.</p>
             </div>
             <div className="bg-amber-50 p-4 rounded-xl border border-amber-200">
               <h5 className="font-extrabold text-amber-900 mb-3 border-b border-amber-200 pb-2">Brand Kit (Untuk AI Canvas)</h5>
@@ -209,6 +221,7 @@ export default function UnitsTab() {
                   setUseVisionAi(u.use_vision_ai || false);
                   setBrandColor(u.brand_color || '#4f46e5');
                   setBrandLogoUrl(u.brand_logo_url || '');
+                  setTimezone(u.timezone || 'Asia/Jakarta');
                   
                   setShowForm(true);
                   window.scrollTo({ top: 0, behavior: 'smooth' });

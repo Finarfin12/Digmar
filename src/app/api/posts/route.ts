@@ -3,6 +3,7 @@ import { generateJobCode } from '@/lib/utils/job-code'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { handleApiError } from '@/lib/utils/error-handler'
+import { APP_TIMEZONE, isValidTimeZone } from '@/lib/utils/timezone'
 
 type PostQueueInsert = {
   user_id: string
@@ -219,7 +220,7 @@ export async function POST(request: NextRequest) {
     if (accountInfo) {
       const { data: unitInfo } = await supabase
         .from('business_units')
-        .select('brand_name, custom_variables')
+        .select('brand_name, custom_variables, timezone')
         .eq('id', accountInfo.business_unit_id)
         .single()
 
@@ -228,7 +229,7 @@ export async function POST(request: NextRequest) {
         // Variables standar
         const defaultVars: Record<string, string> = {
           brand: unitInfo.brand_name,
-          tanggal: new Date(scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+          tanggal: new Date(scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: isValidTimeZone(unitInfo.timezone) ? unitInfo.timezone : APP_TIMEZONE })
         };
         const allVars = { ...vars, ...defaultVars };
 
