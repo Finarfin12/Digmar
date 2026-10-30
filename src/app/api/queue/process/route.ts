@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse, type NextRequest } from 'next/server'
 import { generateJobCode } from '@/lib/utils/job-code'
+import { APP_TIMEZONE, getZonedToday, zonedTimeToUtc } from '@/lib/utils/timezone'
 
 
 import { handleApiError } from '@/lib/utils/error-handler'
@@ -28,17 +29,23 @@ export async function GET(request: NextRequest) {
     const processed = []
 
     for (const schedule of schedules) {
-      // 2. Hitung timestamp untuk 7 hari ke depan
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      
+      // 2. Hitung timestamp untuk 7 hari ke depan — day_of_week & time_of_day adalah waktu lokal APP_TIMEZONE,
+      // bukan zona waktu server (UTC di Vercel)
+      const today = getZonedToday()
+      const [hours, minutes] = schedule.time_of_day.split(':').map((v: string) => parseInt(v, 10))
+
       const targetDates = []
       for (let i = 0; i < 7; i++) {
-        const d = new Date(today)
-        d.setDate(today.getDate() + i)
-        if (d.getDay() === schedule.day_of_week) {
-          const [hours, minutes] = schedule.time_of_day.split(':')
-          d.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+        // Kalender murni (tanpa jam) memakai UTC agar aritmetika tanggal tidak terpengaruh zona server
+        const calendarDay = new Date(Date.UTC(today.year, today.month - 1, today.day + i))
+        if (calendarDay.getUTCDay() === schedule.day_of_week) {
+          const d = zonedTimeToUtc(
+            calendarDay.getUTCFullYear(),
+            calendarDay.getUTCMonth() + 1,
+            calendarDay.getUTCDate(),
+            hours,
+            minutes,
+          )
           // Jika waktu target sudah lewat hari ini, lewati
           if (d > new Date()) {
             targetDates.push(d)
@@ -86,6 +93,17 @@ export async function GET(request: NextRequest) {
           .single()
 
         if (contentItem) {
+          // Klaim item secara atomik: hanya satu proses cron yang berhasil menghapus baris ini
+          const { data: claimed } = await supabase
+            .from('content_queue')
+            .delete()
+            .eq('id', contentItem.id)
+            .select('id')
+
+          if (!claimed || claimed.length === 0) {
+            continue // Sudah diambil proses lain
+          }
+
           // Fase 5: Apply Variables (simpel)
           const { data: unitInfo } = await supabase
             .from('business_units')
@@ -100,7 +118,7 @@ export async function GET(request: NextRequest) {
             const vars = unitInfo.custom_variables || {}
             const defaultVars: Record<string, string> = {
               brand: unitInfo.brand_name,
-              tanggal: targetDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+              tanggal: targetDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: APP_TIMEZONE })
             }
             const allVars = { ...vars, ...defaultVars }
             const replacer = (match: string, p1: string) => {
@@ -128,13 +146,10 @@ export async function GET(request: NextRequest) {
               log_messages: []
             }])
 
-          if (!insertError) {
-            // Hapus dari content_queue agar tidak dipost 2 kali
-            await supabase
-              .from('content_queue')
-              .delete()
-              .eq('id', contentItem.id)
-
+          if (insertError) {
+            // Kembalikan item ke content_queue agar tidak hilang
+            await supabase.from('content_queue').insert([contentItem])
+          } else {
             processed.push({
               scheduleId: schedule.id,
               scheduledAt: targetDateIso,

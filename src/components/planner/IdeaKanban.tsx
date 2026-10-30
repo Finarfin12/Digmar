@@ -187,9 +187,17 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) setIdeas(prev);
+      if (res.ok) {
+        const updated = await res.json();
+        setIdeas(cur => cur.map(i => i.id === id ? { ...i, ...updated } : i));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setIdeas(prev);
+        Swal.fire('Error', err.error || 'Failed to move idea', 'error');
+      }
     } catch {
       setIdeas(prev);
+      Swal.fire('Error', 'Failed to move idea', 'error');
     }
   };
 

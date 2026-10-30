@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { processQueue } from '@/lib/social/publisher'
+import { processSingleJob } from '@/lib/social/publisher'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
 
@@ -31,6 +31,10 @@ export async function POST(
       return NextResponse.json({ error: 'Post sedang diproses' }, { status: 409 })
     }
 
+    if (job.status === 'success' || job.status === 'partial') {
+      return NextResponse.json({ error: 'Post sudah dipublikasikan' }, { status: 409 })
+    }
+
     const now = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('post_queue')
@@ -48,7 +52,7 @@ export async function POST(
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
 
-    const result = await processQueue()
+    const result = await processSingleJob(id)
     return NextResponse.json(result)
   } catch (err: unknown) {
     return handleApiError(err)

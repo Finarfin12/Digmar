@@ -79,7 +79,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   
-  const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
+  const parsedLimit = parseInt(request.nextUrl.searchParams.get('limit') || '50', 10)
+  const limit = Number.isNaN(parsedLimit) ? 50 : Math.min(Math.max(parsedLimit, 1), 500)
   const status = request.nextUrl.searchParams.get('status')
   const businessUnitId = request.nextUrl.searchParams.get('business_unit_id')
   let unitAccountIds: string[] | null = null
@@ -290,7 +291,10 @@ export async function POST(request: NextRequest) {
       
       // 2. Insert Variant A
       const { data: dataA, error: errorA } = await insertPostQueue(supabase, { ...insertData, ab_variant: 'A' })
-      if (errorA) return NextResponse.json({ error: errorA.message }, { status: 500 })
+      if (errorA) {
+        await supabase.from('ab_tests').delete().eq('id', abTestId).eq('user_id', user.id)
+        return NextResponse.json({ error: errorA.message }, { status: 500 })
+      }
       
       // 3. Insert Variant B (beda job_code dan caption)
       const { data: dataB, error: errorB } = await insertPostQueue(supabase, { 
@@ -300,7 +304,12 @@ export async function POST(request: NextRequest) {
         caption: processedCaptionB,
         media_urls: media_urls_b && media_urls_b.length > 0 ? media_urls_b : media_urls
       })
-      if (errorB) return NextResponse.json({ error: errorB.message }, { status: 500 })
+      if (errorB) {
+        // Rollback agar tidak tersisa varian A tanpa pasangan
+        await supabase.from('post_queue').delete().eq('id', dataA.id).eq('user_id', user.id)
+        await supabase.from('ab_tests').delete().eq('id', abTestId).eq('user_id', user.id)
+        return NextResponse.json({ error: errorB.message }, { status: 500 })
+      }
       
       return NextResponse.json({ variantA: dataA, variantB: dataB, ab_test_id: abTestId }, { status: 201 })
     }

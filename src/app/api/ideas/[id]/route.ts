@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
+import { validateIdeaFields } from '../validation'
 
 async function getOwnedIdea(supabase: any, id: string, userId: string) {
   const { data, error } = await supabase
@@ -35,6 +36,22 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
     if (updates.title !== undefined && !String(updates.title).trim()) {
       return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 })
+    }
+    const validationError = await validateIdeaFields(supabase, user.id, updates)
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
+    }
+    // Pindah kolom tanpa posisi eksplisit → taruh di paling bawah kolom tujuan
+    if (updates.status !== undefined && updates.status !== existing.status && updates.position === undefined) {
+      const { data: maxPos } = await supabase
+        .from('idea_board')
+        .select('position')
+        .eq('user_id', user.id)
+        .eq('status', updates.status)
+        .order('position', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      updates.position = (maxPos?.position ?? -1) + 1
     }
     updates.updated_at = new Date().toISOString()
 

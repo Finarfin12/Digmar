@@ -1,14 +1,35 @@
+import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { decryptValue } from '@/lib/crypto/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
+import { GRAPH_BASE_URL } from '@/lib/social/graph'
 
 export async function POST(request: NextRequest) {
+  const userClient = await createClient()
+  const { data: { user }, error: authError } = await userClient.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     const { account_id } = body
     if (!account_id) {
       return NextResponse.json({ error: 'account_id wajib diisi' }, { status: 400 })
+    }
+
+    // Verifikasi kepemilikan akun sebelum memakai service client (bypass RLS)
+    const { data: ownedAccount } = await userClient
+      .from('social_accounts')
+      .select('id, business_units!inner(user_id)')
+      .eq('id', account_id)
+      .eq('business_units.user_id', user.id)
+      .maybeSingle()
+
+    if (!ownedAccount) {
+      return NextResponse.json({ error: 'Account tidak ditemukan' }, { status: 404 })
     }
 
     const supabase = createServiceClient()
@@ -27,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Step 1: Dapatkan Page Token dari /me/accounts
     const pagesRes = await fetch(
-      `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,access_token,instagram_business_account{id}&access_token=${userToken}`,
+      `${GRAPH_BASE_URL}/me/accounts?fields=id,name,access_token,instagram_business_account{id}&access_token=${userToken}`,
       { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) }
     )
     const pagesData = await pagesRes.json()
@@ -38,9 +59,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Cari Page yang terhubung ke IG Business Account ini
-    const match = pagesData.data.find((p: { instagram_business_account?: { id: string } }) =>
-      p.instagram_business_account?.id === account.ig_user_id
-    ) || pagesData.data[0]
+    const match = pagesData.data.find((p: { id: string; instagram_business_account?: { id: string } }) =>
+      p.instagram_business_account?.id === account.ig_user_id || p.id === account.ig_user_id
+    )
+
+    if (!match) {
+      return NextResponse.json({ error: 'Facebook Page yang terhubung ke akun ini tidak ditemukan pada token' }, { status: 404 })
+    }
 
     const pageToken = match.access_token
     const pageId = match.id
@@ -53,7 +78,7 @@ export async function POST(request: NextRequest) {
     // platform=messenger — tidak perlu Instagram Messages product, cukup pages_messaging
     const fields = 'id,participants,updated_time,unread_count,messages.limit(20){id,from,to,message,created_time,attachments}'
     const convRes = await fetch(
-      `https://graph.facebook.com/v25.0/${pageId}/conversations?platform=messenger&fields=${encodeURIComponent(fields)}&access_token=${pageToken}`,
+      `${GRAPH_BASE_URL}/${pageId}/conversations?platform=messenger&fields=${encodeURIComponent(fields)}&access_token=${pageToken}`,
       { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(30000) }
     )
     const convData = await convRes.json()
@@ -84,7 +109,7 @@ export async function POST(request: NextRequest) {
       let customerName = `User ${customerId.substring(0, 8)}`
       try {
         const uRes = await fetch(
-          `https://graph.facebook.com/v25.0/${customerId}?fields=id,name&access_token=${pageToken}`,
+          `${GRAPH_BASE_URL}/${customerId}?fields=id,name&access_token=${pageToken}`,
           { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) }
         )
         const uData = await uRes.json()
