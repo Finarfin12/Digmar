@@ -191,9 +191,9 @@ export default function ReportsPage() {
       
       const pdfBlob = pdf.output('blob');
       return pdfBlob;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error generating PDF:', error);
-      throw new Error(`Gagal memproses kanvas: ${error.message || 'Unknown render error'}`);
+      throw new Error(`Gagal memproses kanvas: ${(error as Error).message || 'Unknown render error'}`);
     }
   };
 
@@ -205,8 +205,8 @@ export default function ReportsPage() {
         if (!res.ok) throw new Error("Gagal menghapus laporan");
         Swal.fire('Terhapus', '', 'success');
         loadData();
-      } catch (err: any) {
-        Swal.fire('Error', err.message, 'error');
+      } catch (err: unknown) {
+        Swal.fire('Error', (err as Error).message, 'error');
       }
     }
   };
@@ -498,8 +498,8 @@ export default function ReportsPage() {
       }
 
       loadData();
-    } catch (err: any) {
-      Swal.fire('Error', err.message || 'Terjadi kesalahan', 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message || 'Terjadi kesalahan', 'error');
     } finally {
       setIsGenerating(false);
     }

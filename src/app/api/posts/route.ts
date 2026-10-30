@@ -3,6 +3,8 @@ import { generateJobCode } from '@/lib/utils/job-code'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { handleApiError } from '@/lib/utils/error-handler'
+import { APP_TIMEZONE, isValidTimeZone } from '@/lib/utils/timezone'
+import { generateApprovalToken } from '@/lib/approval'
 
 type PostQueueInsert = {
   user_id: string
@@ -14,7 +16,8 @@ type PostQueueInsert = {
   first_comment?: string
   post_type: string
   cover_url: string | null
-  status: 'waiting'
+  status: 'waiting' | 'pending_review'
+  approval_token?: string
   log_messages: unknown[]
   platform_captions?: Record<string, string>
   ab_test_id?: string
@@ -79,7 +82,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   
-  const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50')
+  const parsedLimit = parseInt(request.nextUrl.searchParams.get('limit') || '50', 10)
+  const limit = Number.isNaN(parsedLimit) ? 50 : Math.min(Math.max(parsedLimit, 1), 500)
   const status = request.nextUrl.searchParams.get('status')
   const businessUnitId = request.nextUrl.searchParams.get('business_unit_id')
   let unitAccountIds: string[] | null = null
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Media tidak valid' }, { status: 400 })
     }
 
-    if (is_ab_test && media_urls_b && (!Array.isArray(media_urls_b) || media_urls_b.some((url: any) => typeof url !== 'string' || !url.trim()))) {
+    if (is_ab_test && media_urls_b && (!Array.isArray(media_urls_b) || media_urls_b.some((url: unknown) => typeof url !== 'string' || !url.trim()))) {
       return NextResponse.json({ error: 'Media Varian B tidak valid' }, { status: 400 })
     }
 
@@ -184,7 +188,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Single post hanya boleh memakai 1 media' }, { status: 400 })
     }
 
-    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter((id: any) => typeof id === 'string'))]
+    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter((id: unknown): id is string => typeof id === 'string'))]
     if (uniqueTargetAccountIds.length !== target_account_ids.length) {
       return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
     }
@@ -207,6 +211,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Instagram membutuhkan minimal 1 media untuk diposting' }, { status: 400 })
     }
 
+    // Approval workflow: jika salah satu business unit target mewajibkan approval, post menunggu review
+    const targetUnitIds = [...new Set(ownedAccounts.map(account => account.business_unit_id))]
+    const { data: approvalUnits } = await supabase
+      .from('business_units')
+      .select('id')
+      .in('id', targetUnitIds)
+      .eq('require_approval', true)
+    const requiresApproval = (approvalUnits || []).length > 0
+    const initialStatus: PostQueueInsert['status'] = requiresApproval ? 'pending_review' : 'waiting'
+
     // Fase 5: Apply Variables
     let processedCaption = caption || '';
     let processedFirstComment = first_comment || '';
@@ -218,7 +232,7 @@ export async function POST(request: NextRequest) {
     if (accountInfo) {
       const { data: unitInfo } = await supabase
         .from('business_units')
-        .select('brand_name, custom_variables')
+        .select('brand_name, custom_variables, timezone')
         .eq('id', accountInfo.business_unit_id)
         .single()
 
@@ -227,7 +241,7 @@ export async function POST(request: NextRequest) {
         // Variables standar
         const defaultVars: Record<string, string> = {
           brand: unitInfo.brand_name,
-          tanggal: new Date(scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+          tanggal: new Date(scheduled_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: isValidTimeZone(unitInfo.timezone) ? unitInfo.timezone : APP_TIMEZONE })
         };
         const allVars = { ...vars, ...defaultVars };
 
@@ -262,7 +276,8 @@ export async function POST(request: NextRequest) {
       first_comment: processedFirstComment,
       post_type: post_type || 'single_image',
       cover_url: cover_url || null,
-      status: 'waiting',
+      status: initialStatus,
+      ...(requiresApproval ? { approval_token: generateApprovalToken() } : {}),
       log_messages: []
     }
 
@@ -290,17 +305,26 @@ export async function POST(request: NextRequest) {
       
       // 2. Insert Variant A
       const { data: dataA, error: errorA } = await insertPostQueue(supabase, { ...insertData, ab_variant: 'A' })
-      if (errorA) return NextResponse.json({ error: errorA.message }, { status: 500 })
+      if (errorA) {
+        await supabase.from('ab_tests').delete().eq('id', abTestId).eq('user_id', user.id)
+        return NextResponse.json({ error: errorA.message }, { status: 500 })
+      }
       
       // 3. Insert Variant B (beda job_code dan caption)
       const { data: dataB, error: errorB } = await insertPostQueue(supabase, { 
         ...insertData, 
-        job_code: generateJobCode(), 
+        job_code: generateJobCode(),
+        ...(requiresApproval ? { approval_token: generateApprovalToken() } : {}),
         ab_variant: 'B',
         caption: processedCaptionB,
         media_urls: media_urls_b && media_urls_b.length > 0 ? media_urls_b : media_urls
       })
-      if (errorB) return NextResponse.json({ error: errorB.message }, { status: 500 })
+      if (errorB) {
+        // Rollback agar tidak tersisa varian A tanpa pasangan
+        await supabase.from('post_queue').delete().eq('id', dataA.id).eq('user_id', user.id)
+        await supabase.from('ab_tests').delete().eq('id', abTestId).eq('user_id', user.id)
+        return NextResponse.json({ error: errorB.message }, { status: 500 })
+      }
       
       return NextResponse.json({ variantA: dataA, variantB: dataB, ab_test_id: abTestId }, { status: 201 })
     }

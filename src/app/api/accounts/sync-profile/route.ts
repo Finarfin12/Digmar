@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { decryptValue } from '@/lib/crypto/server';
 import { NextResponse, type NextRequest } from 'next/server';
 import { handleApiError } from '@/lib/utils/error-handler';
+import { GRAPH_BASE_URL } from '@/lib/social/graph';
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
         let followers_count = null;
 
         if (acc.platform === 'meta_ig') {
-          const res = await fetch(`https://graph.facebook.com/v19.0/${acc.ig_user_id}?fields=profile_picture_url,followers_count,username&access_token=${token}`);
+          const res = await fetch(`${GRAPH_BASE_URL}/${acc.ig_user_id}?fields=profile_picture_url,followers_count,username&access_token=${token}`);
           if (res.ok) {
             const data = await res.json();
             avatar_url = data.profile_picture_url;
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
             followers_count = data.followers_count;
           }
         } else if (acc.platform === 'facebook') {
-          const res = await fetch(`https://graph.facebook.com/v19.0/${acc.ig_user_id}?fields=picture{url},followers_count,name&access_token=${token}`);
+          const res = await fetch(`${GRAPH_BASE_URL}/${acc.ig_user_id}?fields=picture{url},followers_count,name&access_token=${token}`);
           if (res.ok) {
             const data = await res.json();
             avatar_url = data.picture?.data?.url;
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (avatar_url || account_name || followers_count !== null) {
-          const updateData: any = {};
+          const updateData: Record<string, unknown> = {};
           if (avatar_url) updateData.avatar_url = avatar_url;
           if (account_name) updateData.account_name = account_name;
           if (followers_count !== null && followers_count !== undefined) updateData.followers_count = followers_count;

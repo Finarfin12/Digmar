@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Calendar, BarChart2, TrendingUp, Settings, Sparkles, Image as ImageIcon, ListOrdered, MessageSquare, Users, FileText, LayoutGrid } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -26,6 +27,9 @@ export default function Sidebar() {
           <Sparkles size={24} strokeWidth={2.5} />
         </div>
         <h1 className="text-xl font-bold tracking-tight text-slate-900">Digi<span className="text-green-600">Mar</span></h1>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
       </div>
       
       <nav className="flex-1 mt-6 overflow-y-auto">

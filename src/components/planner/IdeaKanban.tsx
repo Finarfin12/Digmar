@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Plus, X, Trash2, Upload, Loader2, AlertCircle, Hash, Send, Save } from 'lucide-react';
+import { Plus, X, Trash2, Upload, Loader2, AlertCircle, Hash, Send, Save, GripVertical, CalendarPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import Swal from 'sweetalert2';
 
 interface Idea {
@@ -43,10 +44,14 @@ interface IdeaKanbanProps {
 }
 
 export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
+  const router = useRouter();
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  // Posisi sisip kartu yang sedang di-drag: index di kolom tujuan (dihitung terhadap daftar tanpa kartu yang di-drag)
+  const [dropTarget, setDropTarget] = useState<{ col: string; index: number } | null>(null);
+  const touchDragRef = useRef<{ id: string; pointerId: number } | null>(null);
   const [createCol, setCreateCol] = useState<string | null>(null);
   const [editIdea, setEditIdea] = useState<Idea | null>(null);
 
@@ -83,7 +88,7 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
   }, [createCol]);
 
   const getColumnIdeas = (status: string) =>
-    ideas.filter(i => i.status === status);
+    ideas.filter(i => i.status === status).sort((a, b) => a.position - b.position);
 
   const openCreateModal = (colKey: string) => {
     setCreateCol(colKey);
@@ -178,18 +183,45 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
     }
   };
 
-  const updateIdeaStatus = async (id: string, newStatus: string) => {
-    const prev = [...ideas];
-    setIdeas(prev => prev.map(i => i.id === id ? { ...i, status: newStatus as Idea['status'] } : i));
+  // Pindahkan kartu ke kolom & index tertentu, lalu simpan posisi semua kartu yang berubah
+  const moveIdea = async (id: string, toCol: string, toIndex: number) => {
+    const moving = ideas.find(i => i.id === id);
+    if (!moving) return;
+
+    const byPosition = (a: Idea, b: Idea) => a.position - b.position;
+    const target = ideas.filter(i => i.status === toCol && i.id !== id).sort(byPosition);
+    const index = Math.max(0, Math.min(toIndex, target.length));
+    target.splice(index, 0, { ...moving, status: toCol as Idea['status'] });
+
+    const reindexed = new Map<string, Idea>();
+    target.forEach((i, idx) => reindexed.set(i.id, { ...i, position: idx }));
+    if (moving.status !== toCol) {
+      ideas.filter(i => i.status === moving.status && i.id !== id).sort(byPosition)
+        .forEach((i, idx) => reindexed.set(i.id, { ...i, position: idx }));
+    }
+
+    const changed = [...reindexed.values()].filter(next => {
+      const original = ideas.find(i => i.id === next.id);
+      return original && (original.status !== next.status || original.position !== next.position);
+    });
+    if (changed.length === 0) return;
+
+    const prev = ideas;
+    setIdeas(cur => cur.map(i => reindexed.get(i.id) || i));
     try {
-      const res = await fetch(`/api/ideas/${id}`, {
-        method: 'PUT',
+      const res = await fetch('/api/ideas/reorder', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ items: changed.map(i => ({ id: i.id, status: i.status, position: i.position })) }),
       });
-      if (!res.ok) setIdeas(prev);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setIdeas(prev);
+        Swal.fire('Error', err.error || 'Failed to move idea', 'error');
+      }
     } catch {
       setIdeas(prev);
+      Swal.fire('Error', 'Failed to move idea', 'error');
     }
   };
 
@@ -250,25 +282,91 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
     (e.currentTarget as HTMLElement).style.opacity = '0.4';
   };
 
-  const handleDragEnd = (e: React.DragEvent) => {
-    (e.currentTarget as HTMLElement).style.opacity = '1';
+  const resetDrag = () => {
     setDragId(null);
     setDragOverCol(null);
+    setDropTarget(null);
+    touchDragRef.current = null;
   };
 
-  const handleDragOver = (e: React.DragEvent, colKey: string) => {
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).style.opacity = '1';
+    resetDrag();
+  };
+
+  // Index sisip di kolom, dihitung terhadap daftar kartu tanpa kartu yang sedang di-drag
+  const computeDropIndex = (colKey: string, overIdeaId: string | null, below: boolean, draggedId: string | null) => {
+    const full = getColumnIdeas(colKey);
+    if (!overIdeaId) return full.filter(i => i.id !== draggedId).length;
+    const fullIdx = full.findIndex(i => i.id === overIdeaId);
+    const before = full.slice(0, fullIdx).filter(i => i.id !== draggedId).length;
+    return before + (below && overIdeaId !== draggedId ? 1 : 0);
+  };
+
+  const commitDrop = (fallbackCol?: string) => {
+    const draggedId = dragId;
+    const target = dropTarget ?? (fallbackCol ? { col: fallbackCol, index: computeDropIndex(fallbackCol, null, false, draggedId) } : null);
+    resetDrag();
+    if (draggedId && target) moveIdea(draggedId, target.col, target.index);
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, colKey: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverCol(colKey);
+    setDropTarget({ col: colKey, index: computeDropIndex(colKey, null, false, dragId) });
+  };
+
+  const handleCardDragOver = (e: React.DragEvent, idea: Idea) => {
+    if (!dragId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const below = e.clientY > rect.top + rect.height / 2;
+    setDragOverCol(idea.status);
+    setDropTarget({ col: idea.status, index: computeDropIndex(idea.status, idea.id, below, dragId) });
   };
 
   const handleDrop = (e: React.DragEvent, colKey: string) => {
     e.preventDefault();
-    setDragOverCol(null);
-    if (!dragId) return;
-    const idea = ideas.find(i => i.id === dragId);
-    if (!idea || idea.status === colKey) return;
-    updateIdeaStatus(dragId, colKey);
+    commitDrop(colKey);
+  };
+
+  // Drag di layar sentuh (HTML5 DnD tidak berjalan di mobile): lewat handle dengan pointer events
+  const handleHandlePointerDown = (e: React.PointerEvent, idea: Idea) => {
+    if (e.pointerType === 'mouse') return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    touchDragRef.current = { id: idea.id, pointerId: e.pointerId };
+    setDragId(idea.id);
+  };
+
+  const handleHandlePointerMove = (e: React.PointerEvent) => {
+    const drag = touchDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const cardEl = el?.closest<HTMLElement>('[data-idea-id]');
+    const colEl = el?.closest<HTMLElement>('[data-col]');
+    const colKey = cardEl?.dataset.col || colEl?.dataset.col;
+    if (!colKey) return;
+    let index: number;
+    if (cardEl?.dataset.ideaId) {
+      const rect = cardEl.getBoundingClientRect();
+      index = computeDropIndex(colKey, cardEl.dataset.ideaId, e.clientY > rect.top + rect.height / 2, drag.id);
+    } else {
+      index = computeDropIndex(colKey, null, false, drag.id);
+    }
+    setDragOverCol(colKey);
+    setDropTarget({ col: colKey, index });
+  };
+
+  const handleHandlePointerUp = (e: React.PointerEvent) => {
+    const drag = touchDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    commitDrop();
+  };
+
+  const scheduleIdea = (idea: Idea) => {
+    router.push(`/planner?from_idea=${idea.id}`);
   };
 
   const handleCardClick = (idea: Idea, e: React.MouseEvent) => {
@@ -299,7 +397,11 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
             <div
               key={col.key}
               className={`flex-1 min-w-[280px] max-w-[340px] rounded-xl ${col.color} p-3 transition-all duration-200 flex flex-col ${isOver ? 'ring-2 ring-indigo-400 shadow-lg' : ''}`}
-              onDragOver={e => handleDragOver(e, col.key)}
+              data-col={col.key}
+              onDragOver={e => handleColumnDragOver(e, col.key)}
+              onDragLeave={e => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) { setDragOverCol(null); setDropTarget(null); }
+              }}
               onDrop={e => handleDrop(e, col.key)}
             >
               <div className={`flex items-center justify-between mb-3 px-3 py-2 rounded-lg ${col.headerBg}`}>
@@ -332,12 +434,25 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
                     </button>
                   </div>
                 )}
-                {colIdeas.map(idea => (
+                {(() => {
+                  const isTargetCol = dropTarget?.col === col.key;
+                  const remaining = colIdeas.filter(i => i.id !== dragId).length;
+                  let slot = 0;
+                  return (
+                    <>
+                {colIdeas.map(idea => {
+                  const showIndicator = isTargetCol && idea.id !== dragId && dropTarget!.index === slot;
+                  if (idea.id !== dragId) slot++;
+                  return (
+                  <div key={idea.id}>
+                  {showIndicator && <div className="h-1 rounded-full bg-indigo-500 mb-2.5" />}
                   <div
-                    key={idea.id}
+                    data-idea-id={idea.id}
+                    data-col={col.key}
                     draggable
                     onDragStart={e => handleDragStart(e, idea)}
                     onDragEnd={handleDragEnd}
+                    onDragOver={e => handleCardDragOver(e, idea)}
                     onClick={e => handleCardClick(idea, e)}
                     className={`group bg-white rounded-xl border border-stone-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${dragId === idea.id ? 'opacity-40 scale-95 rotate-1' : ''}`}
                   >
@@ -349,14 +464,38 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
 
                     <div className="p-3.5">
                       <div className="flex items-start justify-between mb-1.5">
-                        <h4 className="text-sm font-semibold text-stone-900 line-clamp-2 leading-snug">{idea.title}</h4>
-                        <button
-                          onClick={e => { e.stopPropagation(); handleDelete(idea); }}
-                          className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-rose-50 transition-all ml-1.5 shrink-0"
-                          title="Delete"
-                        >
-                          <Trash2 size={13} className="text-rose-400" />
-                        </button>
+                        <div className="flex items-start gap-1 min-w-0">
+                          <button
+                            type="button"
+                            onPointerDown={e => handleHandlePointerDown(e, idea)}
+                            onPointerMove={handleHandlePointerMove}
+                            onPointerUp={handleHandlePointerUp}
+                            onPointerCancel={resetDrag}
+                            onClick={e => e.stopPropagation()}
+                            className="touch-none cursor-grab p-0.5 -ml-1 rounded text-stone-400 hover:text-stone-600 shrink-0"
+                            title="Drag to move"
+                            aria-label="Drag to move"
+                          >
+                            <GripVertical size={14} />
+                          </button>
+                          <h4 className="text-sm font-semibold text-stone-900 line-clamp-2 leading-snug">{idea.title}</h4>
+                        </div>
+                        <div className="flex items-center ml-1.5 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={e => { e.stopPropagation(); scheduleIdea(idea); }}
+                            className="p-1 rounded-md hover:bg-indigo-50"
+                            title="Jadwalkan sebagai post"
+                          >
+                            <CalendarPlus size={13} className="text-indigo-500" />
+                          </button>
+                          <button
+                            onClick={e => { e.stopPropagation(); handleDelete(idea); }}
+                            className="p-1 rounded-md hover:bg-rose-50"
+                            title="Delete"
+                          >
+                            <Trash2 size={13} className="text-rose-400" />
+                          </button>
+                        </div>
                       </div>
 
                       {idea.description && (
@@ -388,7 +527,13 @@ export default function IdeaKanban({ businessUnitId }: IdeaKanbanProps) {
                       </div>
                     </div>
                   </div>
-                ))}
+                  </div>
+                  );
+                })}
+                {isTargetCol && dropTarget!.index === remaining && <div className="h-1 rounded-full bg-indigo-500" />}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           );

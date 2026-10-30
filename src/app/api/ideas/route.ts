@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
+import { validateIdeaFields } from './validation'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest) {
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+    }
+
+    const validationError = await validateIdeaFields(supabase, user.id, { status, priority, tags, business_unit_id })
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
     }
 
     const targetStatus = status || 'unassigned'

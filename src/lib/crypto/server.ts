@@ -5,13 +5,19 @@ const ENCRYPTION_SALT = process.env.ENCRYPTION_SALT
 const ALGORITHM = 'aes-256-gcm'
 const LEGACY_STATIC_SALT = 'digimar-static-salt-v1'
 
+// PBKDF2 100k iterasi mahal & memblokir event loop — cukup dihitung sekali per instance
+let cachedDerivedKey: Buffer | null = null
+
 // C11 Fix: Use KDF instead of raw key
 function getDerivedKey(): Buffer {
   if (!ENCRYPTION_KEY) {
     throw new Error('ENCRYPTION_KEY is not defined.')
   }
-  const salt = ENCRYPTION_SALT || LEGACY_STATIC_SALT
-  return crypto.pbkdf2Sync(ENCRYPTION_KEY, salt, 100000, 32, 'sha256')
+  if (!cachedDerivedKey) {
+    const salt = ENCRYPTION_SALT || LEGACY_STATIC_SALT
+    cachedDerivedKey = crypto.pbkdf2Sync(ENCRYPTION_KEY, salt, 100000, 32, 'sha256')
+  }
+  return cachedDerivedKey
 }
 
 export function encryptValue(text: string): string {

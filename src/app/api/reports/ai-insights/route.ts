@@ -89,7 +89,7 @@ Jangan tambahkan teks apapun di luar JSON.`;
     return NextResponse.json({ insights: insightsData });
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: (err as any).errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message ?? 'Input tidak valid' }, { status: 400 });
     }
     return handleApiError(err);
   }

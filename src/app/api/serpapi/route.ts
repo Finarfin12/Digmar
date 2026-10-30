@@ -2,6 +2,25 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAIProvider } from '@/lib/ai/factory'
 import { handleApiError } from '@/lib/utils/error-handler'
+// Bentuk longgar item hasil SerpApi (Google Trends / organic results)
+type SerpItem = {
+  query?: string | { query?: string }
+  title?: string
+  snippet?: string
+  value?: string | number
+  share_url?: string
+  link?: string
+  explore_link?: string
+  topic?: { title?: string }
+}
+
+type TrendSource = { title: string; platform: string; icon: string; date: string; link: string }
+
+function serpQueryText(item: SerpItem): string {
+  if (typeof item.query === 'object') return item.query?.query || item.title || ''
+  return item.query || item.title || ''
+}
+
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -101,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     // Phase 3.5: Generate AI Summary
     if (search_type === 'competitor' && serpData.organic_results) {
-      const snippets = serpData.organic_results.map((r: any) => r.title + '\n' + r.snippet).join('\n\n')
+      const snippets = serpData.organic_results.map((r: SerpItem) => r.title + '\n' + r.snippet).join('\n\n')
       if (snippets.trim()) {
         const { client } = await getAIProvider(user.id)
         const prompt = `Berdasarkan hasil pencarian Google berikut untuk kompetitor @${query}:\n\n${snippets}\n\nAnalisis pola konten apa yang sering dibuat oleh kompetitor ini, apa yang menarik perhatian audiens, dan berikan ringkasan strategi konten mereka.`
@@ -116,29 +135,29 @@ export async function POST(request: NextRequest) {
         }
       }
     } else if (search_type === 'trends') {
-      let sourcesData: any[] = []
+      let sourcesData: TrendSource[] = []
       let trendQueriesStr = 'Tren umum'
       
       if (serpData.daily_searches && serpData.daily_searches.length > 0) {
         const searches = serpData.daily_searches[0].searches || []
-        sourcesData = searches.map((s: any) => ({
-          title: s.query?.query || s.query || s.title || '',
+        sourcesData = searches.map((s: SerpItem) => ({
+          title: serpQueryText(s),
           platform: 'google_trends',
           icon: 'globe2',
           date: new Date().toISOString(),
           link: s.share_url || s.link || 'https://trends.google.com'
-        })).filter((s: any) => s.title)
+        })).filter((s: TrendSource) => s.title)
         
-        trendQueriesStr = searches.slice(0, 10).map((s: any) => s.query?.query || s.query || s.title).join(', ')
+        trendQueriesStr = searches.slice(0, 10).map(serpQueryText).join(', ')
       } else if (serpData.trending_searches) {
-        sourcesData = serpData.trending_searches.map((t: any) => ({
-          title: t.query,
+        sourcesData = serpData.trending_searches.map((t: SerpItem) => ({
+          title: serpQueryText(t),
           platform: 'google_trends',
           icon: 'globe2',
           date: new Date().toISOString(),
           link: t.explore_link || 'https://trends.google.com'
         }))
-        trendQueriesStr = serpData.trending_searches.map((t: any) => t.query).join(', ')
+        trendQueriesStr = serpData.trending_searches.map((t: SerpItem) => serpQueryText(t)).join(', ')
       }
 
       const { client } = await getAIProvider(user.id)
@@ -165,11 +184,11 @@ Kembalikan HANYA JSON valid tanpa markdown \`\`\`json.`;
     } else if (search_type === 'hashtag') {
       let suggestionsStr = 'Hashtag umum'
       if (serpData.related_queries && serpData.related_queries.rising) {
-        suggestionsStr = serpData.related_queries.rising.map((q: any) => q.query).join(', ')
+        suggestionsStr = serpData.related_queries.rising.map((q: SerpItem) => serpQueryText(q)).join(', ')
       } else if (serpData.related_queries && serpData.related_queries.top) {
-        suggestionsStr = serpData.related_queries.top.map((q: any) => q.query).join(', ')
+        suggestionsStr = serpData.related_queries.top.map((q: SerpItem) => serpQueryText(q)).join(', ')
       } else if (serpData.related_topics && serpData.related_topics.rising) {
-        suggestionsStr = serpData.related_topics.rising.map((t: any) => t.topic.title).join(', ')
+        suggestionsStr = serpData.related_topics.rising.map((t: SerpItem) => t.topic?.title).join(', ')
       }
       
       const { client } = await getAIProvider(user.id)
@@ -187,22 +206,22 @@ Kembalikan HANYA JSON valid tanpa markdown \`\`\`json.`;
         const aiRes = await client.generateText('Anda adalah pakar SEO dan Sosial Media.', prompt, { maxTokens: 1000 })
         const parsed = JSON.parse(aiRes.content.replace(/```json|```/g, '').trim())
         
-        let sourcesData: any[] = []
+        let sourcesData: TrendSource[] = []
         if (serpData.related_queries && serpData.related_queries.rising) {
-          sourcesData = serpData.related_queries.rising.map((q: any) => ({
-            title: q.query + (q.value ? ` (+${q.value})` : ''),
+          sourcesData = serpData.related_queries.rising.map((q: SerpItem) => ({
+            title: serpQueryText(q) + (q.value ? ` (+${q.value})` : ''),
             platform: 'google_trends',
             icon: 'globe2',
             date: new Date().toISOString(),
-            link: q.explore_link || `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`
+            link: q.explore_link || `https://trends.google.com/trends/explore?q=${encodeURIComponent(serpQueryText(q))}`
           }))
         } else if (serpData.related_queries && serpData.related_queries.top) {
-          sourcesData = serpData.related_queries.top.map((q: any) => ({
-            title: q.query,
+          sourcesData = serpData.related_queries.top.map((q: SerpItem) => ({
+            title: serpQueryText(q),
             platform: 'google_trends',
             icon: 'globe2',
             date: new Date().toISOString(),
-            link: q.explore_link || `https://trends.google.com/trends/explore?q=${encodeURIComponent(q.query)}`
+            link: q.explore_link || `https://trends.google.com/trends/explore?q=${encodeURIComponent(serpQueryText(q))}`
           }))
         }
         

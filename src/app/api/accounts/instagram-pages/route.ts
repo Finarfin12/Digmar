@@ -1,12 +1,21 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
+import { GRAPH_BASE_URL } from '@/lib/social/graph'
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     const { access_token } = body
 
-    if (!access_token) {
+    if (!access_token || typeof access_token !== 'string') {
       return NextResponse.json({ error: 'access_token wajib diisi' }, { status: 400 })
     }
 
@@ -19,8 +28,11 @@ export async function POST(request: NextRequest) {
     }> = []
 
     // Step 1: Get Facebook Pages
-    const pagesRes = await fetch(
-      'https://graph.facebook.com/v25.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=' + access_token,
+    const pagesUrl = new URL(`${GRAPH_BASE_URL}/me/accounts`)
+    pagesUrl.searchParams.set('fields', 'id,name,instagram_business_account{id,username}')
+    pagesUrl.searchParams.set('access_token', access_token.trim())
+
+    const pagesRes = await fetch(pagesUrl,
       { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) }
     )
     const pagesData = await pagesRes.json()
@@ -29,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         error: pagesData.error?.message || 'Gagal mengambil daftar Facebook Pages',
         pages: [],
-      }, { status: pagesRes.status })
+      }, { status: pagesRes.ok ? 400 : pagesRes.status })
     }
 
     const pages = pagesData.data || []

@@ -116,7 +116,7 @@ export default function CompetitorSpy() {
                       <span className="bg-pink-100 text-pink-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">Post {i + 1}</span>
                       <span className="font-extrabold text-pink-600 text-xs flex items-center gap-1"><Heart size={12}/> {(post.likes || 0).toLocaleString()}</span>
                     </div>
-                    <p className="text-sm text-slate-700 font-medium leading-relaxed italic line-clamp-3">"{post.caption || 'No caption'}"</p>
+                    <p className="text-sm text-slate-700 font-medium leading-relaxed italic line-clamp-3">&ldquo;{post.caption || 'No caption'}&rdquo;</p>
                     {post.comments && <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase flex items-center gap-1"><MessageCircle size={10}/> {(post.comments || 0).toLocaleString()} Komentar</p>}
                   </div>
                 ))}

@@ -5,7 +5,28 @@ import { publishToFacebook } from './facebook';
 import { publishToTikTok } from './tiktok';
 import { publishToThreads } from './threads';
 import { logger } from '@/lib/utils/logger';
+import { GRAPH_BASE_URL } from './graph';
+import { createNotification } from '@/lib/notifications';
 import type { PostJob, SocialAccount } from './types';
+
+// Dipakai "Publish now" oleh user: hanya memproses satu job, tanpa diagnostic global lintas user
+export async function processSingleJob(jobId: string) {
+  const supabase = createServiceClient();
+
+  const { data: jobs, error } = await supabase
+    .from('post_queue')
+    .select('*')
+    .eq('id', jobId)
+    .eq('status', 'waiting')
+    .limit(1);
+
+  if (error) {
+    throw new Error(`Query post_queue (single job) gagal: ${error.message}`);
+  }
+
+  const results = await publishJobs(supabase, jobs || []);
+  return { processed: results.length, jobs: results };
+}
 
 export async function processQueue() {
   const supabase = createServiceClient();
@@ -121,6 +142,51 @@ export async function processQueue() {
     return { processed: 0, jobs: [], diagnostic };
   }
 
+  const results = await publishJobs(supabase, waitingJobs);
+
+  diagnostic.processed_count = results.length;
+  return { processed: results.length, jobs: results, diagnostic };
+}
+
+// Pola error token kedaluwarsa / dicabut dari Graph API, Threads, TikTok
+const TOKEN_ERROR_PATTERN = /(OAuthException|error validating access token|session has expired|access token.*(expired|invalid)|code\W*190|access_token_invalid|token.*expired)/i;
+
+// Notifikasi in-app saat job gagal permanen / tetap parsial, dan saat token akun tidak valid
+async function notifyPublishOutcome(
+  supabase: ReturnType<typeof createServiceClient>,
+  job: PostJob,
+  finalStatus: string,
+  attemptLogs: Array<Record<string, unknown>>,
+) {
+  if (finalStatus === 'failed' || finalStatus === 'partial') {
+    await createNotification({
+      userId: job.user_id,
+      type: finalStatus === 'failed' ? 'publish_failed' : 'publish_partial',
+      title: finalStatus === 'failed' ? `Post ${job.job_code} gagal dipublikasikan` : `Post ${job.job_code} hanya terbit di sebagian akun`,
+      message: String(attemptLogs.find(l => l.success === false && l.error)?.error || 'Lihat log job di halaman Queue.'),
+      link: '/queue',
+      metadata: { job_id: job.id, job_code: job.job_code },
+      dedupKey: `publish:${job.id}:${finalStatus}`,
+    }, supabase);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  for (const log of attemptLogs) {
+    if (log.success !== false || typeof log.account_id !== 'string') continue;
+    if (!TOKEN_ERROR_PATTERN.test(String(log.error || ''))) continue;
+    await createNotification({
+      userId: job.user_id,
+      type: 'token_expired',
+      title: `Token akun ${String(log.platform || '')} tidak valid atau kedaluwarsa`,
+      message: 'Hubungkan ulang akun di halaman Accounts agar posting terjadwal tidak gagal.',
+      link: '/accounts',
+      metadata: { account_id: log.account_id },
+      dedupKey: `token_expired:${log.account_id}:${today}`,
+    }, supabase);
+  }
+}
+
+async function publishJobs(supabase: ReturnType<typeof createServiceClient>, waitingJobs: Array<{ id: string }>) {
   const results = [];
 
   for (const dbJob of waitingJobs) {
@@ -141,6 +207,13 @@ export async function processQueue() {
     let anySuccess = false;
     const logs = [...job.log_messages];
 
+    // Akun yang sudah sukses di percobaan sebelumnya tidak dipost ulang saat retry
+    const previouslySucceeded = new Set(
+      job.log_messages
+        .filter(l => l.success === true && typeof l.account_id === 'string')
+        .map(l => l.account_id as string)
+    );
+
     const { data: accountsData } = await supabase
       .from('social_accounts')
       .select('*')
@@ -148,6 +221,10 @@ export async function processQueue() {
 
     if (accountsData && accountsData.length > 0) {
       for (const accountDb of accountsData) {
+        if (previouslySucceeded.has(accountDb.id)) {
+          anySuccess = true;
+          continue;
+        }
         try {
           const platformCaption = (job.platform_captions && typeof job.platform_captions === 'object' && !Array.isArray(job.platform_captions))
             ? (job.platform_captions as Record<string, string>)[accountDb.id] || job.caption
@@ -178,7 +255,7 @@ export async function processQueue() {
               let discoveredId: string | null = null;
               try {
                 const pagesRes = await fetch(
-                  `https://graph.facebook.com/v25.0/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${decryptedToken}`,
+                  `${GRAPH_BASE_URL}/me/accounts?fields=id,name,instagram_business_account{id,username}&access_token=${decryptedToken}`,
                   { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) }
                 );
                 const pagesData = await pagesRes.json();
@@ -269,7 +346,17 @@ export async function processQueue() {
     } else if (allSuccess && anySuccess) {
       finalStatus = 'success';
     } else if (anySuccess) {
-      finalStatus = 'partial';
+      // Sebagian akun gagal: retry hanya akun yang gagal, sampai batas retry
+      if (retryCount < 3) {
+        finalStatus = 'waiting';
+        retryCount += 1;
+        const backoffMinutes = Math.pow(2, retryCount) * 5;
+        nextRetryAt = new Date(Date.now() + backoffMinutes * 60000).toISOString();
+        logs.push({ time: new Date().toISOString(), message: `Sebagian akun gagal, retry akun yang gagal pada ${nextRetryAt} (Attempt ${retryCount}/3)` });
+      } else {
+        finalStatus = 'partial';
+        logs.push({ time: new Date().toISOString(), message: 'Sebagian akun tetap gagal setelah 3 retry.' });
+      }
     } else {
       if (retryCount < 3) {
         finalStatus = 'waiting';
@@ -294,6 +381,8 @@ export async function processQueue() {
       })
       .eq('id', job.id);
 
+    await notifyPublishOutcome(supabase, job, finalStatus, logs.slice(job.log_messages.length));
+
     // Build per-account error summary
     const perAccountErrors = logs
       .filter((l: Record<string, unknown>) => l.platform && l.success === false && !l.skipped)
@@ -316,6 +405,5 @@ export async function processQueue() {
     });
   }
 
-  diagnostic.processed_count = results.length;
-  return { processed: results.length, jobs: results, diagnostic };
+  return results;
 }

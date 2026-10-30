@@ -14,8 +14,8 @@ export default function ABTestAnalytics({ unitId }: { unitId: string }) {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       setData(json.data || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export default function ABTestAnalytics({ unitId }: { unitId: string }) {
           <Beaker size={36} />
         </div>
         <h3 className="text-xl font-bold text-slate-800 mb-2">Belum ada A/B Test</h3>
-        <p className="text-slate-500 max-w-md text-center">Buat A/B Test dari halaman Planner dengan mengklik tombol "A/B Test Mode" untuk membandingkan 2 gaya postingan.</p>
+        <p className="text-slate-500 max-w-md text-center">Buat A/B Test dari halaman Planner dengan mengklik tombol &quot;A/B Test Mode&quot; untuk membandingkan 2 gaya postingan.</p>
       </div>
     );
   }

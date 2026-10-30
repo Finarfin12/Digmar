@@ -69,8 +69,8 @@ export default function CampaignArchitectModal({ units, accounts, onClose, onSuc
         icon: 'success'
       });
       onSuccess();
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
       setGenerating(false);
     }
   };

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, type ReactNode } from 'react';
-import { ListOrdered, PlusCircle, Trash2, Clock, CalendarDays, Loader2, Image as ImageIcon, Send, AlertCircle, CheckCircle2, Hourglass, Play } from 'lucide-react';
+import { ListOrdered, PlusCircle, Trash2, Clock, CalendarDays, Loader2, Image as ImageIcon, Send, AlertCircle, CheckCircle2, Hourglass, Play, ClipboardCheck, XCircle, Link as LinkIcon } from 'lucide-react';
 import Swal from 'sweetalert2';
 import type { BusinessUnit } from '@/types';
 
@@ -31,8 +31,11 @@ interface ScheduledPost {
   caption: string;
   first_comment?: string;
   post_type: string;
-  status: 'waiting' | 'processing' | 'success' | 'partial' | 'failed' | string;
+  status: 'waiting' | 'processing' | 'success' | 'partial' | 'failed' | 'pending_review' | 'rejected' | 'draft' | string;
   log_messages?: Array<Record<string, unknown>>;
+  approval_token?: string | null;
+  review_note?: string | null;
+  reviewed_by?: string | null;
 }
 
 const DAYS = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -44,6 +47,9 @@ const statusStyles: Record<string, { label: string; className: string; icon: Rea
   partial: { label: 'Sebagian berhasil', className: 'bg-orange-50 text-orange-700 border-orange-200', icon: <AlertCircle size={13} /> },
   failed: { label: 'Gagal publish', className: 'bg-red-50 text-red-700 border-red-200', icon: <AlertCircle size={13} /> },
   skipped: { label: 'Di-skip (belum didukung)', className: 'bg-slate-50 text-slate-500 border-slate-200', icon: <Clock size={13} /> },
+  draft: { label: 'Draft', className: 'bg-slate-50 text-slate-600 border-slate-200', icon: <Clock size={13} /> },
+  pending_review: { label: 'Menunggu persetujuan', className: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: <ClipboardCheck size={13} /> },
+  rejected: { label: 'Ditolak', className: 'bg-rose-50 text-rose-700 border-rose-200', icon: <XCircle size={13} /> },
 };
 
 function formatSchedule(value: string) {
@@ -110,8 +116,8 @@ export default function QueuePage() {
       if (!res.ok) throw new Error(await res.text());
       const newSched = await res.json();
       setSchedules([...schedules, newSched].sort((a, b) => a.day_of_week - b.day_of_week || a.time_of_day.localeCompare(b.time_of_day)));
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setSavingSchedule(false);
     }
@@ -201,6 +207,45 @@ export default function QueuePage() {
         .then(d => setScheduledPosts(Array.isArray(d) ? d : []));
     } catch (err: unknown) {
       Swal.fire('Error', (err as Error).message, 'error');
+    }
+  };
+
+  const handleReview = async (post: ScheduledPost, action: 'submit' | 'approve' | 'reject') => {
+    let note = '';
+    if (action === 'reject') {
+      const result = await Swal.fire({
+        title: 'Tolak post?',
+        input: 'textarea',
+        inputPlaceholder: 'Catatan perbaikan',
+        showCancelButton: true,
+        confirmButtonText: 'Tolak',
+        inputValidator: value => (!value?.trim() ? 'Catatan wajib diisi' : null),
+      });
+      if (!result.isConfirmed) return;
+      note = result.value;
+    }
+
+    const res = await fetch(`/api/posts/${post.id}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, note }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      Swal.fire('Error', data.error || 'Gagal memperbarui status review', 'error');
+      return;
+    }
+    setScheduledPosts(cur => cur.map(p => p.id === post.id ? { ...p, ...data } : p));
+    if (action === 'submit' && data.approval_token) copyReviewLink(data.approval_token);
+  };
+
+  const copyReviewLink = async (token: string) => {
+    const link = `${window.location.origin}/review/${token}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      Swal.fire({ title: 'Link review disalin', text: 'Kirim link ini ke klien untuk disetujui.', icon: 'success', timer: 2000, showConfirmButton: false });
+    } catch {
+      Swal.fire({ title: 'Link review', input: 'text', inputValue: link, confirmButtonText: 'Tutup' });
     }
   };
 
@@ -306,6 +351,7 @@ export default function QueuePage() {
                             <span className="text-[11px] font-bold text-slate-400">{post.job_code}</span>
                           </div>
                           <p className="text-sm text-slate-700 line-clamp-2 font-medium">{post.caption || '(Tanpa Caption)'}</p>
+                          <div className="flex flex-wrap gap-2">
                           {canRetry && (
                             <button
                               onClick={() => handlePublishNow(post.id)}
@@ -313,6 +359,30 @@ export default function QueuePage() {
                             >
                               <Play size={12} /> Publish Now
                             </button>
+                          )}
+                          {post.status === 'pending_review' && (
+                            <>
+                              <button onClick={() => handleReview(post, 'approve')} className="mt-2 inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                <CheckCircle2 size={12} /> Setujui
+                              </button>
+                              <button onClick={() => handleReview(post, 'reject')} className="mt-2 inline-flex items-center gap-1 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                <XCircle size={12} /> Tolak
+                              </button>
+                              {post.approval_token && (
+                                <button onClick={() => copyReviewLink(post.approval_token!)} className="mt-2 inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                                  <LinkIcon size={12} /> Salin link review
+                                </button>
+                              )}
+                            </>
+                          )}
+                          {(post.status === 'waiting' || post.status === 'draft' || post.status === 'rejected') && (
+                            <button onClick={() => handleReview(post, 'submit')} className="mt-2 inline-flex items-center gap-1 bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                              <ClipboardCheck size={12} /> Minta review
+                            </button>
+                          )}
+                          </div>
+                          {post.status === 'rejected' && post.review_note && (
+                            <p className="mt-2 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-lg p-2">Ditolak{post.reviewed_by ? ` oleh ${post.reviewed_by}` : ''}: {post.review_note}</p>
                           )}
                           {latestError && (
                             <p className="mt-2 text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg p-2 line-clamp-2">{latestError}</p>

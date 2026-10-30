@@ -38,7 +38,9 @@ async function getErrorMessage(res: Response, fallback: string) {
   }
 }
 
-export default function PostScheduler({ units, accounts, initialDate, initialIdea, initialMode, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, initialIdea?: string, initialMode?: 'autopilot'|'manual', onSuccess: () => void }) {
+export type PostDraftPrefill = { caption?: string; mediaUrls?: string[]; businessUnitId?: string };
+
+export default function PostScheduler({ units, accounts, initialDate, initialIdea, initialMode, initialDraft, onSuccess }: { units: BusinessUnit[], accounts: SocialAccount[], initialDate?: Date | null, initialIdea?: string, initialMode?: 'autopilot'|'manual', initialDraft?: PostDraftPrefill, onSuccess: () => void }) {
   const [mode, setMode] = useState<'manual' | 'autopilot' | 'abtest'>(initialMode || (initialIdea ? 'autopilot' : 'manual'));
   const [autoPilotIdea, setAutoPilotIdea] = useState(initialIdea || '');
   const [toneA, setToneA] = useState('Formal/Profesional');
@@ -48,7 +50,7 @@ export default function PostScheduler({ units, accounts, initialDate, initialIde
   const [postType, setPostType] = useState('single_image');
 
   // Media Array
-  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
+  const [mediaUrls, setMediaUrls] = useState<string[]>(initialDraft?.mediaUrls || []);
   const [mediaUrlsB, setMediaUrlsB] = useState<string[]>([]); // Variant B media
   const [uploading, setUploading] = useState(false);
   const [uploadingB, setUploadingB] = useState(false);
@@ -62,7 +64,7 @@ export default function PostScheduler({ units, accounts, initialDate, initialIde
   const [generatingImage, setGeneratingImage] = useState(false);
 
   // Multi-Platform Selection (F6)
-  const [formUnit, setFormUnit] = useState(units.length > 0 ? units[0].id : '');
+  const [formUnit, setFormUnit] = useState(initialDraft?.businessUnitId || (units.length > 0 ? units[0].id : ''));
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [platformCaptions, setPlatformCaptions] = useState<Record<string, string>>({});
   const [showPerPlatformCaptions, setShowPerPlatformCaptions] = useState(false);
@@ -70,7 +72,7 @@ export default function PostScheduler({ units, accounts, initialDate, initialIde
 
   // Form states
   const [isAbTest, setIsAbTest] = useState(false);
-  const [finalCaption, setFinalCaption] = useState('');
+  const [finalCaption, setFinalCaption] = useState(initialDraft?.caption || '');
   const [finalCaptionB, setFinalCaptionB] = useState(''); // Variant B caption
   const [firstComment, setFirstComment] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date | null>(initialDate || new Date());
