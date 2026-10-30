@@ -35,6 +35,10 @@ export async function POST(
       return NextResponse.json({ error: 'Post sudah dipublikasikan' }, { status: 409 })
     }
 
+    if (job.status === 'pending_review' || job.status === 'rejected' || job.status === 'draft') {
+      return NextResponse.json({ error: 'Post belum disetujui. Setujui dulu sebelum publish.' }, { status: 409 })
+    }
+
     const now = new Date().toISOString()
     const { error: updateError } = await supabase
       .from('post_queue')

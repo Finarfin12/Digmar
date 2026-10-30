@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
   // Rate Limiting (L3 Fix): 5 request per menit
   const rateLimitKey = getRateLimitIdentifier(request, user.id)
-  if (!checkRateLimit(rateLimitKey, 'ai-caption', 20, 60000)) {
+  if (!await checkRateLimit(rateLimitKey, 'ai-caption', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
@@ -81,7 +81,7 @@ KEMBALIKAN HANYA dalam format JSON (tanpa awalan dan akhiran markdown apapun):
     return NextResponse.json(parsedData)
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: (err as any).errors[0].message }, { status: 400 })
+      return NextResponse.json({ error: err.issues[0]?.message ?? 'Input tidak valid' }, { status: 400 })
     }
     return handleApiError(err)
   }

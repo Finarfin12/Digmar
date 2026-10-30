@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse, type NextRequest } from 'next/server'
 import { generateJobCode } from '@/lib/utils/job-code'
-import { APP_TIMEZONE, getZonedToday, zonedTimeToUtc } from '@/lib/utils/timezone'
+import { APP_TIMEZONE, getZonedToday, isValidTimeZone, zonedTimeToUtc } from '@/lib/utils/timezone'
 
 
 import { handleApiError } from '@/lib/utils/error-handler'
@@ -29,9 +29,16 @@ export async function GET(request: NextRequest) {
     const processed = []
 
     for (const schedule of schedules) {
-      // 2. Hitung timestamp untuk 7 hari ke depan — day_of_week & time_of_day adalah waktu lokal APP_TIMEZONE,
-      // bukan zona waktu server (UTC di Vercel)
-      const today = getZonedToday()
+      const { data: unitInfo } = await supabase
+        .from('business_units')
+        .select('brand_name, custom_variables, user_id, timezone')
+        .eq('id', schedule.business_unit_id)
+        .single()
+
+      // 2. Hitung timestamp untuk 7 hari ke depan — day_of_week & time_of_day adalah waktu lokal
+      // zona waktu business unit (fallback APP_TIMEZONE), bukan zona waktu server (UTC di Vercel)
+      const unitTimeZone = isValidTimeZone(unitInfo?.timezone) ? unitInfo.timezone : APP_TIMEZONE
+      const today = getZonedToday(unitTimeZone)
       const [hours, minutes] = schedule.time_of_day.split(':').map((v: string) => parseInt(v, 10))
 
       const targetDates = []
@@ -45,6 +52,7 @@ export async function GET(request: NextRequest) {
             calendarDay.getUTCDate(),
             hours,
             minutes,
+            unitTimeZone,
           )
           // Jika waktu target sudah lewat hari ini, lewati
           if (d > new Date()) {
@@ -105,12 +113,6 @@ export async function GET(request: NextRequest) {
           }
 
           // Fase 5: Apply Variables (simpel)
-          const { data: unitInfo } = await supabase
-            .from('business_units')
-            .select('brand_name, custom_variables, user_id')
-            .eq('id', schedule.business_unit_id)
-            .single()
-
           let processedCaption = contentItem.caption || ''
           let processedFirstComment = contentItem.first_comment || ''
 
@@ -118,7 +120,7 @@ export async function GET(request: NextRequest) {
             const vars = unitInfo.custom_variables || {}
             const defaultVars: Record<string, string> = {
               brand: unitInfo.brand_name,
-              tanggal: targetDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: APP_TIMEZONE })
+              tanggal: targetDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: unitTimeZone })
             }
             const allVars = { ...vars, ...defaultVars }
             const replacer = (match: string, p1: string) => {

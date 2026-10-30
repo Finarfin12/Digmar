@@ -5,7 +5,7 @@ export interface BusinessUnit {
   ai_system_prompt: string;
   user_id?: string;
   use_vision_ai?: boolean;
-  custom_variables?: Record<string, any>;
+  custom_variables?: Record<string, unknown>;
   brand_color?: string;
   brand_logo_url?: string;
   created_at?: string;

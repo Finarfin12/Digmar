@@ -68,8 +68,8 @@ export default function ThirdPartyTab() {
         icon: 'success',
         confirmButtonColor: '#4f46e5'
       });
-    } catch (err: any) {
-      Swal.fire('Gagal Menyimpan', err.message || 'Terjadi kesalahan sistem', 'error');
+    } catch (err: unknown) {
+      Swal.fire('Gagal Menyimpan', (err as Error).message || 'Terjadi kesalahan sistem', 'error');
     } finally {
       setSaving(false);
     }

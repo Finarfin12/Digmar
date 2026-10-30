@@ -6,6 +6,7 @@ import { publishToTikTok } from './tiktok';
 import { publishToThreads } from './threads';
 import { logger } from '@/lib/utils/logger';
 import { GRAPH_BASE_URL } from './graph';
+import { createNotification } from '@/lib/notifications';
 import type { PostJob, SocialAccount } from './types';
 
 // Dipakai "Publish now" oleh user: hanya memproses satu job, tanpa diagnostic global lintas user
@@ -145,6 +146,44 @@ export async function processQueue() {
 
   diagnostic.processed_count = results.length;
   return { processed: results.length, jobs: results, diagnostic };
+}
+
+// Pola error token kedaluwarsa / dicabut dari Graph API, Threads, TikTok
+const TOKEN_ERROR_PATTERN = /(OAuthException|error validating access token|session has expired|access token.*(expired|invalid)|code\W*190|access_token_invalid|token.*expired)/i;
+
+// Notifikasi in-app saat job gagal permanen / tetap parsial, dan saat token akun tidak valid
+async function notifyPublishOutcome(
+  supabase: ReturnType<typeof createServiceClient>,
+  job: PostJob,
+  finalStatus: string,
+  attemptLogs: Array<Record<string, unknown>>,
+) {
+  if (finalStatus === 'failed' || finalStatus === 'partial') {
+    await createNotification({
+      userId: job.user_id,
+      type: finalStatus === 'failed' ? 'publish_failed' : 'publish_partial',
+      title: finalStatus === 'failed' ? `Post ${job.job_code} gagal dipublikasikan` : `Post ${job.job_code} hanya terbit di sebagian akun`,
+      message: String(attemptLogs.find(l => l.success === false && l.error)?.error || 'Lihat log job di halaman Queue.'),
+      link: '/queue',
+      metadata: { job_id: job.id, job_code: job.job_code },
+      dedupKey: `publish:${job.id}:${finalStatus}`,
+    }, supabase);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  for (const log of attemptLogs) {
+    if (log.success !== false || typeof log.account_id !== 'string') continue;
+    if (!TOKEN_ERROR_PATTERN.test(String(log.error || ''))) continue;
+    await createNotification({
+      userId: job.user_id,
+      type: 'token_expired',
+      title: `Token akun ${String(log.platform || '')} tidak valid atau kedaluwarsa`,
+      message: 'Hubungkan ulang akun di halaman Accounts agar posting terjadwal tidak gagal.',
+      link: '/accounts',
+      metadata: { account_id: log.account_id },
+      dedupKey: `token_expired:${log.account_id}:${today}`,
+    }, supabase);
+  }
 }
 
 async function publishJobs(supabase: ReturnType<typeof createServiceClient>, waitingJobs: Array<{ id: string }>) {
@@ -341,6 +380,8 @@ async function publishJobs(supabase: ReturnType<typeof createServiceClient>, wai
         updated_at: new Date().toISOString() 
       })
       .eq('id', job.id);
+
+    await notifyPublishOutcome(supabase, job, finalStatus, logs.slice(job.log_messages.length));
 
     // Build per-account error summary
     const perAccountErrors = logs

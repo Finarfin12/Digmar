@@ -149,6 +149,8 @@ export function getMockChartData(): ChartDataPoint[] {
 
 const THREADS_API_BASE = 'https://graph.threads.net/v1.0';
 
+type ThreadsInsightMetric = { name: string; values?: Array<{ value?: number; end_time?: string }> };
+
 export async function fetchThreadsProfile(userId: string, accessToken: string): Promise<{ followers: number; posts: number; name: string; profile_pic: string }> {
   // 1. Get basic profile
   const params = new URLSearchParams({
@@ -166,7 +168,7 @@ export async function fetchThreadsProfile(userId: string, accessToken: string): 
     const followersRes = await fetch(`${THREADS_API_BASE}/${userId}/threads_insights?metric=followers_count&access_token=${accessToken}`);
     if (followersRes.ok) {
       const followersData = await followersRes.json();
-      const vals = followersData.data?.find((d: any) => d.name === 'followers_count')?.values;
+      const vals = followersData.data?.find((d: ThreadsInsightMetric) => d.name === 'followers_count')?.values;
       // Get the latest day's follower count
       if (vals && vals.length > 0) {
         followers = vals[vals.length - 1].value || 0;
@@ -208,7 +210,7 @@ export async function fetchThreadsInsights(userId: string, accessToken: string):
     
     // Parse sederhana jika ada data (asumsi struktur mirip IG)
     const points: ChartDataPoint[] = [];
-    const viewsData = data.data.find((d: any) => d.name === 'views')?.values || [];
+    const viewsData = data.data.find((d: ThreadsInsightMetric) => d.name === 'views')?.values || [];
     
     for (const [index, entry] of viewsData.slice(-7).entries()) {
       const date = entry.end_time?.split('T')[0] || new Date().toISOString().split('T')[0];

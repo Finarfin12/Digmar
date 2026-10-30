@@ -1,6 +1,7 @@
-// In-Memory Rate Limiter Sederhana
-// Peringatan: Dalam environment serverless seperti Vercel, memory ini akan kereset setiap kali instance baru menyala.
-// Untuk skala enterprise, disarankan menggunakan Upstash Redis / Vercel KV.
+// Rate limiter: memakai Upstash Redis (REST) bila UPSTASH_REDIS_REST_URL & UPSTASH_REDIS_REST_TOKEN di-set,
+// sehingga limit konsisten di semua instance serverless. Tanpa env itu (mis. lokal), fallback ke memori proses
+// (yang kereset setiap instance baru menyala).
+import { logger } from '@/lib/utils/logger';
 
 type RateLimitEntry = {
   count: number;
@@ -45,15 +46,7 @@ function evictExpiredEntries(now: number, windowMs: number) {
   oldestKeys.forEach(key => limits.delete(key));
 }
 
-/**
- * 
- * @param identifier User-scoped identifier. Prefer getRateLimitIdentifier(request, user.id).
- * @param endpoint Nama endpoint (e.g. 'ai-caption')
- * @param limit Batas jumlah request
- * @param windowMs Jendela waktu dalam milliseconds (e.g. 60000 = 1 menit)
- * @returns boolean true jika sukses, false jika terkena limit
- */
-export function checkRateLimit(identifier: string, endpoint: string, limit: number, windowMs: number): boolean {
+function checkMemoryRateLimit(identifier: string, endpoint: string, limit: number, windowMs: number): boolean {
   const key = `${identifier}:${endpoint}`;
   const now = Date.now();
   evictExpiredEntries(now, windowMs);
@@ -78,4 +71,48 @@ export function checkRateLimit(identifier: string, endpoint: string, limit: numb
   
   entry.count += 1;
   return true;
+}
+
+// Fixed window counter di Redis: INCR + PEXPIRE dalam satu pipeline
+async function checkUpstashRateLimit(url: string, token: string, identifier: string, endpoint: string, limit: number, windowMs: number): Promise<boolean> {
+  const windowId = Math.floor(Date.now() / windowMs)
+  const key = `ratelimit:${endpoint}:${identifier}:${windowId}`
+
+  const res = await fetch(`${url.replace(/\/$/, '')}/pipeline`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify([
+      ['INCR', key],
+      ['PEXPIRE', key, String(windowMs), 'NX'],
+    ]),
+    signal: AbortSignal.timeout(2000),
+  })
+  if (!res.ok) throw new Error(`Upstash HTTP ${res.status}`)
+
+  const [incr] = (await res.json()) as Array<{ result?: number; error?: string }>
+  if (incr?.error || typeof incr?.result !== 'number') throw new Error(incr?.error || 'Invalid Upstash response')
+  return incr.result <= limit
+}
+
+/**
+ * @param identifier User-scoped identifier. Prefer getRateLimitIdentifier(request, user.id).
+ * @param endpoint Nama endpoint (e.g. 'ai-caption')
+ * @param limit Batas jumlah request
+ * @param windowMs Jendela waktu dalam milliseconds (e.g. 60000 = 1 menit)
+ * @returns true jika sukses, false jika terkena limit
+ */
+export async function checkRateLimit(identifier: string, endpoint: string, limit: number, windowMs: number): Promise<boolean> {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
+
+  if (url && token) {
+    try {
+      return await checkUpstashRateLimit(url, token, identifier, endpoint, limit, windowMs)
+    } catch (err) {
+      // Redis bermasalah: jangan blokir semua request, pakai limiter memori sementara
+      logger.warn('Upstash rate limit unavailable, falling back to in-memory limiter:', err)
+    }
+  }
+
+  return checkMemoryRateLimit(identifier, endpoint, limit, windowMs)
 }

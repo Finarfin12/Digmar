@@ -268,7 +268,7 @@ export default function SocialTab() {
                 <div className="mt-2 bg-pink-50 p-4 rounded-lg border border-pink-100 flex items-center justify-between">
                   <div>
                     <div className="font-bold text-slate-800 text-sm flex items-center gap-1"><Bot size={16}/> Aktifkan AI Smart Auto-Reply (DM & Komentar)</div>
-                    <div className="text-xs text-slate-500">Pastikan Anda telah mengisi "AI System Prompt" di Unit Bisnis.</div>
+                    <div className="text-xs text-slate-500">Pastikan Anda telah mengisi &quot;AI System Prompt&quot; di Unit Bisnis.</div>
                   </div>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" checked={autoReply} onChange={() => setAutoReply(!autoReply)} className="sr-only" />

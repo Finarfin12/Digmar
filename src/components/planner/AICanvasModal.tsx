@@ -54,8 +54,8 @@ export default function AICanvasModal({ unit, onClose, onSuccess }: AICanvasModa
 
       Swal.close();
       onSuccess(data.url);
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
       setGenerating(false);
     }
   };

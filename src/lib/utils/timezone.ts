@@ -38,3 +38,33 @@ export function getZonedToday(timeZone = APP_TIMEZONE): { year: number; month: n
   const { year, month, day } = getZonedParts(new Date(), timeZone)
   return { year, month, day }
 }
+
+/** True jika string adalah nama zona waktu IANA yang dikenal (mis. 'Asia/Jakarta'). */
+export function isValidTimeZone(timeZone: unknown): timeZone is string {
+  if (typeof timeZone !== 'string' || !timeZone) return false
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone })
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Pilihan zona waktu yang umum untuk form Settings
+export const COMMON_TIMEZONES = [
+  'Asia/Jakarta',
+  'Asia/Makassar',
+  'Asia/Jayapura',
+  'Asia/Singapore',
+  'Asia/Kuala_Lumpur',
+  'Asia/Bangkok',
+  'Asia/Manila',
+  'Asia/Tokyo',
+  'Asia/Dubai',
+  'Australia/Sydney',
+  'Europe/London',
+  'Europe/Amsterdam',
+  'America/New_York',
+  'America/Los_Angeles',
+  'UTC',
+]

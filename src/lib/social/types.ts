@@ -10,6 +10,7 @@ export interface SocialAccount {
 export interface PostJob {
   id: string;
   job_code: string;
+  user_id: string;
   target_account_ids: string[];
   media_urls: string[];
   caption: string;
