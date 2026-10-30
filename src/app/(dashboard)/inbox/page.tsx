@@ -19,6 +19,10 @@ export default function InboxPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   // Initial Fetch Business Units
   useEffect(() => {
     fetch('/api/units')
@@ -126,10 +130,6 @@ export default function InboxPage() {
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   const handleGenerateAIReply = async () => {
     if (!selectedConvo) return;
     setAiGenerating(true);
@@ -166,8 +166,8 @@ export default function InboxPage() {
       if (!res.ok) throw new Error(data.error);
       
       setReplyText(data.reply);
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setAiGenerating(false);
     }
@@ -206,8 +206,8 @@ export default function InboxPage() {
       } else {
         Swal.fire({ toast: true, position: 'top-end', title: 'Pesan Terkirim', icon: 'success', showConfirmButton: false, timer: 1500 });
       }
-    } catch (err: any) {
-      Swal.fire({ toast: true, position: 'top-end', title: 'Gagal mengirim', text: err.message, icon: 'error', timer: 2000 });
+    } catch (err: unknown) {
+      Swal.fire({ toast: true, position: 'top-end', title: 'Gagal mengirim', text: (err as Error).message, icon: 'error', timer: 2000 });
     }
   };
 

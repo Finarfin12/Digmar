@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { PlusCircle, Calendar as CalendarIcon, X, Sparkles, Filter, Upload, LayoutList } from 'lucide-react';
 import Swal from 'sweetalert2';
 import FullCalendar from '@fullcalendar/react';
@@ -49,7 +49,6 @@ export default function Planner() {
 
 function PlannerContent() {
   const searchParams = useSearchParams();
-  const [events, setEvents] = useState<any[]>([]);
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -71,6 +70,26 @@ function PlannerContent() {
   const [filterUnit, setFilterUnit] = useState<string>('all');
   
   const calendarRef = useRef<FullCalendar>(null);
+
+  const fetchData = async () => {
+    try {
+      const [pRes, uRes, aRes] = await Promise.all([
+        fetch('/api/posts?limit=100'),
+        fetch('/api/units'),
+        fetch('/api/accounts')
+      ]);
+      
+      if (uRes.ok) setUnits(await uRes.json());
+      if (aRes.ok) setAccounts(await aRes.json());
+      
+      if (pRes.ok) {
+        const posts = await pRes.json();
+        setAllPosts(posts);
+      }
+    } catch (err) {
+      logger.error(err);
+    }
+  };
 
   useEffect(() => { 
     fetchData(); 
@@ -102,35 +121,15 @@ function PlannerContent() {
     }
   }, [searchParams]);
 
-  const fetchData = async () => {
-    try {
-      const [pRes, uRes, aRes] = await Promise.all([
-        fetch('/api/posts?limit=100'),
-        fetch('/api/units'),
-        fetch('/api/accounts')
-      ]);
-      
-      if (uRes.ok) setUnits(await uRes.json());
-      if (aRes.ok) setAccounts(await aRes.json());
-      
-      if (pRes.ok) {
-        const posts = await pRes.json();
-        setAllPosts(posts);
-        mapEvents(posts);
-      }
-    } catch (err) {
-      logger.error(err);
-    }
-  };
+  // Events diturunkan dari posts + akun + filter, agar selalu memakai daftar akun terbaru
+  const events = useMemo(() => {
+    const getAccountPlatform = (targetAccountIds: string[]): string => {
+      if (!targetAccountIds || targetAccountIds.length === 0) return 'unknown';
+      const acc = accounts.find((a: any) => a.id === targetAccountIds[0]);
+      return acc?.platform || 'unknown';
+    };
 
-  const getAccountPlatform = (targetAccountIds: string[]): string => {
-    if (!targetAccountIds || targetAccountIds.length === 0) return 'unknown';
-    const acc = accounts.find((a: any) => a.id === targetAccountIds[0]);
-    return acc?.platform || 'unknown';
-  };
-
-  const mapEvents = (posts: any[]) => {
-    let filtered = posts;
+    let filtered = allPosts;
     if (filterPlatform !== 'all') {
       filtered = filtered.filter(p => getAccountPlatform(p.target_account_ids) === filterPlatform);
     }
@@ -141,7 +140,7 @@ function PlannerContent() {
       });
     }
 
-    const mappedEvents = filtered.map((p: any) => {
+    return filtered.map((p: any) => {
       const platform = getAccountPlatform(p.target_account_ids);
       const icon = statusIcons[p.status] || '';
       return {
@@ -156,10 +155,7 @@ function PlannerContent() {
         extendedProps: { ...p, platform }
       };
     });
-    setEvents(mappedEvents);
-  };
-
-  useEffect(() => { mapEvents(allPosts); }, [filterPlatform, filterUnit]);
+  }, [allPosts, accounts, filterPlatform, filterUnit]);
 
   const handleDateClick = (arg: { date: Date }) => {
     setSelectedDate(arg.date);

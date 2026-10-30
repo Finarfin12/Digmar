@@ -15,12 +15,25 @@ interface SourceItem {
   link: string;
 }
 
+interface IdeKonten {
+  judul: string;
+  tipe?: string;
+  deskripsi?: string;
+  format?: string;
+}
+
+interface TrendsData {
+  topik_utama_hari_ini?: string;
+  ide_konten?: IdeKonten[];
+  sources?: SourceItem[];
+}
+
 export default function Trends() {
   const [loading, setLoading] = useState(false);
-  const [units, setUnits] = useState<any[]>([]);
+  const [units, setUnits] = useState<Array<{ id: string; brand_name: string; use_serpapi?: boolean }>>([]);
   const [selectedUnit, setSelectedUnit] = useState<string>('');
   const [selectedSource, setSelectedSource] = useState<string>('mixed');
-  const [trends, setTrends] = useState<any>(null);
+  const [trends, setTrends] = useState<TrendsData | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -89,12 +102,13 @@ export default function Trends() {
   const sourcesLength = trends?.sources?.length || 0;
   const ideasLength = trends?.ide_konten?.length || 0;
   
+  const sources: SourceItem[] = useMemo(() => trends?.sources || [], [trends?.sources]);
+
   // Extract simple hashtags from titles
   const hashtags = useMemo(() => {
-    if (!trends?.sources) return [];
     const stopWords = ['di', 'ke', 'dari', 'yang', 'dan', 'ini', 'itu', 'dengan', 'untuk', 'pada', 'dalam'];
     const wordsCount: Record<string, number> = {};
-    trends.sources.forEach((s: SourceItem) => {
+    sources.forEach((s: SourceItem) => {
       const words = s.title.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(' ');
       words.forEach(w => {
         if (w.length > 4 && !stopWords.includes(w)) {
@@ -103,17 +117,27 @@ export default function Trends() {
       });
     });
     return Object.entries(wordsCount).sort((a, b) => b[1] - a[1]).slice(0, 10).map(x => '#' + x[0]);
-  }, [trends?.sources]);
+  }, [sources]);
 
-  // Mock 7-day velocity chart data
+  // Grafik 7 hari dari data sumber asli: volume = jumlah sumber per hari, engagement = skor + komentar
   const chartData = useMemo(() => {
-    const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Today'];
-    return days.map((day, i) => ({
-      name: day,
-      volume: 40 + (i * 15) + Math.floor(Math.random() * 20),
-      engagement: 20 + (i * 10) + Math.floor(Math.random() * 15),
-    }));
-  }, [trends]); // Re-generate slightly on new trend fetch
+    // Hari terakhir = tanggal sumber terbaru (tanpa sumber, grafik kosong)
+    const latest = sources.map(s => s.date).filter(Boolean).sort().at(-1);
+    if (!latest) return [];
+    const end = new Date(latest);
+    end.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(end);
+      day.setDate(end.getDate() - (6 - i));
+      const key = day.toDateString();
+      const daySources = sources.filter(s => new Date(s.date).toDateString() === key);
+      return {
+        name: day.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        volume: daySources.length,
+        engagement: daySources.reduce((sum, s) => sum + (s.score || 0) + (s.comments || 0), 0),
+      };
+    });
+  }, [sources]);
 
   const handleCreatePost = (title: string, desc?: string) => {
     Swal.fire({
@@ -135,7 +159,7 @@ export default function Trends() {
     });
   };
 
-  const handleViewInsights = (ide: any) => {
+  const handleViewInsights = (ide: IdeKonten) => {
     Swal.fire({
       title: ide.judul,
       html: `
@@ -185,7 +209,7 @@ export default function Trends() {
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-16 text-center shadow-sm">
           <Activity className="mx-auto text-slate-300 mb-4" size={56} />
           <h3 className="text-lg font-bold text-slate-700 mb-2">No Data Monitored</h3>
-          <p className="text-slate-500 text-sm">Configure your sources and click "Fetch Trends" to start analyzing.</p>
+          <p className="text-slate-500 text-sm">Configure your sources and click &quot;Fetch Trends&quot; to start analyzing.</p>
         </div>
       ) : loading ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-16 text-center space-y-4">
@@ -227,14 +251,14 @@ export default function Trends() {
                 <span className="text-xs text-slate-400 font-medium">Updated just now</span>
               </div>
               <div className="p-2">
-                {(!trends.sources || sourcesLength === 0) ? (
+                {(!trends?.sources || sourcesLength === 0) ? (
                   <div className="text-center py-10 text-slate-400">
                     <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
                     <p className="font-medium text-sm">Tidak ada sumber data</p>
                   </div>
                 ) : (
                   <div className="flex flex-col">
-                    {trends.sources.slice(0, 10).map((src: SourceItem, i: number) => {
+                    {sources.slice(0, 10).map((src: SourceItem, i: number) => {
                       const isRising = i % 3 !== 2; // Mock status: mostly rising, some peaking
                       return (
                         <div key={i} className="flex items-center gap-4 p-3 hover:bg-slate-50 rounded-lg transition-colors group">
@@ -300,7 +324,7 @@ export default function Trends() {
           {/* Trend Velocity Chart */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-               <h3 className="font-extrabold text-slate-900 flex items-center gap-2"><BarChart2 size={16}/> Trend Velocity — Last 7 Days</h3>
+               <h3 className="font-extrabold text-slate-900 flex items-center gap-2"><BarChart2 size={16}/> Trend Velocity — 7 Hari Terakhir</h3>
                <div className="flex gap-2">
                  <span className="text-[9px] font-bold bg-green-50 text-green-700 px-2 py-1 rounded uppercase">Volume</span>
                  <span className="text-[9px] font-bold bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">Engagement</span>
@@ -336,12 +360,12 @@ export default function Trends() {
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Based on trending data</span>
              </div>
              <div className="p-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-               {(!trends.ide_konten || ideasLength === 0) ? (
+               {(!trends?.ide_konten || ideasLength === 0) ? (
                  <div className="col-span-full text-center py-8 text-slate-400">
                    <p className="text-sm">Tidak ada ide konten yang di-generate.</p>
                  </div>
                ) : (
-                 trends.ide_konten.map((ide: any, i: number) => (
+                 (trends?.ide_konten || []).map((ide: IdeKonten, i: number) => (
                    <div key={i} className="border border-slate-200 rounded-xl p-5 hover:border-green-300 transition-colors flex flex-col justify-between group bg-slate-50/30">
                      <div>
                        <div className="flex gap-2 mb-3">

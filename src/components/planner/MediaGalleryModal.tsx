@@ -8,14 +8,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/utils/logger'
 export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }: { businessUnitId?: string, onSelect: (url: string) => void; onClose: () => void }) {
   const supabase = createClient();
-  const [galleryFiles, setGalleryFiles] = useState<{ id: string | null; url: string; file_name?: string; metadata?: Record<string, unknown> | null | any }[]>([]);
+  const [galleryFiles, setGalleryFiles] = useState<{ id: string | null; url: string; file_name?: string; metadata?: { mimetype?: string } | null }[]>([]);
   const [loadingGallery, setLoadingGallery] = useState(false);
   const [editingImage, setEditingImage] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
-
-  useEffect(() => {
-    loadGallery();
-  }, []);
 
   const loadGallery = async () => {
     setLoadingGallery(true);
@@ -26,7 +22,7 @@ export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }:
       const res = await fetch(endpoint);
       if (res.ok) {
         const data = await res.json();
-        const filesWithUrls = data.map((f: any) => ({
+        const filesWithUrls = data.map((f: { id: string; file_name?: string; mime_type?: string; public_url: string }) => ({
           id: f.id,
           file_name: f.file_name,
           metadata: { mimetype: f.mime_type },
@@ -39,6 +35,10 @@ export default function MediaGalleryModal({ businessUnitId, onSelect, onClose }:
     }
     setLoadingGallery(false);
   };
+
+  useEffect(() => {
+    loadGallery();
+  }, []);
 
   const handleSaveEdit = async (base64Data: string) => {
     setSavingEdit(true);

@@ -96,8 +96,8 @@ export default function ContentGenerator() {
       } else {
         throw new Error(await res.text());
       }
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setSavingBrandVoice(false);
     }
@@ -134,8 +134,8 @@ export default function ContentGenerator() {
       else setActiveTab('caption');
 
       loadHistory();
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setGenerating(false);
     }
@@ -287,7 +287,7 @@ export default function ContentGenerator() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-emerald-700 mb-1 block">DO's (Harus Dilakukan)</label>
+                      <label className="text-xs font-bold text-emerald-700 mb-1 block">DO&apos;s (Harus Dilakukan)</label>
                       {brandVoice.dos.map((item, i) => (
                         <input key={i} value={item} onChange={e => {
                           const newDos = [...brandVoice.dos];
@@ -298,7 +298,7 @@ export default function ContentGenerator() {
                       <button onClick={() => setBrandVoice({...brandVoice, dos: [...brandVoice.dos, '']})} className="text-xs font-bold text-emerald-600 hover:text-emerald-700">+ Tambah DO</button>
                     </div>
                     <div>
-                      <label className="text-xs font-bold text-rose-700 mb-1 block">DONT's (Dilarang)</label>
+                      <label className="text-xs font-bold text-rose-700 mb-1 block">DON&apos;Ts (Dilarang)</label>
                       {brandVoice.donts.map((item, i) => (
                         <input key={i} value={item} onChange={e => {
                           const newDonts = [...brandVoice.donts];

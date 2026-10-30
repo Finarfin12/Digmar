@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { handleApiError } from '@/lib/utils/error-handler'
 import { validateIdeaFields } from '../validation'
 
-async function getOwnedIdea(supabase: any, id: string, userId: string) {
+async function getOwnedIdea(supabase: Awaited<ReturnType<typeof createClient>>, id: string, userId: string) {
   const { data, error } = await supabase
     .from('idea_board')
     .select('*')

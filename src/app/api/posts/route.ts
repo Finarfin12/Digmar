@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Media tidak valid' }, { status: 400 })
     }
 
-    if (is_ab_test && media_urls_b && (!Array.isArray(media_urls_b) || media_urls_b.some((url: any) => typeof url !== 'string' || !url.trim()))) {
+    if (is_ab_test && media_urls_b && (!Array.isArray(media_urls_b) || media_urls_b.some((url: unknown) => typeof url !== 'string' || !url.trim()))) {
       return NextResponse.json({ error: 'Media Varian B tidak valid' }, { status: 400 })
     }
 
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Single post hanya boleh memakai 1 media' }, { status: 400 })
     }
 
-    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter((id: any) => typeof id === 'string'))]
+    const uniqueTargetAccountIds = [...new Set(target_account_ids.filter((id: unknown): id is string => typeof id === 'string'))]
     if (uniqueTargetAccountIds.length !== target_account_ids.length) {
       return NextResponse.json({ error: 'Invalid target account IDs' }, { status: 400 })
     }

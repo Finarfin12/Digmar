@@ -116,8 +116,8 @@ export default function QueuePage() {
       if (!res.ok) throw new Error(await res.text());
       const newSched = await res.json();
       setSchedules([...schedules, newSched].sort((a, b) => a.day_of_week - b.day_of_week || a.time_of_day.localeCompare(b.time_of_day)));
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setSavingSchedule(false);
     }

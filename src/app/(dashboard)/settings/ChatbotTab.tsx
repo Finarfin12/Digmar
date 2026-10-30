@@ -18,14 +18,6 @@ export default function ChatbotTab() {
   const [formPriority, setFormPriority] = useState(10);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchUnits();
-  }, []);
-
-  useEffect(() => {
-    if (selectedUnit) fetchRules();
-  }, [selectedUnit]);
-
   const fetchUnits = async () => {
     const res = await fetch('/api/units');
     const data = await res.json();
@@ -40,6 +32,14 @@ export default function ChatbotTab() {
     setRules(data);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
+  useEffect(() => {
+    if (selectedUnit) fetchRules();
+  }, [selectedUnit]);
 
   const resetForm = () => {
     setIsEditing(false);
@@ -82,8 +82,8 @@ export default function ChatbotTab() {
       Swal.fire('Sukses', 'Rule Chatbot berhasil disimpan!', 'success');
       resetForm();
       fetchRules();
-    } catch (err: any) {
-      Swal.fire('Error', err.message, 'error');
+    } catch (err: unknown) {
+      Swal.fire('Error', (err as Error).message, 'error');
     } finally {
       setSaving(false);
     }

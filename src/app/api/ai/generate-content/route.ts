@@ -89,9 +89,9 @@ Struktur JSON yang diharapkan:
     }
 
     return NextResponse.json(parsedData);
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: (err as any).errors[0].message }, { status: 400 });
+      return NextResponse.json({ error: err.issues[0]?.message ?? 'Input tidak valid' }, { status: 400 });
     }
     return handleApiError(err);
   }

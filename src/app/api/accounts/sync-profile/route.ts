@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (avatar_url || account_name || followers_count !== null) {
-          const updateData: any = {};
+          const updateData: Record<string, unknown> = {};
           if (avatar_url) updateData.avatar_url = avatar_url;
           if (account_name) updateData.account_name = account_name;
           if (followers_count !== null && followers_count !== undefined) updateData.followers_count = followers_count;

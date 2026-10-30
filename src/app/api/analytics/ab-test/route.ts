@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     if (postsError) throw postsError;
 
     // Group by ab_test_id
-    const testGroups: Record<string, any[]> = {};
+    const testGroups: Record<string, typeof posts> = {};
     for (const post of posts) {
       if (post.ab_test_id) {
         if (!testGroups[post.ab_test_id]) testGroups[post.ab_test_id] = [];
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       // Karena menghemat waktu dan API call untuk setiap fetch, kita bisa pre-generate, 
       // atau generate on the fly jika ada flag ?generate_ai=true
       // Di sini kita sediakan mock/simpel conclusion untuk respons cepat.
-      let conclusion = `Berdasarkan data simulasi, Varian ${winner} menunjukkan performa lebih tinggi dengan total likes terbanyak. Coba gunakan gaya caption serupa untuk postingan berikutnya.`;
+      const conclusion = `Berdasarkan data simulasi, Varian ${winner} menunjukkan performa lebih tinggi dengan total likes terbanyak. Coba gunakan gaya caption serupa untuk postingan berikutnya.`;
 
       results.push({
         ab_test_id: abTestId,

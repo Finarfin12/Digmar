@@ -38,7 +38,7 @@ export class OpenAICompatibleClient implements AIProviderClient {
             ? [
                 { type: 'text', text: userPrompt },
                 { type: 'image_url', image_url: { url: options.imageUrl } }
-              ] as any
+              ] satisfies OpenAI.Chat.Completions.ChatCompletionContentPart[]
             : userPrompt 
         }
       ],
