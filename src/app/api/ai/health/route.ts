@@ -1,3 +1,4 @@
+import { AnthropicClient, DEFAULT_ANTHROPIC_MODEL } from '@/lib/ai/providers/anthropic'
 import { createClient } from '@/lib/supabase/server'
 import { decryptValue, encryptValue } from '@/lib/crypto/server'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     // 4. Test network + model
     t0 = mark()
     const testUrl = base_url || 'https://api.groq.com/openai/v1'
-    const testModel = model || dbModel || 'llama-3.3-70b-versatile'
+    const testModel = model || dbModel || (testUrl.includes('api.anthropic.com') ? DEFAULT_ANTHROPIC_MODEL : 'llama-3.3-70b-versatile')
     const testKey = decryptedKey || api_key || ''
 
     if (!testKey) {
@@ -120,8 +121,11 @@ export async function POST(request: NextRequest) {
           modelsUrl = `${testUrl.replace(/\/$/, '')}/v1/models`
         }
 
+        const isAnthropic = modelsUrl.includes('api.anthropic.com')
         const res = await fetch(modelsUrl, {
-          headers: { 'Authorization': `Bearer ${testKey}` },
+          headers: isAnthropic
+            ? { 'x-api-key': testKey, 'anthropic-version': '2023-06-01' }
+            : { 'Authorization': `Bearer ${testKey}` },
           signal: controller.signal,
         })
         clearTimeout(timeoutId)
@@ -147,7 +151,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. JSON response test
-    if (decryptedKey || api_key) {
+    if ((decryptedKey || api_key) && testUrl.includes('api.anthropic.com')) {
+      // Anthropic tidak punya endpoint /chat/completions — test lewat SDK resmi
+      t0 = mark()
+      try {
+        const anthropicClient = new AnthropicClient({ apiKey: decryptedKey || api_key, model: testModel, baseURL: testUrl, timeout: 30000 })
+        const res = await anthropicClient.generateText('You are a health check.', 'Reply with just: {"ok":true}', { jsonMode: true })
+        try { JSON.parse(res.content); results.push({ step: 'json_test', status: 'pass', detail: `Model merespon valid JSON (${done(t0)}ms)`, duration_ms: done(t0) }) }
+        catch { results.push({ step: 'json_test', status: 'pass', detail: `Model merespon (bukan JSON: "${res.content.substring(0, 60)}"). Tidak apa-apa. (${done(t0)}ms)`, duration_ms: done(t0) }) }
+      } catch (e: unknown) {
+        results.push({ step: 'json_test', status: 'fail', detail: (e as Error).message.substring(0, 150), duration_ms: done(t0) })
+      }
+    } else if (decryptedKey || api_key) {
       t0 = mark()
       try {
         const controller = new AbortController()

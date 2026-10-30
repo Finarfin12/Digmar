@@ -119,7 +119,8 @@ async function generateReply(
   if (ruleEval.action === 'handoff') return null;
   if (ruleEval.action === 'reply' && ruleEval.replyText) return ruleEval.replyText;
 
-  const { client } = await getAIProvider(userId);
+  // Request dari Meta tidak membawa cookie login → pakai service client agar RLS tidak mengosongkan hasil
+  const { client } = await getAIProvider(userId, undefined, supabase);
   const ruleInject = ruleEval.ruleContext ? `\nINSTRUKSI KHUSUS DARI RULE: ${ruleEval.ruleContext}\n` : '';
   const aiResponse = await client.generateText(systemRole, buildPrompt(ruleInject), { temperature: 0.7, maxTokens });
   return aiResponse.content.trim().replace(/"/g, ''); // bersihkan tanda kutip jika AI iseng

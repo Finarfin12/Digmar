@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { decryptValue } from '@/lib/crypto/server';
 import { isValidExternalUrl } from '@/lib/utils/url';
 import { OpenAICompatibleClient } from './providers/base';
+import { AnthropicClient, DEFAULT_ANTHROPIC_MODEL } from './providers/anthropic';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AIProviderClient, AIProviderConfig } from './providers/types';
 import type { VisionProviderConfig } from '@/types';
 
@@ -15,8 +17,10 @@ function decryptProviderSecret(encryptedValue: string | null | undefined, label:
   }
 }
 
-export async function getAIProvider(userId: string, preferredProvider?: string): Promise<{ client: AIProviderClient, config: AIProviderConfig }> {
-  const supabase = await createClient();
+// supabaseClient: untuk konteks tanpa sesi login (mis. webhook) — kirim service client.
+// Query tetap dibatasi dengan user_id.
+export async function getAIProvider(userId: string, preferredProvider?: string, supabaseClient?: SupabaseClient): Promise<{ client: AIProviderClient, config: AIProviderConfig }> {
+  const supabase = supabaseClient ?? await createClient();
   
   const query = supabase
     .from('ai_providers')
@@ -65,6 +69,14 @@ export async function getAIProvider(userId: string, preferredProvider?: string):
         model: selectedProvider.model || '',
         baseURL: selectedProvider.base_url || 'https://openrouter.ai/api/v1',
         timeout: 30000 // M25 Fix: Timeout
+      });
+      break;
+    case 'anthropic':
+      client = new AnthropicClient({
+        apiKey,
+        model: selectedProvider.model || DEFAULT_ANTHROPIC_MODEL,
+        baseURL: selectedProvider.base_url || undefined,
+        timeout: 60000 // thinking selalu aktif, butuh waktu lebih dari provider lain
       });
       break;
     case 'vps':

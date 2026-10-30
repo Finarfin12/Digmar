@@ -43,9 +43,12 @@ export async function POST(request: NextRequest) {
     // Fetch models (base_url already includes /v1 typically)
     const fetchUrl = cleanBaseUrl.endsWith('/v1') ? `${cleanBaseUrl}/models` : `${cleanBaseUrl}/v1/models`
 
-    const res = await fetch(fetchUrl, {
-      headers: { 'Authorization': `Bearer ${api_key}` }
-    })
+    // Anthropic memakai header x-api-key + anthropic-version, bukan Bearer
+    const headers: Record<string, string> = parsedUrl.hostname === 'api.anthropic.com'
+      ? { 'x-api-key': api_key, 'anthropic-version': '2023-06-01' }
+      : { 'Authorization': `Bearer ${api_key}` }
+
+    const res = await fetch(fetchUrl, { headers })
 
     if (!res.ok) {
       return NextResponse.json({ error: 'Failed to fetch models from provider' }, { status: res.status })
