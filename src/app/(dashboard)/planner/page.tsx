@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import PostScheduler from '@/components/planner/PostScheduler';
+import PostScheduler, { type PostDraftPrefill } from '@/components/planner/PostScheduler';
 import HashtagModal from '@/components/planner/HashtagModal';
 import CampaignArchitectModal from '@/components/planner/CampaignArchitectModal';
 import BulkImportModal from '@/components/planner/BulkImportModal';
@@ -63,6 +63,8 @@ function PlannerContent() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [initialIdea, setInitialIdea] = useState<string>('');
   const [initialMode, setInitialMode] = useState<'autopilot'|'manual'>('autopilot');
+  const [ideaDraft, setIdeaDraft] = useState<PostDraftPrefill | undefined>(undefined);
+  const [sourceIdeaId, setSourceIdeaId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'calendar' | 'queue' | 'drafts'>('calendar');
   
   const [filterPlatform, setFilterPlatform] = useState<string>('all');
@@ -74,7 +76,25 @@ function PlannerContent() {
     fetchData(); 
     const ideaParam = searchParams.get('idea');
     const modeParam = searchParams.get('mode');
-    if (ideaParam) {
+    const fromIdeaParam = searchParams.get('from_idea');
+    if (fromIdeaParam) {
+      // Dari Idea Board: isi PostScheduler dengan judul, deskripsi, dan media ide
+      fetch(`/api/ideas/${fromIdeaParam}`)
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('Idea tidak ditemukan')))
+        .then((idea: { id: string; title: string; description?: string; media_url?: string; business_unit_id?: string | null }) => {
+          setIdeaDraft({
+            caption: [idea.title, idea.description].filter(Boolean).join('\n\n'),
+            mediaUrls: idea.media_url ? [idea.media_url] : [],
+            businessUnitId: idea.business_unit_id || undefined,
+          });
+          setSourceIdeaId(idea.id);
+          setInitialMode('manual');
+          setSelectedDate(new Date());
+          setShowModal(true);
+        })
+        .catch(() => Swal.fire('Error', 'Ide tidak ditemukan', 'error'));
+      window.history.replaceState(null, '', '/planner');
+    } else if (ideaParam) {
       setInitialIdea(ideaParam);
       if (modeParam === 'manual') setInitialMode('manual');
       setShowModal(true);
@@ -349,7 +369,7 @@ function PlannerContent() {
               <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="text-indigo-600" /> Post Creator Studio
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-colors rounded-full p-2"><X size={20}/></button>
+              <button onClick={() => { setShowModal(false); setIdeaDraft(undefined); setSourceIdeaId(null); }} className="text-slate-400 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-colors rounded-full p-2"><X size={20}/></button>
             </div>
             
             <div className="p-6">
@@ -359,10 +379,21 @@ function PlannerContent() {
                 initialDate={selectedDate}
                 initialIdea={initialIdea}
                 initialMode={initialMode}
+                initialDraft={ideaDraft}
                 onSuccess={() => {
                   fetchData();
                   setShowModal(false);
                   setInitialIdea('');
+                  if (sourceIdeaId) {
+                    // Ide sudah dijadwalkan → pindahkan ke kolom Done
+                    fetch(`/api/ideas/${sourceIdeaId}`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ status: 'done' }),
+                    }).catch(() => {});
+                    setSourceIdeaId(null);
+                    setIdeaDraft(undefined);
+                  }
                 }}
               />
             </div>
