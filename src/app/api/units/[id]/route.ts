@@ -44,7 +44,7 @@ export async function PUT(
   try {
     const body = await request.json()
 
-    const allowedFields = ['brand_name', 'business_category', 'ai_system_prompt', 'custom_variables', 'use_vision_ai', 'brand_color', 'brand_logo_url', 'timezone']
+    const allowedFields = ['brand_name', 'business_category', 'ai_system_prompt', 'custom_variables', 'use_vision_ai', 'brand_color', 'brand_logo_url', 'timezone', 'require_approval']
     const updates: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) updates[field] = body[field]

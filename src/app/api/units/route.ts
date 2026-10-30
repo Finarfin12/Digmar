@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { brand_name, business_category, ai_system_prompt, custom_variables, use_vision_ai, brand_color, brand_logo_url, timezone } = body
+    const { brand_name, business_category, ai_system_prompt, custom_variables, use_vision_ai, brand_color, brand_logo_url, timezone, require_approval } = body
 
     if (!brand_name) {
       return NextResponse.json({ error: 'Brand name is required' }, { status: 400 })
@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
           use_vision_ai: !!use_vision_ai,
           brand_color: brand_color || '#4f46e5',
           brand_logo_url: brand_logo_url || null,
-          ...(timezone ? { timezone } : {})
+          ...(timezone ? { timezone } : {}),
+          ...(typeof require_approval === 'boolean' ? { require_approval } : {})
         }
       ])
       .select()
@@ -82,7 +83,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { id, brand_name, business_category, ai_system_prompt, custom_variables, use_vision_ai, brand_color, brand_logo_url, timezone } = body
+    const { id, brand_name, business_category, ai_system_prompt, custom_variables, use_vision_ai, brand_color, brand_logo_url, timezone, require_approval } = body
 
     if (!id || !brand_name) {
       return NextResponse.json({ error: 'ID and Brand name are required' }, { status: 400 })
@@ -102,7 +103,8 @@ export async function PUT(request: NextRequest) {
         use_vision_ai: !!use_vision_ai,
         brand_color: brand_color || '#4f46e5',
         brand_logo_url: brand_logo_url || null,
-        ...(timezone ? { timezone } : {})
+        ...(timezone ? { timezone } : {}),
+        ...(typeof require_approval === 'boolean' ? { require_approval } : {})
       })
       .eq('id', id)
       .eq('user_id', user.id)

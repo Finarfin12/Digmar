@@ -34,6 +34,8 @@ export async function middleware(request: NextRequest) {
   if (
     !user &&
     !request.nextUrl.pathname.startsWith('/auth') &&
+    !request.nextUrl.pathname.startsWith('/review/') && // link review publik untuk klien
+    !request.nextUrl.pathname.startsWith('/privacy') &&
     !request.nextUrl.pathname.startsWith('/api/') // API routes handle their own auth
   ) {
     const url = request.nextUrl.clone()
