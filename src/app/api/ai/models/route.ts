@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
 
   // Rate Limiting: 10 request per menit
   const rateLimitKey = getRateLimitIdentifier(request, user.id)
-  if (!checkRateLimit(rateLimitKey, 'ai-models', 20, 60000)) {
+  if (!await checkRateLimit(rateLimitKey, 'ai-models', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 

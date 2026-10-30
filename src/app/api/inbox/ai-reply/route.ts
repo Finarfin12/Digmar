@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   // Rate Limiting (L3 Fix): 10 request per menit
   const rateLimitKey = getRateLimitIdentifier(request, user.id)
-  if (!checkRateLimit(rateLimitKey, 'inbox-ai-reply', 20, 60000)) {
+  if (!await checkRateLimit(rateLimitKey, 'inbox-ai-reply', 20, 60000)) {
     return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
   }
 
